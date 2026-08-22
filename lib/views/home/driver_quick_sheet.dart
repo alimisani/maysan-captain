@@ -68,34 +68,40 @@ class _DriverQuickSheetState extends State<DriverQuickSheet> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _isOnDuty ? AuroraTheme.accentEmerald : AuroraTheme.accentRose,
-                      boxShadow: [
-                        BoxShadow(
-                          color: (_isOnDuty ? AuroraTheme.accentEmerald : AuroraTheme.accentRose)
-                              .withValues(alpha: 0.6),
-                          blurRadius: 8,
-                          spreadRadius: 2,
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _isOnDuty ? AuroraTheme.accentEmerald : AuroraTheme.accentRose,
+                        boxShadow: [
+                          BoxShadow(
+                            color: (_isOnDuty ? AuroraTheme.accentEmerald : AuroraTheme.accentRose)
+                                .withValues(alpha: 0.6),
+                            blurRadius: 8,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _isOnDuty ? loc.translate('captainOnline') : loc.translate('captainOffline'),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
-                      ],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _isOnDuty ? loc.translate('captainOnline') : loc.translate('captainOffline'),
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13.5,
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               Switch(
                 value: _isOnDuty,

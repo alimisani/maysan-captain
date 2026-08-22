@@ -60,27 +60,34 @@ class AuroraButton extends StatelessWidget {
                       strokeWidth: 2.5,
                     ),
                   )
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (customIcon != null) ...[
-                        customIcon!,
-                        const SizedBox(width: 8),
-                      ] else if (icon != null) ...[
-                        Icon(icon, color: Colors.white, size: 20),
-                        const SizedBox(width: 8),
-                      ],
-                      Text(
-                        text,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: fontSize,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.3,
+                : Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (customIcon != null) ...[
+                          customIcon!,
+                          const SizedBox(width: 8),
+                        ] else if (icon != null) ...[
+                          Icon(icon, color: Colors.white, size: 20),
+                          const SizedBox(width: 8),
+                        ],
+                        Flexible(
+                          child: Text(
+                            text,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: fontSize,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.3,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
           ),
         ),
