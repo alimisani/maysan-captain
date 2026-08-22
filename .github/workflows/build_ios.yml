@@ -1,0 +1,49 @@
+name: Build & Release iOS (App Store)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  build-ios:
+    name: Build iOS IPA
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.3'
+          channel: 'stable'
+          cache: true
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Install CocoaPods
+        run: |
+          cd ios
+          pod install --repo-update
+          cd ..
+
+      - name: Build iOS Archive (No Codesign for Test / AdHoc)
+        run: |
+          flutter build ipa --no-codesign --release
+
+      - name: Upload iOS Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Maysan-Captain-iOS
+          path: build/ios/archive/Runner.xcarchive

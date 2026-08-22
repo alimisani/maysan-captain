@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>Maysan Captain</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>maysan_captain</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(FLUTTER_BUILD_NAME)</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneClassName</key>
+					<string>UIWindowScene</string>
+					<key>UISceneConfigurationName</key>
+					<string>flutter</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+					<key>UISceneStoryboardFile</key>
+					<string>Main</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
+	<key>CFBundleDisplayName</key>
+	<string>كابتن ميسان</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>يحتاج تطبيق كابتن ميسان للوصول إلى موقعك لتحديد نقطة الانطلاق والوجهة بدقة وتتبع مسار الرحلة على الخريطة.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>يستخدم التطبيق الموقع الجغرافي لتتبع مسار الكابتن أثناء الرحلة وإرسال تحديثات الموقع للزبون في الوقت الفعلي.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>يحتاج التطبيق للوصول إلى الكاميرا لالتقاط وتحديث صورة الملف الشخصي أو وثائق المركبة للكابتن.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>يحتاج التطبيق للوصول إلى معرض الصور لاختيار صورة الملف الشخصي أو صور التحويل المالي.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
+</dict>
+</plist>
