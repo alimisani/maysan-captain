@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' as intl;
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/services/location_service.dart';
 import '../../core/services/pdf_service.dart';
@@ -40,6 +41,213 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
         }
       });
     }
+  }
+
+  void _openExternalNavigationSheet(BuildContext context, RideOrder order) {
+    final loc = AppLocalizations.of(context);
+    final isDark = context.read<ThemeProvider>().isDark;
+
+    // Determine default navigation target based on current trip status
+    final isHeadingToPickup = order.status == 'accepted';
+    final targetLat = isHeadingToPickup ? order.pickupLat : order.dropoffLat;
+    final targetLng = isHeadingToPickup ? order.pickupLng : order.dropoffLng;
+    final targetTitle = isHeadingToPickup
+        ? (loc.isArabic ? 'موقع الزبون (نقطة الانطلاق)' : 'Pickup Location (Customer)')
+        : (loc.isArabic ? 'وجهة ومقصد الرحلة' : 'Dropoff Destination');
+    final targetAddress = isHeadingToPickup ? order.pickupAddress : order.dropoffAddress;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetCtx) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF0F172A) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.3),
+              blurRadius: 20,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.navigation_rounded, color: Color(0xFF0284C7), size: 26),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        loc.isArabic ? 'الملاحة عبر الخرائط الخارجية' : 'External GPS Navigation',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                      Text(
+                        '$targetTitle: $targetAddress',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // 1. Google Maps
+            _buildNavAppTile(
+              icon: Icons.map_rounded,
+              iconColor: const Color(0xFF4285F4),
+              title: loc.isArabic ? 'خرائط Google (Google Maps)' : 'Google Maps',
+              subtitle: loc.isArabic ? 'توجيه مباشر خطوة بخطوة بالصوت' : 'Turn-by-turn voice navigation',
+              isDark: isDark,
+              onTap: () async {
+                Navigator.pop(sheetCtx);
+                final googleMapsUrl = Uri.parse('google.navigation:q=$targetLat,$targetLng&mode=d');
+                final webUrl = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$targetLat,$targetLng&travelmode=driving');
+                try {
+                  if (await canLaunchUrl(googleMapsUrl)) {
+                    await launchUrl(googleMapsUrl, mode: LaunchMode.externalApplication);
+                  } else if (await canLaunchUrl(webUrl)) {
+                    await launchUrl(webUrl, mode: LaunchMode.externalApplication);
+                  }
+                } catch (_) {
+                  await launchUrl(webUrl, mode: LaunchMode.externalApplication);
+                }
+              },
+            ),
+            const SizedBox(height: 10),
+
+            // 2. Waze
+            _buildNavAppTile(
+              icon: Icons.directions_car_filled_rounded,
+              iconColor: const Color(0xFF33CCFF),
+              title: loc.isArabic ? 'تطبيق Waze' : 'Waze App',
+              subtitle: loc.isArabic ? 'توجيه وتنبيهات المرور والسرعة' : 'Traffic alerts & navigation',
+              isDark: isDark,
+              onTap: () async {
+                Navigator.pop(sheetCtx);
+                final wazeUrl = Uri.parse('waze://?ll=$targetLat,$targetLng&navigate=yes');
+                final webUrl = Uri.parse('https://waze.com/ul?ll=$targetLat,$targetLng&navigate=yes');
+                try {
+                  if (await canLaunchUrl(wazeUrl)) {
+                    await launchUrl(wazeUrl, mode: LaunchMode.externalApplication);
+                  } else if (await canLaunchUrl(webUrl)) {
+                    await launchUrl(webUrl, mode: LaunchMode.externalApplication);
+                  }
+                } catch (_) {
+                  await launchUrl(webUrl, mode: LaunchMode.externalApplication);
+                }
+              },
+            ),
+            const SizedBox(height: 10),
+
+            // 3. System / Apple Default Maps
+            _buildNavAppTile(
+              icon: Icons.explore_rounded,
+              iconColor: const Color(0xFF10B981),
+              title: loc.isArabic ? 'خرائط الهاتف الافتراضية' : 'Default Device Maps',
+              subtitle: loc.isArabic ? 'خرائط Apple أو التطبيق المثبت على جهازك' : 'Apple Maps or System default',
+              isDark: isDark,
+              onTap: () async {
+                Navigator.pop(sheetCtx);
+                final geoUrl = Uri.parse('geo:$targetLat,$targetLng?q=$targetLat,$targetLng');
+                final appleUrl = Uri.parse('maps://?daddr=$targetLat,$targetLng&dirflg=d');
+                try {
+                  if (await canLaunchUrl(appleUrl)) {
+                    await launchUrl(appleUrl, mode: LaunchMode.externalApplication);
+                  } else if (await canLaunchUrl(geoUrl)) {
+                    await launchUrl(geoUrl, mode: LaunchMode.externalApplication);
+                  }
+                } catch (_) {
+                  final webUrl = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$targetLat,$targetLng&travelmode=driving');
+                  await launchUrl(webUrl, mode: LaunchMode.externalApplication);
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavAppTile({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0x331E293B) : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark ? const Color(0x2238BDF8) : const Color(0xFFE2E8F0),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: iconColor, size: 24),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -498,6 +706,22 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                           ),
                         ),
 
+                        // External Navigation Button (Google Maps / Waze)
+                        IconButton(
+                          tooltip: loc.isArabic ? 'فتح في Google Maps أو Waze' : 'Open in Google Maps / Waze',
+                          icon: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0284C7).withValues(alpha: 0.15),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.4)),
+                            ),
+                            child: const Icon(Icons.navigation_rounded, color: Color(0xFF0284C7), size: 18),
+                          ),
+                          onPressed: () => _openExternalNavigationSheet(context, order),
+                        ),
+                        const SizedBox(width: 4),
+
                         // WhatsApp Action
                         IconButton(
                           icon: Image.asset('assets/icon/whatsapp.png',
@@ -695,6 +919,26 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                                 loc.isArabic ? 'تم الوصول وإنهاء الرحلة' : 'Complete Trip',
                                 style: const TextStyle(color: Colors.white)),
                           ),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+                            elevation: 0,
+                            side: BorderSide(
+                              color: const Color(0xFF0284C7).withValues(alpha: 0.5),
+                              width: 1.2,
+                            ),
+                          ),
+                          icon: const Icon(Icons.navigation_rounded, color: Color(0xFF0284C7), size: 16),
+                          label: Text(
+                            loc.isArabic ? 'ملاحة (Google Maps / Waze)' : 'Navigate (Google/Waze)',
+                            style: TextStyle(
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                          onPressed: () => _openExternalNavigationSheet(context, order),
+                        ),
                       ],
                     ),
                   ],

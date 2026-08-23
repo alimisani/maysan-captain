@@ -420,6 +420,7 @@ class _OrderCardState extends State<_OrderCard> {
       );
 
       if (success && mounted) {
+        NotificationService.playTripChime();
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const LiveTrackingScreen()),
