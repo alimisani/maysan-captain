@@ -160,6 +160,77 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
 
                 const SizedBox(height: 20),
 
+                // Active Trip Alert Card (If captain has an ongoing accepted trip)
+                if (booking.activeOrder != null &&
+                    booking.activeOrder!.driverId == auth.currentUser?.id &&
+                    (booking.activeOrder!.status == 'accepted' ||
+                        booking.activeOrder!.status == 'arriving' ||
+                        booking.activeOrder!.status == 'in_progress')) ...[
+                  InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const LiveTrackingScreen()),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF0284C7), Color(0xFF0EA5E9)],
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF0284C7).withValues(alpha: 0.4),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: const BoxDecoration(
+                              color: Colors.white24,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.navigation_rounded, color: Colors.white, size: 24),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'لديك رحلة جارية حالياً 🚖',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'طلب #${booking.activeOrder!.orderNumber} • اضغط لمتابعة التتبع ومراحل الرحلة',
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 16),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+
                 // Incoming Requests Title
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -375,6 +446,8 @@ class _OrderCardState extends State<_OrderCard> {
   Future<void> _handleAccept() async {
     final auth = context.read<AuthProvider>();
     final booking = context.read<BookingProvider>();
+    final nav = Navigator.of(context);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     if (auth.currentUser == null) return;
 
@@ -403,7 +476,7 @@ class _OrderCardState extends State<_OrderCard> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          scaffoldMessenger.showSnackBar(
             SnackBar(content: Text('خطأ: $e'), backgroundColor: AuroraTheme.accentRose),
           );
         }
@@ -419,14 +492,13 @@ class _OrderCardState extends State<_OrderCard> {
         agreedFare: _negotiatedFare,
       );
 
-      if (success && mounted) {
+      if (success) {
         NotificationService.playTripChime();
-        Navigator.pushReplacement(
-          context,
+        nav.pushReplacement(
           MaterialPageRoute(builder: (_) => const LiveTrackingScreen()),
         );
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+      } else {
+        scaffoldMessenger.showSnackBar(
           SnackBar(
             content: Text(booking.errorMessage ?? 'تعذر قبول الطلب، يرجى المحاولة مرة أخرى'),
             backgroundColor: AuroraTheme.accentRose,

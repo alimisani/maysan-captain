@@ -85,7 +85,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                     color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.navigation_rounded, color: Color(0xFF0284C7), size: 26),
+                  child: const Icon(Icons.share_location_rounded, color: Color(0xFF0284C7), size: 26),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -93,7 +93,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        loc.isArabic ? 'الملاحة عبر الخرائط الخارجية' : 'External GPS Navigation',
+                        loc.isArabic ? 'مشاركة وملاحة المسير على الخارطة' : 'Share & Navigate on Maps',
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       Text(
@@ -112,36 +112,59 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
             ),
             const SizedBox(height: 20),
 
-            // 1. Google Maps
+            // 1. Google Maps (Full Route from Pickup to Dropoff)
             _buildNavAppTile(
-              icon: Icons.map_rounded,
+              icon: Icons.alt_route_rounded,
               iconColor: const Color(0xFF4285F4),
-              title: loc.isArabic ? 'خرائط Google (Google Maps)' : 'Google Maps',
-              subtitle: loc.isArabic ? 'توجيه مباشر خطوة بخطوة بالصوت' : 'Turn-by-turn voice navigation',
+              title: loc.isArabic ? 'مسار الرحلة كاملاً (Google Maps)' : 'Full Trip Route (Google Maps)',
+              subtitle: loc.isArabic ? 'عرض خط المسير من نقطة الانطلاق إلى المقصد' : 'Display full road route on Google Maps',
               isDark: isDark,
               onTap: () async {
                 Navigator.pop(sheetCtx);
-                final googleMapsUrl = Uri.parse('google.navigation:q=$targetLat,$targetLng&mode=d');
-                final webUrl = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$targetLat,$targetLng&travelmode=driving');
+                final routeUrl = Uri.parse(
+                    'https://www.google.com/maps/dir/?api=1&origin=${order.pickupLat},${order.pickupLng}&destination=${order.dropoffLat},${order.dropoffLng}&travelmode=driving');
                 try {
-                  if (await canLaunchUrl(googleMapsUrl)) {
-                    await launchUrl(googleMapsUrl, mode: LaunchMode.externalApplication);
-                  } else if (await canLaunchUrl(webUrl)) {
-                    await launchUrl(webUrl, mode: LaunchMode.externalApplication);
-                  }
+                  await launchUrl(routeUrl, mode: LaunchMode.externalApplication);
                 } catch (_) {
-                  await launchUrl(webUrl, mode: LaunchMode.externalApplication);
+                  await launchUrl(routeUrl, mode: LaunchMode.platformDefault);
                 }
               },
             ),
             const SizedBox(height: 10),
 
-            // 2. Waze
+            // 2. Google Maps Direct Navigation to Current Target
+            _buildNavAppTile(
+              icon: Icons.navigation_rounded,
+              iconColor: const Color(0xFF0EA5E9),
+              title: loc.isArabic ? 'توجيه مباشر للهدف (Google Maps)' : 'Direct Navigation to Target',
+              subtitle: '$targetTitle (${targetLat.toStringAsFixed(4)}, ${targetLng.toStringAsFixed(4)})',
+              isDark: isDark,
+              onTap: () async {
+                Navigator.pop(sheetCtx);
+                final navUri = Uri.parse('google.navigation:q=$targetLat,$targetLng&mode=d');
+                final geoUri = Uri.parse('geo:$targetLat,$targetLng?q=$targetLat,$targetLng');
+                final webUri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$targetLat,$targetLng');
+                try {
+                  if (await canLaunchUrl(navUri)) {
+                    await launchUrl(navUri, mode: LaunchMode.externalApplication);
+                  } else if (await canLaunchUrl(geoUri)) {
+                    await launchUrl(geoUri, mode: LaunchMode.externalApplication);
+                  } else {
+                    await launchUrl(webUri, mode: LaunchMode.externalApplication);
+                  }
+                } catch (_) {
+                  await launchUrl(webUri, mode: LaunchMode.externalApplication);
+                }
+              },
+            ),
+            const SizedBox(height: 10),
+
+            // 3. Waze
             _buildNavAppTile(
               icon: Icons.directions_car_filled_rounded,
               iconColor: const Color(0xFF33CCFF),
-              title: loc.isArabic ? 'تطبيق Waze' : 'Waze App',
-              subtitle: loc.isArabic ? 'توجيه وتنبيهات المرور والسرعة' : 'Traffic alerts & navigation',
+              title: loc.isArabic ? 'تطبيق Waze' : 'Waze Navigation',
+              subtitle: loc.isArabic ? 'ملاحة وتنبيهات السرعة والازدحام' : 'Traffic alerts & navigation',
               isDark: isDark,
               onTap: () async {
                 Navigator.pop(sheetCtx);
@@ -150,7 +173,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                 try {
                   if (await canLaunchUrl(wazeUrl)) {
                     await launchUrl(wazeUrl, mode: LaunchMode.externalApplication);
-                  } else if (await canLaunchUrl(webUrl)) {
+                  } else {
                     await launchUrl(webUrl, mode: LaunchMode.externalApplication);
                   }
                 } catch (_) {
@@ -160,27 +183,24 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
             ),
             const SizedBox(height: 10),
 
-            // 3. System / Apple Default Maps
+            // 4. Default Device / Apple Maps
             _buildNavAppTile(
               icon: Icons.explore_rounded,
               iconColor: const Color(0xFF10B981),
               title: loc.isArabic ? 'خرائط الهاتف الافتراضية' : 'Default Device Maps',
-              subtitle: loc.isArabic ? 'خرائط Apple أو التطبيق المثبت على جهازك' : 'Apple Maps or System default',
+              subtitle: loc.isArabic ? 'خرائط Apple أو تطبيق الخرائط المثبت لديك' : 'Apple Maps or System default',
               isDark: isDark,
               onTap: () async {
                 Navigator.pop(sheetCtx);
-                final geoUrl = Uri.parse('geo:$targetLat,$targetLng?q=$targetLat,$targetLng');
                 final appleUrl = Uri.parse('maps://?daddr=$targetLat,$targetLng&dirflg=d');
+                final geoUrl = Uri.parse('geo:$targetLat,$targetLng?q=$targetLat,$targetLng');
                 try {
                   if (await canLaunchUrl(appleUrl)) {
                     await launchUrl(appleUrl, mode: LaunchMode.externalApplication);
                   } else if (await canLaunchUrl(geoUrl)) {
                     await launchUrl(geoUrl, mode: LaunchMode.externalApplication);
                   }
-                } catch (_) {
-                  final webUrl = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$targetLat,$targetLng&travelmode=driving');
-                  await launchUrl(webUrl, mode: LaunchMode.externalApplication);
-                }
+                } catch (_) {}
               },
             ),
           ],
@@ -873,10 +893,10 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                   ),
 
                   // Driver State Controller (If logged-in user is the driver)
-                  if (isDriver && order.driverId == auth.currentUser?.id) ...[
+                  if (isDriver && order.driverId == auth.currentUser?.id && order.status != 'completed') ...[
                     const SizedBox(height: 14),
                     const Divider(height: 1),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
                     Text(
                       loc.isArabic ? 'التحكم بحالة الرحلة (الكابتن):' : 'Trip Status Control (Captain):',
                       style: TextStyle(
@@ -885,59 +905,83 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                         color: isDark ? Colors.white : const Color(0xFF0F172A),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
+                    const SizedBox(height: 10),
+                    Row(
                       children: [
                         if (order.status == 'accepted')
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                                backgroundColor: AuroraTheme.primaryBlue),
-                            onPressed: () =>
-                                booking.updateOrderStatus(order.id, 'arriving'),
-                            child: Text(
-                                loc.isArabic ? 'وصلت إلى الزبون' : 'Arrived at Pickup',
-                                style: const TextStyle(color: Colors.white)),
+                          Expanded(
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AuroraTheme.primaryBlue,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                elevation: 3,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              ),
+                              onPressed: () =>
+                                  booking.updateOrderStatus(order.id, 'arriving'),
+                              child: Text(
+                                  loc.isArabic ? 'وصلت إلى الزبون' : 'Arrived at Pickup',
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                            ),
                           ),
                         if (order.status == 'arriving')
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                                backgroundColor: AuroraTheme.primaryCyan),
-                            onPressed: () =>
-                                booking.updateOrderStatus(order.id, 'in_progress'),
-                            child: Text(
-                                loc.isArabic ? 'بدء الرحلة والمسير' : 'Start Trip to Destination',
-                                style: const TextStyle(color: Colors.white)),
+                          Expanded(
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AuroraTheme.primaryCyan,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                elevation: 3,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              ),
+                              onPressed: () =>
+                                  booking.updateOrderStatus(order.id, 'in_progress'),
+                              child: Text(
+                                  loc.isArabic ? 'بدء الرحلة والمسير' : 'Start Trip',
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                            ),
                           ),
                         if (order.status == 'in_progress')
-                          ElevatedButton(
+                          Expanded(
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AuroraTheme.accentEmerald,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                elevation: 3,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              ),
+                              onPressed: () =>
+                                  booking.updateOrderStatus(order.id, 'completed'),
+                              child: Text(
+                                  loc.isArabic ? 'تم الوصول وإنهاء الرحلة' : 'Complete Trip',
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                            ),
+                          ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
-                                backgroundColor: AuroraTheme.accentEmerald),
-                            onPressed: () =>
-                                booking.updateOrderStatus(order.id, 'completed'),
-                            child: Text(
-                                loc.isArabic ? 'تم الوصول وإنهاء الرحلة' : 'Complete Trip',
-                                style: const TextStyle(color: Colors.white)),
-                          ),
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
-                            elevation: 0,
-                            side: BorderSide(
-                              color: const Color(0xFF0284C7).withValues(alpha: 0.5),
-                              width: 1.2,
+                              backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              side: BorderSide(
+                                color: const Color(0xFF0284C7).withValues(alpha: 0.6),
+                                width: 1.4,
+                              ),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                             ),
-                          ),
-                          icon: const Icon(Icons.navigation_rounded, color: Color(0xFF0284C7), size: 16),
-                          label: Text(
-                            loc.isArabic ? 'ملاحة (Google Maps / Waze)' : 'Navigate (Google/Waze)',
-                            style: TextStyle(
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
+                            icon: const Icon(Icons.share_location_rounded, color: Color(0xFF0284C7), size: 18),
+                            label: Text(
+                              loc.isArabic ? 'مشاركة على الخارطة' : 'Share on Map',
+                              style: TextStyle(
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12.5,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
+                            onPressed: () => _openExternalNavigationSheet(context, order),
                           ),
-                          onPressed: () => _openExternalNavigationSheet(context, order),
                         ),
                       ],
                     ),
