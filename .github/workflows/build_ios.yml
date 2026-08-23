@@ -25,13 +25,6 @@ jobs:
       - name: Install Flutter Dependencies
         run: flutter pub get
 
-      - name: Configure CocoaPods & Generate iOS Project
-        run: |
-          flutter build ios --config-only
-          cd ios
-          pod install --repo-update
-          cd ..
-
       - name: Build iOS Simulator App (for Browser & Simulator Testing)
         run: |
           flutter build ios --simulator --no-codesign
@@ -39,9 +32,14 @@ jobs:
           zip -r ../../../Maysan-Captain-iOS-Simulator.zip Runner.app
           cd ../../..
 
-      - name: Build iOS Release Package
+      - name: Build iOS Release Package (IPA)
         run: |
           flutter build ios --release --no-codesign
+          cd build/ios/iphoneos
+          mkdir -p Payload
+          cp -r Runner.app Payload/
+          zip -r ../../../Maysan-Captain-iOS-Release.ipa Payload
+          cd ../../..
 
       - name: Upload iOS Simulator Zip (Appetize / Simulator)
         uses: actions/upload-artifact@v4
@@ -49,8 +47,8 @@ jobs:
           name: Maysan-Captain-iOS-Simulator
           path: Maysan-Captain-iOS-Simulator.zip
 
-      - name: Upload iOS Release Bundle (Runner.app)
+      - name: Upload iOS Release IPA (iPhone Package)
         uses: actions/upload-artifact@v4
         with:
-          name: Maysan-Captain-iOS-Release
-          path: build/ios/iphoneos/Runner.app
+          name: Maysan-Captain-iOS-Release-IPA
+          path: Maysan-Captain-iOS-Release.ipa
