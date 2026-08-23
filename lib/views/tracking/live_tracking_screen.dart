@@ -114,10 +114,10 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
 
             // 1. Google Maps (Full Route from Pickup to Dropoff)
             _buildNavAppTile(
-              icon: Icons.alt_route_rounded,
+              icon: Icons.map_rounded,
               iconColor: const Color(0xFF4285F4),
-              title: loc.isArabic ? 'مسار الرحلة كاملاً (Google Maps)' : 'Full Trip Route (Google Maps)',
-              subtitle: loc.isArabic ? 'عرض خط المسير من نقطة الانطلاق إلى المقصد' : 'Display full road route on Google Maps',
+              title: loc.isArabic ? 'خرائط Google (Google Maps)' : 'Google Maps',
+              subtitle: loc.isArabic ? 'عرض وتوجيه مسار الرحلة كاملاً' : 'Full driving route & turn-by-turn navigation',
               isDark: isDark,
               onTap: () async {
                 Navigator.pop(sheetCtx);
@@ -130,36 +130,9 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                 }
               },
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
 
-            // 2. Google Maps Direct Navigation to Current Target
-            _buildNavAppTile(
-              icon: Icons.navigation_rounded,
-              iconColor: const Color(0xFF0EA5E9),
-              title: loc.isArabic ? 'توجيه مباشر للهدف (Google Maps)' : 'Direct Navigation to Target',
-              subtitle: '$targetTitle (${targetLat.toStringAsFixed(4)}, ${targetLng.toStringAsFixed(4)})',
-              isDark: isDark,
-              onTap: () async {
-                Navigator.pop(sheetCtx);
-                final navUri = Uri.parse('google.navigation:q=$targetLat,$targetLng&mode=d');
-                final geoUri = Uri.parse('geo:$targetLat,$targetLng?q=$targetLat,$targetLng');
-                final webUri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$targetLat,$targetLng');
-                try {
-                  if (await canLaunchUrl(navUri)) {
-                    await launchUrl(navUri, mode: LaunchMode.externalApplication);
-                  } else if (await canLaunchUrl(geoUri)) {
-                    await launchUrl(geoUri, mode: LaunchMode.externalApplication);
-                  } else {
-                    await launchUrl(webUri, mode: LaunchMode.externalApplication);
-                  }
-                } catch (_) {
-                  await launchUrl(webUri, mode: LaunchMode.externalApplication);
-                }
-              },
-            ),
-            const SizedBox(height: 10),
-
-            // 3. Waze
+            // 2. Waze App Navigation
             _buildNavAppTile(
               icon: Icons.directions_car_filled_rounded,
               iconColor: const Color(0xFF33CCFF),
@@ -168,39 +141,47 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
               isDark: isDark,
               onTap: () async {
                 Navigator.pop(sheetCtx);
-                final wazeUrl = Uri.parse('waze://?ll=$targetLat,$targetLng&navigate=yes');
-                final webUrl = Uri.parse('https://waze.com/ul?ll=$targetLat,$targetLng&navigate=yes');
+                final wazeAppUrl = Uri.parse('waze://?ll=$targetLat,$targetLng&navigate=yes');
+                final wazeWebUrl = Uri.parse('https://www.waze.com/ul?ll=$targetLat,$targetLng&navigate=yes&z=10');
                 try {
-                  if (await canLaunchUrl(wazeUrl)) {
-                    await launchUrl(wazeUrl, mode: LaunchMode.externalApplication);
+                  if (await canLaunchUrl(wazeAppUrl)) {
+                    await launchUrl(wazeAppUrl, mode: LaunchMode.externalApplication);
                   } else {
-                    await launchUrl(webUrl, mode: LaunchMode.externalApplication);
+                    await launchUrl(wazeWebUrl, mode: LaunchMode.externalApplication);
                   }
                 } catch (_) {
-                  await launchUrl(webUrl, mode: LaunchMode.externalApplication);
+                  await launchUrl(wazeWebUrl, mode: LaunchMode.externalApplication);
                 }
               },
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
 
-            // 4. Default Device / Apple Maps
+            // 3. Apple Maps / Default Device Maps (Full Route from Pickup to Dropoff)
             _buildNavAppTile(
               icon: Icons.explore_rounded,
               iconColor: const Color(0xFF10B981),
-              title: loc.isArabic ? 'خرائط الهاتف الافتراضية' : 'Default Device Maps',
-              subtitle: loc.isArabic ? 'خرائط Apple أو تطبيق الخرائط المثبت لديك' : 'Apple Maps or System default',
+              title: loc.isArabic ? 'خرائط Apple / خرائط الهاتف' : 'Apple Maps / Device Maps',
+              subtitle: loc.isArabic ? 'عرض المسار في تطبيق الخرائط الخاص بهاتفك' : 'Full route in device default maps',
               isDark: isDark,
               onTap: () async {
                 Navigator.pop(sheetCtx);
-                final appleUrl = Uri.parse('maps://?daddr=$targetLat,$targetLng&dirflg=d');
-                final geoUrl = Uri.parse('geo:$targetLat,$targetLng?q=$targetLat,$targetLng');
+                final appleMapsUrl = Uri.parse(
+                    'https://maps.apple.com/?saddr=${order.pickupLat},${order.pickupLng}&daddr=${order.dropoffLat},${order.dropoffLng}&dirflg=d');
+                final appleAppUrl = Uri.parse(
+                    'maps://?saddr=${order.pickupLat},${order.pickupLng}&daddr=${order.dropoffLat},${order.dropoffLng}&dirflg=d');
+                final geoUrl = Uri.parse(
+                    'geo:${order.pickupLat},${order.pickupLng}?q=${order.dropoffLat},${order.dropoffLng}');
                 try {
-                  if (await canLaunchUrl(appleUrl)) {
-                    await launchUrl(appleUrl, mode: LaunchMode.externalApplication);
+                  if (await canLaunchUrl(appleAppUrl)) {
+                    await launchUrl(appleAppUrl, mode: LaunchMode.externalApplication);
+                  } else if (await canLaunchUrl(appleMapsUrl)) {
+                    await launchUrl(appleMapsUrl, mode: LaunchMode.externalApplication);
                   } else if (await canLaunchUrl(geoUrl)) {
                     await launchUrl(geoUrl, mode: LaunchMode.externalApplication);
                   }
-                } catch (_) {}
+                } catch (_) {
+                  await launchUrl(appleMapsUrl, mode: LaunchMode.externalApplication);
+                }
               },
             ),
           ],
