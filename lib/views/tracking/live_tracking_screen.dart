@@ -137,20 +137,22 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
               icon: Icons.directions_car_filled_rounded,
               iconColor: const Color(0xFF33CCFF),
               title: loc.isArabic ? 'تطبيق Waze' : 'Waze Navigation',
-              subtitle: loc.isArabic ? 'ملاحة وتنبيهات السرعة والازدحام' : 'Traffic alerts & navigation',
+              subtitle: loc.isArabic ? 'ملاحة وتوجيه وتنبيهات السرعة' : 'Traffic alerts & navigation',
               isDark: isDark,
               onTap: () async {
                 Navigator.pop(sheetCtx);
-                final wazeAppUrl = Uri.parse('waze://?ll=$targetLat,$targetLng&navigate=yes');
-                final wazeWebUrl = Uri.parse('https://www.waze.com/ul?ll=$targetLat,$targetLng&navigate=yes&z=10');
+                final wazeNative = Uri.parse('waze://?ll=${targetLat.toStringAsFixed(6)},${targetLng.toStringAsFixed(6)}&navigate=yes');
+                final wazeWeb = Uri.parse('https://www.waze.com/ul?ll=${targetLat.toStringAsFixed(6)},${targetLng.toStringAsFixed(6)}&navigate=yes');
                 try {
-                  if (await canLaunchUrl(wazeAppUrl)) {
-                    await launchUrl(wazeAppUrl, mode: LaunchMode.externalApplication);
+                  if (await canLaunchUrl(wazeNative)) {
+                    await launchUrl(wazeNative, mode: LaunchMode.externalNonBrowserApplication);
+                  } else if (await canLaunchUrl(wazeWeb)) {
+                    await launchUrl(wazeWeb, mode: LaunchMode.externalApplication);
                   } else {
-                    await launchUrl(wazeWebUrl, mode: LaunchMode.externalApplication);
+                    await launchUrl(wazeWeb, mode: LaunchMode.platformDefault);
                   }
                 } catch (_) {
-                  await launchUrl(wazeWebUrl, mode: LaunchMode.externalApplication);
+                  await launchUrl(wazeWeb, mode: LaunchMode.externalApplication);
                 }
               },
             ),
@@ -166,11 +168,11 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
               onTap: () async {
                 Navigator.pop(sheetCtx);
                 final appleMapsUrl = Uri.parse(
-                    'https://maps.apple.com/?saddr=${order.pickupLat},${order.pickupLng}&daddr=${order.dropoffLat},${order.dropoffLng}&dirflg=d');
+                    'https://maps.apple.com/?saddr=${order.pickupLat.toStringAsFixed(6)},${order.pickupLng.toStringAsFixed(6)}&daddr=${order.dropoffLat.toStringAsFixed(6)},${order.dropoffLng.toStringAsFixed(6)}&dirflg=d');
                 final appleAppUrl = Uri.parse(
-                    'maps://?saddr=${order.pickupLat},${order.pickupLng}&daddr=${order.dropoffLat},${order.dropoffLng}&dirflg=d');
+                    'maps://?saddr=${order.pickupLat.toStringAsFixed(6)},${order.pickupLng.toStringAsFixed(6)}&daddr=${order.dropoffLat.toStringAsFixed(6)},${order.dropoffLng.toStringAsFixed(6)}&dirflg=d');
                 final geoUrl = Uri.parse(
-                    'geo:${order.pickupLat},${order.pickupLng}?q=${order.dropoffLat},${order.dropoffLng}');
+                    'geo:${order.pickupLat.toStringAsFixed(6)},${order.pickupLng.toStringAsFixed(6)}?q=${order.dropoffLat.toStringAsFixed(6)},${order.dropoffLng.toStringAsFixed(6)}');
                 try {
                   if (await canLaunchUrl(appleAppUrl)) {
                     await launchUrl(appleAppUrl, mode: LaunchMode.externalApplication);
