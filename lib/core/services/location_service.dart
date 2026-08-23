@@ -12,7 +12,7 @@ class LocationService {
       'https://mt{s}.google.com/vt/lyrs=m&hl=ar&gl=IQ&x={x}&y={y}&z={z}';
 
   static const String wazeTrafficTiles =
-      'https://mt{s}.google.com/vt/lyrs=m,traffic&hl=ar&gl=IQ&x={x}&y={y}&z={z}';
+      'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png';
 
   static const String cartoCleanTiles =
       'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png';
@@ -51,8 +51,11 @@ class LocationService {
 
   static List<String> getSubdomains(String? style, {bool isDark = false}) {
     final effectiveStyle = (isDark && style != 'google_satellite') ? 'dark_matter' : style;
-    if (effectiveStyle == 'google_roadmap' || effectiveStyle == 'google_satellite' || effectiveStyle == 'waze_traffic') {
+    if (effectiveStyle == 'google_roadmap' || effectiveStyle == 'google_satellite') {
       return const ['0', '1', '2', '3'];
+    }
+    if (effectiveStyle == 'waze_traffic') {
+      return const ['a', 'b'];
     }
     return const ['a', 'b', 'c', 'd'];
   }

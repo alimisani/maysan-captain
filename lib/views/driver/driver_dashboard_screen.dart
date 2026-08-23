@@ -14,6 +14,7 @@ import '../tracking/live_tracking_screen.dart';
 import '../widgets/aurora_background.dart';
 import '../widgets/aurora_button.dart';
 import '../widgets/glass_card.dart';
+import 'driver_documents_screen.dart';
 import 'driver_fee_payment_dialog.dart';
 import 'vehicle_registration_screen.dart';
 
@@ -26,10 +27,12 @@ class DriverDashboardScreen extends StatefulWidget {
 
 class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
   Timer? _pollingTimer;
+  bool _isVerificationEnabled = false;
 
   @override
   void initState() {
     super.initState();
+    _checkVerificationSettings();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final auth = context.read<AuthProvider>();
       final booking = context.read<BookingProvider>();
@@ -50,6 +53,19 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
         context.read<BookingProvider>().fetchPendingOrders();
       }
     });
+  }
+
+  Future<void> _checkVerificationSettings() async {
+    try {
+      final settings = await SupabaseService().getDriverVerificationSettings();
+      if (mounted) {
+        setState(() {
+          _isVerificationEnabled = settings['is_enabled'] as bool? ?? false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Check verification settings error: $e');
+    }
   }
 
   @override
@@ -76,13 +92,21 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
-            onPressed: () => booking.fetchPendingOrders(),
+            onPressed: () {
+              booking.fetchPendingOrders();
+              _checkVerificationSettings();
+            },
           ),
         ],
       ),
       body: AuroraBackground(
         child: RefreshIndicator(
-          onRefresh: () => booking.fetchPendingOrders(),
+          onRefresh: () async {
+            await Future.wait([
+              booking.fetchPendingOrders(),
+              _checkVerificationSettings(),
+            ]);
+          },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -157,6 +181,64 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                     ],
                   ),
                 ),
+
+                // Driver Official Documents & Verification Card (Only visible when enabled by Admin)
+                if (_isVerificationEnabled) ...[
+                  const SizedBox(height: 12),
+                  GlassCard(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AuroraTheme.primaryBlue.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.badge_rounded, color: AuroraTheme.primaryBlue, size: 22),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'توثيق المستمسكات الرسمية',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'البطاقة الوطنية، السكن، إجازة السوق والسنوية',
+                                style: TextStyle(fontSize: 11, color: Colors.grey),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AuroraTheme.primaryBlue,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            elevation: 0,
+                          ),
+                          icon: const Icon(Icons.upload_file_rounded, color: Colors.white, size: 16),
+                          label: const Text(
+                            'المستمسكات',
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                          ),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const DriverDocumentsScreen()),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
 
                 const SizedBox(height: 20),
 
@@ -443,6 +525,49 @@ class _OrderCardState extends State<_OrderCard> {
     });
   }
 
+  void _showVerificationLockDialog(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Row(
+          children: [
+            Icon(Icons.verified_user_rounded, color: AuroraTheme.accentAmber),
+            SizedBox(width: 10),
+            Text('توثيق الحساب مطلوب', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          ],
+        ),
+        content: const Text(
+          'يتطلب تفعيل استقبال وقبول الرحلات إرفاق المستمسكات والوثائق الرسمية وموافقة الإدارة العامة.\nيرجى إرفاق مستمسكاتك الآن.',
+          style: TextStyle(fontSize: 13.5, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إغلاق'),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AuroraTheme.primaryBlue,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            icon: const Icon(Icons.upload_file_rounded, color: Colors.white, size: 18),
+            label: const Text('إرفاق المستمسكات 📄', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const DriverDocumentsScreen()),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _handleAccept() async {
     final auth = context.read<AuthProvider>();
     final booking = context.read<BookingProvider>();
@@ -455,6 +580,13 @@ class _OrderCardState extends State<_OrderCard> {
     final isLocked = await DriverFeePaymentDialog.isDriverLocked(auth.currentUser!);
     if (isLocked && mounted) {
       DriverFeePaymentDialog.show(context, driver: auth.currentUser!);
+      return;
+    }
+
+    // Check Driver Document Verification Lock
+    final isVerified = await SupabaseService().isDriverVerificationApproved(auth.currentUser!.id);
+    if (!isVerified && mounted) {
+      _showVerificationLockDialog(context);
       return;
     }
 

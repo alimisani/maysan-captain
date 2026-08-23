@@ -788,10 +788,12 @@ class SupabaseService {
 
   Future<List<Map<String, dynamic>>> getNearbyDrivers() async {
     try {
+      final twoMinutesAgo = DateTime.now().subtract(const Duration(minutes: 2)).toIso8601String();
       final res = await client
           .from('driver_locations')
           .select()
           .eq('is_online', true)
+          .gte('updated_at', twoMinutesAgo)
           .order('updated_at', ascending: false)
           .limit(20);
       return (res as List).cast<Map<String, dynamic>>();
@@ -1081,5 +1083,159 @@ class SupabaseService {
       debugPrint('Get driver completed trips count error: $e');
       return 0;
     }
+  }
+
+  // ==========================================
+  // --- DRIVER DOCUMENT VERIFICATION SYSTEM ---
+  // ==========================================
+
+  static const Map<String, dynamic> defaultVerificationSettings = {
+    'is_enabled': false,
+    'fields': [
+      {'id': 'national_id_front', 'title': 'الوجه الأمامي للبطاقة الوطنية', 'is_required': true},
+      {'id': 'national_id_back', 'title': 'الوجه الخلفي للبطاقة الوطنية', 'is_required': true},
+      {'id': 'residence_card_front', 'title': 'الوجه الأمامي لبطاقة السكن', 'is_required': true},
+      {'id': 'residence_card_back', 'title': 'الوجه الخلفي لبطاقة السكن', 'is_required': true},
+      {'id': 'driver_license_front', 'title': 'الوجه الأمامي لإجازة السوق', 'is_required': true},
+      {'id': 'driver_license_back', 'title': 'الوجه الخلفي لإجازة السوق', 'is_required': true},
+      {'id': 'vehicle_reg_front', 'title': 'الوجه الأمامي للسنوية (ملكية المركبة)', 'is_required': true},
+      {'id': 'vehicle_reg_back', 'title': 'الوجه الخلفي للسنوية', 'is_required': true},
+      {'id': 'other_attachments', 'title': 'مرفقات ووثائق رسمية أخرى', 'is_required': false},
+    ],
+  };
+
+  Future<Map<String, dynamic>> getDriverVerificationSettings() async {
+    try {
+      final res = await client
+          .from('app_settings')
+          .select()
+          .eq('key', 'driver_verification_settings')
+          .limit(1);
+
+      if (res.isNotEmpty && res.first['value'] != null) {
+        final val = Map<String, dynamic>.from(res.first['value'] as Map);
+        return val;
+      }
+    } catch (e) {
+      debugPrint('Get driver verification settings error: $e');
+    }
+    return defaultVerificationSettings;
+  }
+
+  Future<void> updateDriverVerificationSettings(Map<String, dynamic> settings) async {
+    try {
+      await client.from('app_settings').upsert({
+        'key': 'driver_verification_settings',
+        'value': settings,
+      });
+    } catch (e) {
+      debugPrint('Update driver verification settings error: $e');
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>?> getDriverVerification(String driverId) async {
+    try {
+      final res = await client
+          .from('app_settings')
+          .select()
+          .eq('key', 'driver_docs_$driverId')
+          .limit(1);
+
+      if (res.isNotEmpty && res.first['value'] != null) {
+        return Map<String, dynamic>.from(res.first['value'] as Map);
+      }
+    } catch (e) {
+      debugPrint('Get driver verification error: $e');
+    }
+    return null;
+  }
+
+  Future<void> submitDriverVerification({
+    required String driverId,
+    required String driverName,
+    required String driverPhone,
+    required Map<String, String> documents,
+    required Map<String, String> fileNames,
+  }) async {
+    try {
+      final submission = {
+        'driver_id': driverId,
+        'driver_name': driverName,
+        'driver_phone': driverPhone,
+        'status': 'pending', // pending, approved, rejected
+        'rejection_reason': '',
+        'documents': documents,
+        'file_names': fileNames,
+        'submitted_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      await client.from('app_settings').upsert({
+        'key': 'driver_docs_$driverId',
+        'value': submission,
+      });
+    } catch (e) {
+      debugPrint('Submit driver verification error: $e');
+      rethrow;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getAllDriverVerifications() async {
+    try {
+      final res = await client
+          .from('app_settings')
+          .select()
+          .like('key', 'driver_docs_%');
+
+      final list = <Map<String, dynamic>>[];
+      for (final item in res) {
+        if (item['value'] != null) {
+          list.add(Map<String, dynamic>.from(item['value'] as Map));
+        }
+      }
+      list.sort((a, b) {
+        final da = a['submitted_at'] ?? '';
+        final db = b['submitted_at'] ?? '';
+        return db.compareTo(da);
+      });
+      return list;
+    } catch (e) {
+      debugPrint('Get all driver verifications error: $e');
+      return [];
+    }
+  }
+
+  Future<void> reviewDriverVerification({
+    required String driverId,
+    required String status, // 'approved' or 'rejected'
+    String rejectionReason = '',
+  }) async {
+    try {
+      final existing = await getDriverVerification(driverId);
+      if (existing != null) {
+        existing['status'] = status;
+        existing['rejection_reason'] = rejectionReason;
+        existing['reviewed_at'] = DateTime.now().toIso8601String();
+
+        await client.from('app_settings').upsert({
+          'key': 'driver_docs_$driverId',
+          'value': existing,
+        });
+      }
+    } catch (e) {
+      debugPrint('Review driver verification error: $e');
+      rethrow;
+    }
+  }
+
+  Future<bool> isDriverVerificationApproved(String driverId) async {
+    final settings = await getDriverVerificationSettings();
+    final isEnabled = settings['is_enabled'] as bool? ?? false;
+    if (!isEnabled) return true; // If verification requirement is disabled globally, permit driver!
+
+    final docs = await getDriverVerification(driverId);
+    if (docs == null) return false;
+    return docs['status'] == 'approved';
   }
 }

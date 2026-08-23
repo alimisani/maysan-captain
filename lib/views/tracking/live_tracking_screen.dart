@@ -875,6 +875,27 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                     ],
                   ),
 
+                  // Passenger Navigation & Sharing Action Button
+                  if (!isDriver && order.driverId != null && order.status != 'completed') ...[
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF0284C7),
+                        side: const BorderSide(color: Color(0xFF38BDF8), width: 1.4),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      icon: const Icon(Icons.share_location_rounded, size: 20),
+                      label: Text(
+                        loc.isArabic
+                            ? 'فتح وتتبع مسار الرحلة على خرائط خارجية (Google / Waze) 🧭'
+                            : 'Open & Track Route on External Maps (Google / Waze) 🧭',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+                      ),
+                      onPressed: () => _openExternalNavigationSheet(context, order),
+                    ),
+                  ],
+
                   // Driver State Controller (If logged-in user is the driver)
                   if (isDriver && order.driverId == auth.currentUser?.id && order.status != 'completed') ...[
                     const SizedBox(height: 14),

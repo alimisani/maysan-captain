@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' as intl;
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/services/pdf_service.dart';
 import '../../core/state/admin_provider.dart';
@@ -39,6 +41,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   final TextEditingController _orderSearchController = TextEditingController();
   String _orderFilter = 'all'; // 'all', 'ride', 'delivery'
+
+  String _verificationStatusFilter = 'all'; // 'all', 'pending', 'approved', 'rejected'
 
   String _selectedMapStyle = 'carto_clean';
 
@@ -196,6 +200,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       isSelected: _selectedTabIndex == 3,
                       isDark: isDark,
                     ),
+                    const SizedBox(width: 6),
+                    _buildCircularAdminTab(
+                      index: 4,
+                      icon: Icons.badge_rounded,
+                      title: 'توثيق الكباتن',
+                      isSelected: _selectedTabIndex == 4,
+                      isDark: isDark,
+                    ),
                   ],
                 ),
               ),
@@ -211,6 +223,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           _buildOrdersTab(admin, loc, isDark),
                           _buildPricingTab(admin, loc, isDark),
                           _buildMapSettingsTab(admin, loc, isDark),
+                          _buildDriverVerificationTab(admin, loc, isDark),
                         ],
                       ),
               ),
@@ -2064,6 +2077,803 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             child: const Text('حذف'),
           ),
         ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // --- TAB 5: DRIVER DOCUMENT VERIFICATION SYSTEM ---
+  // ==========================================
+
+  Widget _buildDriverVerificationTab(AdminProvider admin, AppLocalizations loc, bool isDark) {
+    final isEnabled = admin.isVerificationEnabled;
+    final fields = admin.verificationFields;
+    final verifications = admin.driverVerifications;
+
+    final filteredVerifications = verifications.where((v) {
+      final status = v['status'] as String? ?? 'pending';
+      if (_verificationStatusFilter == 'all') return true;
+      return status == _verificationStatusFilter;
+    }).toList();
+
+    final pendingCount = verifications.where((v) => (v['status'] ?? 'pending') == 'pending').length;
+
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      children: [
+        // 1. Global Activation Switch Card
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F172A) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isEnabled
+                  ? AuroraTheme.accentEmerald.withValues(alpha: 0.5)
+                  : (isDark ? Colors.white12 : Colors.black12),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: isEnabled ? AuroraTheme.accentEmerald.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isEnabled
+                      ? AuroraTheme.accentEmerald.withValues(alpha: 0.15)
+                      : Colors.grey.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.verified_user_rounded,
+                  color: isEnabled ? AuroraTheme.accentEmerald : Colors.grey,
+                  size: 26,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'نظام توثيق مستمسكات الكباتن',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      isEnabled
+                          ? 'النظام مفعّل: لا يمكن للكابتن قبول الرحلات إلا بعد مراجعة وقبول مستمسكاته'
+                          : 'النظام معطّل: يمكن للكباتن استقبال الرحلات بدون اشتراط التوثيق المسبق',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: isEnabled,
+                activeThumbColor: AuroraTheme.accentEmerald,
+                onChanged: (val) async {
+                  final newSettings = Map<String, dynamic>.from({
+                    'is_enabled': val,
+                    'fields': fields,
+                  });
+                  await admin.updateVerificationSettings(newSettings);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(val ? 'تم تفعيل نظام توثيق مستمسكات الكباتن' : 'تم تعطيل نظام توثيق الكباتن'),
+                        backgroundColor: val ? AuroraTheme.accentEmerald : AuroraTheme.accentRose,
+                      ),
+                    );
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        // 2. Manage Document Fields Section Header
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.rule_folder_rounded, color: AuroraTheme.primaryCyan, size: 20),
+                SizedBox(width: 8),
+                Text(
+                  'حقول المستمسكات والوثائق المطلوبة',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+              ],
+            ),
+            TextButton.icon(
+              style: TextButton.styleFrom(
+                foregroundColor: AuroraTheme.primaryBlue,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              ),
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: const Text('إضافة حقل جديد', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+              onPressed: () => _showAddOrEditFieldDialog(admin),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+
+        // Document Fields List
+        ...fields.map((f) => _buildAdminDocumentFieldTile(admin, f, isDark)),
+
+        const SizedBox(height: 28),
+
+        // 3. Driver Submissions Section Header
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.rate_review_rounded, color: AuroraTheme.primaryBlue, size: 20),
+                const SizedBox(width: 8),
+                const Text(
+                  'طلبات ومستمسكات الكباتن للمراجعة',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                if (pendingCount > 0) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AuroraTheme.accentAmber,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '$pendingCount معلّق',
+                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // Filter Chips
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _buildFilterChip('all', 'الكل (${verifications.length})', isDark),
+              const SizedBox(width: 8),
+              _buildFilterChip('pending', 'قيد المراجعة ($pendingCount)', isDark),
+              const SizedBox(width: 8),
+              _buildFilterChip(
+                'approved',
+                'مقبول (${verifications.where((v) => (v['status'] ?? '') == 'approved').length})',
+                isDark,
+              ),
+              const SizedBox(width: 8),
+              _buildFilterChip(
+                'rejected',
+                'مرفوض (${verifications.where((v) => (v['status'] ?? '') == 'rejected').length})',
+                isDark,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // Driver Submissions List
+        if (filteredVerifications.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 40),
+            child: Center(
+              child: Column(
+                children: [
+                  Icon(Icons.folder_off_rounded, size: 54, color: isDark ? Colors.white30 : Colors.black26),
+                  const SizedBox(height: 12),
+                  Text(
+                    'لا توجد طلبات توثيق مطابقة في هذا القسم',
+                    style: TextStyle(fontSize: 14, color: isDark ? Colors.white60 : Colors.black54),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          ...filteredVerifications.map((v) => _buildDriverVerificationCard(admin, v, isDark)),
+
+        const SizedBox(height: 40),
+      ],
+    );
+  }
+
+  Widget _buildFilterChip(String key, String label, bool isDark) {
+    final isSelected = _verificationStatusFilter == key;
+    return ChoiceChip(
+      label: Text(
+        label,
+        style: TextStyle(
+          color: isSelected ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF0F172A)),
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          fontSize: 12,
+        ),
+      ),
+      selected: isSelected,
+      selectedColor: AuroraTheme.primaryBlue,
+      backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      showCheckmark: false,
+      onSelected: (_) => setState(() => _verificationStatusFilter = key),
+    );
+  }
+
+  Widget _buildAdminDocumentFieldTile(AdminProvider admin, Map<String, dynamic> field, bool isDark) {
+    final fieldId = field['id'] as String? ?? '';
+    final title = field['title'] as String? ?? 'حقل';
+    final isRequired = field['is_required'] as bool? ?? false;
+    final isDefaultField = [
+      'national_id_front',
+      'national_id_back',
+      'residence_card_front',
+      'residence_card_back',
+      'driver_license_front',
+      'driver_license_back',
+      'vehicle_reg_front',
+      'vehicle_reg_back',
+      'other_attachments'
+    ].contains(fieldId);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A).withValues(alpha: 0.7) : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isRequired ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
+            color: isRequired ? AuroraTheme.primaryCyan : Colors.grey,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                ),
+                Text(
+                  isRequired ? 'مستمسك إجباري للقبول' : 'مستمسك اختياري (إضافي)',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isRequired ? AuroraTheme.accentRose : Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Toggle Required Switch
+          Switch(
+            value: isRequired,
+            activeThumbColor: AuroraTheme.primaryCyan,
+            onChanged: (val) async {
+              final fields = List<Map<String, dynamic>>.from(admin.verificationFields);
+              final idx = fields.indexWhere((e) => e['id'] == fieldId);
+              if (idx != -1) {
+                fields[idx]['is_required'] = val;
+                await admin.updateVerificationSettings({
+                  'is_enabled': admin.isVerificationEnabled,
+                  'fields': fields,
+                });
+              }
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.edit_rounded, color: AuroraTheme.primaryBlue, size: 18),
+            tooltip: 'تعديل اسم الحقل',
+            onPressed: () => _showAddOrEditFieldDialog(admin, field: field),
+          ),
+          if (!isDefaultField)
+            IconButton(
+              icon: const Icon(Icons.delete_outline_rounded, color: AuroraTheme.accentRose, size: 18),
+              tooltip: 'حذف الحقل المخصص',
+              onPressed: () async {
+                final fields = List<Map<String, dynamic>>.from(admin.verificationFields);
+                fields.removeWhere((e) => e['id'] == fieldId);
+                await admin.updateVerificationSettings({
+                  'is_enabled': admin.isVerificationEnabled,
+                  'fields': fields,
+                });
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDriverVerificationCard(AdminProvider admin, Map<String, dynamic> v, bool isDark) {
+    final driverId = v['driver_id'] as String? ?? '';
+    final driverName = v['driver_name'] as String? ?? 'كابتن مجهول';
+    final driverPhone = v['driver_phone'] as String? ?? '07800000000';
+    final status = v['status'] as String? ?? 'pending';
+    final rejectionReason = v['rejection_reason'] as String? ?? '';
+    final submittedAt = v['submitted_at'] as String? ?? '';
+
+    final documents = v['documents'] != null ? Map<String, dynamic>.from(v['documents'] as Map) : <String, dynamic>{};
+    final fileNames = v['file_names'] != null ? Map<String, dynamic>.from(v['file_names'] as Map) : <String, dynamic>{};
+
+    Color badgeColor;
+    String statusText;
+    switch (status) {
+      case 'approved':
+        badgeColor = AuroraTheme.accentEmerald;
+        statusText = 'موثق ومقبول ✅';
+        break;
+      case 'rejected':
+        badgeColor = AuroraTheme.accentRose;
+        statusText = 'مرفوض ❌';
+        break;
+      default:
+        badgeColor = AuroraTheme.accentAmber;
+        statusText = 'قيد المراجعة ⏳';
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: status == 'pending'
+              ? AuroraTheme.accentAmber.withValues(alpha: 0.5)
+              : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+          width: status == 'pending' ? 1.5 : 1,
+        ),
+        boxShadow: const [
+          BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 3)),
+        ],
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: status == 'pending',
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          childrenPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          leading: CircleAvatar(
+            backgroundColor: badgeColor.withValues(alpha: 0.15),
+            child: Icon(Icons.person_pin_rounded, color: badgeColor),
+          ),
+          title: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  driverName,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: badgeColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  statusText,
+                  style: TextStyle(color: badgeColor, fontSize: 11, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 4),
+              Text(
+                'هاتف: $driverPhone • عدد الوثائق: ${documents.length}${submittedAt.isNotEmpty ? " • تاريخ الرفع: ${submittedAt.split("T").first}" : ""}',
+                style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+              ),
+              if (rejectionReason.isNotEmpty && status == 'rejected')
+                Text(
+                  'سبب الرفض: $rejectionReason',
+                  style: const TextStyle(fontSize: 11, color: AuroraTheme.accentRose),
+                ),
+            ],
+          ),
+          children: [
+            const Divider(height: 1),
+            const SizedBox(height: 12),
+
+            // Attached Documents Grid / List
+            const Text(
+              'الوثائق والمستمسكات المرفقة:',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+            const SizedBox(height: 10),
+
+            if (documents.isEmpty)
+              const Text('لم يتم إرفاق أي مستمسكات بعد.', style: TextStyle(color: Colors.grey, fontSize: 12))
+            else
+              ...documents.entries.map((entry) {
+                final fieldId = entry.key;
+                final docData = entry.value.toString();
+                final fileName = fileNames[fieldId]?.toString() ?? 'ملف مستمسك';
+
+                // Find field title
+                final matchedField = admin.verificationFields.where((f) => f['id'] == fieldId);
+                final fieldTitle = matchedField.isNotEmpty
+                    ? (matchedField.first['title']?.toString() ?? fieldId)
+                    : fieldId;
+
+                final isPdf = docData.startsWith('data:application/pdf') || fileName.toLowerCase().endsWith('.pdf');
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                  ),
+                  child: Row(
+                    children: [
+                      if (isPdf)
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AuroraTheme.accentRose.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.picture_as_pdf_rounded, color: AuroraTheme.accentRose, size: 24),
+                        )
+                      else if (docData.startsWith('data:image'))
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.memory(
+                            base64Decode(docData.split(',').last),
+                            width: 44,
+                            height: 44,
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      else
+                        const Icon(Icons.description_rounded, color: AuroraTheme.primaryBlue, size: 28),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              fieldTitle,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            ),
+                            Text(
+                              fileName,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AuroraTheme.primaryCyan,
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          elevation: 0,
+                        ),
+                        icon: const Icon(Icons.visibility_rounded, color: Colors.white, size: 15),
+                        label: const Text('معاينة', style: TextStyle(color: Colors.white, fontSize: 11.5)),
+                        onPressed: () => _showDocumentPreviewDialog(fieldTitle, fileName, docData),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+
+            const SizedBox(height: 16),
+
+            // Review Action Buttons
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AuroraTheme.accentEmerald,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: const Icon(Icons.check_circle_rounded, size: 18),
+                    label: const Text('قبول وتفعيل الكابتن ✅', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    onPressed: () async {
+                      final messenger = ScaffoldMessenger.of(context);
+                      await admin.reviewDriverVerification(
+                        driverId: driverId,
+                        status: 'approved',
+                      );
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text('تم توثيق وقبول الكابتن ($driverName) وتفعيل حسابه بنجاح ✅'),
+                          backgroundColor: AuroraTheme.accentEmerald,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AuroraTheme.accentRose,
+                      side: const BorderSide(color: AuroraTheme.accentRose),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: const Icon(Icons.cancel_rounded, size: 18),
+                    label: const Text('رفض المستمسكات ❌', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    onPressed: () => _showRejectVerificationDialog(admin, driverId, driverName),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showDocumentPreviewDialog(String title, String fileName, String docData) {
+    final isImage = docData.startsWith('data:image');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          constraints: const BoxConstraints(maxWidth: 450, maxHeight: 600),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const Divider(height: 1),
+              const SizedBox(height: 12),
+              Expanded(
+                child: isImage
+                    ? InteractiveViewer(
+                        minScale: 0.8,
+                        maxScale: 4.0,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.memory(
+                            base64Decode(docData.split(',').last),
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      )
+                    : Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.picture_as_pdf_rounded, color: AuroraTheme.accentRose, size: 64),
+                            const SizedBox(height: 12),
+                            Text(
+                              fileName,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'ملف مستند PDF عالي الدقة تم إرفاقه بنجاح',
+                              style: TextStyle(color: Colors.grey, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+              ),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AuroraTheme.primaryBlue,
+                  minimumSize: const Size.fromHeight(44),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('إغلاق المعاينة', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showRejectVerificationDialog(AdminProvider admin, String driverId, String driverName) {
+    final reasonController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.cancel_rounded, color: AuroraTheme.accentRose),
+            const SizedBox(width: 8),
+            Text('رفض مستمسكات ($driverName)', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'يرجى كتابة سبب الرفض ليظهر للكابتن حتى يتمكن من تعديل المستمسك وإعادة إرساله:',
+              style: TextStyle(fontSize: 13, height: 1.4),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonController,
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: 'مثال: صورة بطاقة السكن غير واضحة، يرجى إعادة تصويرها بشكل أوضح',
+                hintStyle: const TextStyle(fontSize: 12),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AuroraTheme.accentRose,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () async {
+              final reason = reasonController.text.trim();
+              Navigator.pop(ctx);
+              await admin.reviewDriverVerification(
+                driverId: driverId,
+                status: 'rejected',
+                rejectionReason: reason.isNotEmpty ? reason : 'المستمسكات غير مكتملة أو غير واضحة',
+              );
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('تم رفض مستمسكات الكابتن ($driverName) وإشعاره بالسبب'),
+                    backgroundColor: AuroraTheme.accentRose,
+                  ),
+                );
+              }
+            },
+            child: const Text('تأكيد الرفض'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddOrEditFieldDialog(AdminProvider admin, {Map<String, dynamic>? field}) {
+    final isEditing = field != null;
+    final titleController = TextEditingController(text: field?['title']?.toString() ?? '');
+    bool isRequired = field?['is_required'] as bool? ?? true;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(
+            isEditing ? 'تعديل حقل المستمسك' : 'إضافة حقل مستمسك جديد',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleController,
+                decoration: InputDecoration(
+                  labelText: 'اسم المستمسك أو الوثيقة',
+                  hintText: 'مثال: فحص طبي، شهادة حسن سيرة...',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 14),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('مستمسك إجباري للقبول', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                subtitle: const Text('لا يتم تفعيل الكابتن إلا بعد إرفاقه', style: TextStyle(fontSize: 11.5, color: Colors.grey)),
+                value: isRequired,
+                activeThumbColor: AuroraTheme.primaryCyan,
+                onChanged: (val) => setDlgState(() => isRequired = val),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AuroraTheme.primaryBlue,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              icon: const Icon(Icons.save_rounded, size: 18),
+              label: Text(isEditing ? 'حفظ التعديل' : 'إضافة الحقل'),
+              onPressed: () async {
+                final title = titleController.text.trim();
+                if (title.isEmpty) return;
+
+                final fields = List<Map<String, dynamic>>.from(admin.verificationFields);
+                if (isEditing) {
+                  final idx = fields.indexWhere((e) => e['id'] == field['id']);
+                  if (idx != -1) {
+                    fields[idx]['title'] = title;
+                    fields[idx]['is_required'] = isRequired;
+                  }
+                } else {
+                  final newId = 'custom_${const Uuid().v4().substring(0, 8)}';
+                  fields.add({
+                    'id': newId,
+                    'title': title,
+                    'is_required': isRequired,
+                  });
+                }
+
+                Navigator.pop(ctx);
+                await admin.updateVerificationSettings({
+                  'is_enabled': admin.isVerificationEnabled,
+                  'fields': fields,
+                });
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

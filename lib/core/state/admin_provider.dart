@@ -72,6 +72,8 @@ class AdminProvider extends ChangeNotifier {
         _supabaseService.getCustomRoutePricings(),
         _supabaseService.getMapStyle(),
         _supabaseService.getDriverFeeSettings(),
+        _supabaseService.getDriverVerificationSettings(),
+        _supabaseService.getAllDriverVerifications(),
       ]);
 
       _users = results[0] as List<UserProfile>;
@@ -93,6 +95,9 @@ class AdminProvider extends ChangeNotifier {
       _superqiNumber = feeSettings['superqi_number'] as String? ?? '07800000000';
       _paymentInstructions = feeSettings['payment_instructions'] as String? ??
           'يرجى تحويل مبلغ الاشتراك عبر محفظة زين كاش أو بطاقة سوبر كي ثم إرسال الإشعار لتفعيل الحساب فورياً';
+
+      _verificationSettings = results[6] as Map<String, dynamic>;
+      _driverVerifications = results[7] as List<Map<String, dynamic>>;
 
       _isLoading = false;
       notifyListeners();
@@ -354,6 +359,61 @@ class AdminProvider extends ChangeNotifier {
         endDate: null,
         isActive: newStatus,
       );
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  // ==========================================
+  // --- DRIVER VERIFICATION ADMIN ACTIONS ---
+  // ==========================================
+
+  Map<String, dynamic> _verificationSettings = SupabaseService.defaultVerificationSettings;
+  List<Map<String, dynamic>> _driverVerifications = [];
+
+  bool get isVerificationEnabled => _verificationSettings['is_enabled'] as bool? ?? false;
+  List<Map<String, dynamic>> get verificationFields {
+    final raw = _verificationSettings['fields'] as List? ?? [];
+    return raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+  List<Map<String, dynamic>> get driverVerifications => _driverVerifications;
+
+  Future<void> fetchVerificationData() async {
+    try {
+      _verificationSettings = await _supabaseService.getDriverVerificationSettings();
+      _driverVerifications = await _supabaseService.getAllDriverVerifications();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Fetch verification data error: $e');
+    }
+  }
+
+  Future<void> updateVerificationSettings(Map<String, dynamic> settings) async {
+    try {
+      await _supabaseService.updateDriverVerificationSettings(settings);
+      _verificationSettings = settings;
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> reviewDriverVerification({
+    required String driverId,
+    required String status,
+    String rejectionReason = '',
+  }) async {
+    try {
+      await _supabaseService.reviewDriverVerification(
+        driverId: driverId,
+        status: status,
+        rejectionReason: rejectionReason,
+      );
+      await fetchVerificationData();
     } catch (e) {
       _errorMessage = e.toString();
       notifyListeners();
