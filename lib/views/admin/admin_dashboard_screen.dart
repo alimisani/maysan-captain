@@ -1259,6 +1259,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         'color': const Color(0xFF10B981),
       },
       {
+        'id': 'waze_traffic',
+        'title': 'خريطة ويز والملاحة المرورية (Waze Traffic & Nav)',
+        'subtitle': 'عرض الشوارع الحية مع حركة المرور والازدحام وألوان الملاحة',
+        'icon': Icons.directions_car_filled_rounded,
+        'color': const Color(0xFF33CCFF),
+      },
+      {
         'id': 'google_satellite',
         'title': 'خريطة القمر الصناعي (Satellite Hybrid)',
         'subtitle': 'تصوير فضائي عالي الدقة يوضح المباني الحقيقية والشوارع',
