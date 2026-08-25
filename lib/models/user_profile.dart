@@ -8,6 +8,8 @@ class UserProfile {
   final String? avatarUrl;
   final double rating;
   final int totalTrips;
+  final double reliabilityScore; // Customer Reliability / Trust (0 - 100%)
+  final int rejectionsCount; // Number of driver rejections by this customer
   final bool isBlocked;
   final bool isFeePaid;
   final String subscriptionType; // 'lifetime', 'annual', 'none'
@@ -26,6 +28,8 @@ class UserProfile {
     this.avatarUrl,
     this.rating = 5.0,
     this.totalTrips = 0,
+    this.reliabilityScore = 100.0,
+    this.rejectionsCount = 0,
     this.isBlocked = false,
     this.isFeePaid = false,
     this.subscriptionType = 'none',
@@ -38,6 +42,14 @@ class UserProfile {
   bool get isAdmin => role == 'admin';
   bool get isDriver => role == 'driver';
   bool get isUser => role == 'user';
+
+  // Customer Reliability Badge
+  String get reliabilityBadgeText {
+    if (reliabilityScore >= 90) return 'موثوقية ممتازة 🌟 (%${reliabilityScore.toInt()})';
+    if (reliabilityScore >= 75) return 'موثوقية جيدة 👍 (%${reliabilityScore.toInt()})';
+    if (reliabilityScore >= 50) return 'موثوقية متوسطة ⚠️ (%${reliabilityScore.toInt()})';
+    return 'موثوقية منخفضة (كثرة رفض) 🛑 (%${reliabilityScore.toInt()})';
+  }
 
   // Check if driver has a valid unexpired subscription
   bool get isSubscriptionValid {
@@ -88,6 +100,8 @@ class UserProfile {
       avatarUrl: json['avatar_url'] as String?,
       rating: (json['rating'] as num?)?.toDouble() ?? 5.0,
       totalTrips: (json['total_trips'] as num?)?.toInt() ?? 0,
+      reliabilityScore: (json['reliability_score'] as num?)?.toDouble() ?? 100.0,
+      rejectionsCount: (json['rejections_count'] as num?)?.toInt() ?? 0,
       isBlocked: json['is_blocked'] as bool? ?? false,
       isFeePaid: json['is_fee_paid'] as bool? ?? false,
       subscriptionType: json['subscription_type'] as String? ?? 'none',
@@ -115,6 +129,8 @@ class UserProfile {
       'avatar_url': avatarUrl,
       'rating': rating,
       'total_trips': totalTrips,
+      'reliability_score': reliabilityScore,
+      'rejections_count': rejectionsCount,
       'is_blocked': isBlocked,
       'is_fee_paid': isFeePaid,
       'subscription_type': subscriptionType,
@@ -135,6 +151,8 @@ class UserProfile {
     String? avatarUrl,
     double? rating,
     int? totalTrips,
+    double? reliabilityScore,
+    int? rejectionsCount,
     bool? isBlocked,
     bool? isFeePaid,
     String? subscriptionType,
@@ -153,6 +171,8 @@ class UserProfile {
       avatarUrl: avatarUrl ?? this.avatarUrl,
       rating: rating ?? this.rating,
       totalTrips: totalTrips ?? this.totalTrips,
+      reliabilityScore: reliabilityScore ?? this.reliabilityScore,
+      rejectionsCount: rejectionsCount ?? this.rejectionsCount,
       isBlocked: isBlocked ?? this.isBlocked,
       isFeePaid: isFeePaid ?? this.isFeePaid,
       subscriptionType: subscriptionType ?? this.subscriptionType,

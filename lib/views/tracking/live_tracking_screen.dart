@@ -591,6 +591,245 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                         _buildStatusProgress(order.status, loc),
                         const SizedBox(height: 16),
 
+                  // Driver Waiting for Passenger Approval Banner (For Driver)
+                  if (order.status == 'driver_assigned' && isDriver) ...[
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AuroraTheme.primaryBlue.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AuroraTheme.primaryBlue),
+                      ),
+                      child: Row(
+                        children: [
+                          const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2.5, color: AuroraTheme.primaryCyan),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              loc.isArabic
+                                  ? 'بانتظار موافقة الزبون على بياناتك لبدء الرحلة... ⏳'
+                                  : 'Waiting for passenger approval... ⏳',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+
+                  // Driver Assigned Approval Card (For Passenger)
+                  if (order.status == 'driver_assigned' && !isDriver) ...[
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: isDark
+                              ? [const Color(0xFF1E1B4B), const Color(0xFF0F172A)]
+                              : [const Color(0xFFEEF2FF), Colors.white],
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AuroraTheme.primaryCyan, width: 1.5),
+                        boxShadow: const [
+                          BoxShadow(color: Color(0x18000000), blurRadius: 14, offset: Offset(0, 4)),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AuroraTheme.primaryCyan.withValues(alpha: 0.2),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.person_pin_circle_rounded, color: AuroraTheme.primaryCyan, size: 22),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      loc.isArabic ? 'كابتن متاح يطلب بدء رحلتك 🚗' : 'Driver Assigned to Your Trip 🚗',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                    Text(
+                                      loc.isArabic ? 'يرجى مراجعة بيانات الكابتن وتأكيد القبول أو الرفض' : 'Please review driver info & confirm or decline',
+                                      style: TextStyle(fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF64748B)),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0x33000000) : const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Row(
+                              children: [
+                                const UserAvatarWidget(radius: 22),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Text(
+                                            order.driverName ?? 'كابتن ميسان',
+                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                            decoration: BoxDecoration(
+                                              color: AuroraTheme.accentAmber.withValues(alpha: 0.2),
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(Icons.star_rounded, size: 13, color: AuroraTheme.accentAmber),
+                                                const SizedBox(width: 2),
+                                                Text(
+                                                  '${order.driverRating ?? 5.0}',
+                                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AuroraTheme.accentAmber),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        order.vehicleInfo ?? 'سيارة صالون (أجرة)',
+                                        style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white70 : const Color(0xFF475569)),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Text(
+                                  '${currencyFormatter.format(order.finalFare.toInt())} د.ع',
+                                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: AuroraTheme.accentEmerald),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (auth.currentUser != null) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              'موثوقيتك الحالية: ${auth.currentUser!.reliabilityBadgeText}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: auth.currentUser!.reliabilityScore >= 75
+                                    ? AuroraTheme.accentEmerald
+                                    : (auth.currentUser!.reliabilityScore >= 50 ? AuroraTheme.accentAmber : AuroraTheme.accentRose),
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                flex: 3,
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AuroraTheme.accentEmerald,
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                  ),
+                                  icon: const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                                  label: Text(
+                                    loc.isArabic ? 'قبول وتأكيد الكابتن' : 'Accept Driver',
+                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12.5),
+                                  ),
+                                  onPressed: () async {
+                                    await booking.passengerApproveDriver(order.id);
+                                    if (auth.currentUser != null) {
+                                      await booking.checkActiveOrder(auth.currentUser!.id, false);
+                                    }
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                flex: 2,
+                                child: OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    side: const BorderSide(color: AuroraTheme.accentRose, width: 1.2),
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                  ),
+                                  icon: const Icon(Icons.close_rounded, color: AuroraTheme.accentRose, size: 18),
+                                  label: Text(
+                                    loc.isArabic ? 'رفض الكابتن' : 'Decline',
+                                    style: const TextStyle(color: AuroraTheme.accentRose, fontWeight: FontWeight.bold, fontSize: 12),
+                                  ),
+                                  onPressed: () async {
+                                    final confirm = await showDialog<bool>(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                        title: const Text('رفض الكابتن والبحث عن آخر؟', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                        content: const Text('سيتم إعادة طلبك لقائمة الانتظار ليبحث لك عن كابتن آخر.\nملاحظة: كثرة الرفض بدون سبب تؤثر على موثوقية حسابك.', style: TextStyle(fontSize: 13)),
+                                        actions: [
+                                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('تراجع')),
+                                          ElevatedButton(
+                                            style: ElevatedButton.styleFrom(backgroundColor: AuroraTheme.accentRose),
+                                            onPressed: () => Navigator.pop(ctx, true),
+                                            child: const Text('نعم، رفض والبحث عن آخر', style: TextStyle(color: Colors.white)),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+
+                                    if (confirm == true && auth.currentUser != null && order.driverId != null) {
+                                      await booking.passengerRejectDriver(
+                                        orderId: order.id,
+                                        customerId: auth.currentUser!.id,
+                                        driverId: order.driverId!,
+                                      );
+                                      await auth.refreshCurrentUser();
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('تم رفض الكابتن وجاري البحث عن كابتن آخر لرحلتك 🔍'),
+                                            backgroundColor: AuroraTheme.primaryBlue,
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+
                   // Proposed Fare Notification Card (For Passenger)
                   if (order.status == 'fare_proposed' && !isDriver) ...[
                     Container(

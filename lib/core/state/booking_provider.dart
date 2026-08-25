@@ -481,8 +481,15 @@ class BookingProvider extends ChangeNotifier {
 
   // Driver: fetch available pending requests with push notification for new ones
   Future<void> fetchPendingOrders({bool notifyNew = true}) async {
-    _pendingOrders = await _supabaseService.getPendingOrders();
+    final rawOrders = await _supabaseService.getPendingOrders();
     final currentUid = _currentUserId ?? _supabaseService.client.auth.currentUser?.id;
+
+    // Filter out any orders where this driver was rejected by the customer
+    if (currentUid != null) {
+      _pendingOrders = rawOrders.where((o) => !o.rejectedDriverIds.contains(currentUid)).toList();
+    } else {
+      _pendingOrders = rawOrders;
+    }
 
     // Only notify if user is an active registered driver, AND NOT the customer who created the order!
     if (notifyNew && _isDriverRole && currentUid != null) {
@@ -501,6 +508,52 @@ class BookingProvider extends ChangeNotifier {
       }
     }
     notifyListeners();
+  }
+
+  // Passenger: Approve Assigned Driver
+  Future<bool> passengerApproveDriver(String orderId) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      await _supabaseService.passengerApproveDriver(orderId);
+      final updated = await _supabaseService.getOrderById(orderId);
+      if (updated != null) {
+        _activeOrder = updated;
+      }
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // Passenger: Reject Assigned Driver & Search for Another
+  Future<bool> passengerRejectDriver({
+    required String orderId,
+    required String customerId,
+    required String driverId,
+  }) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      await _supabaseService.passengerRejectDriver(
+        orderId: orderId,
+        customerId: customerId,
+        driverId: driverId,
+      );
+      final updated = await _supabaseService.getOrderById(orderId);
+      _activeOrder = updated;
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
   }
 
   // Driver: accept request with optional negotiated fare

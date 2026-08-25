@@ -373,7 +373,7 @@ class SupabaseService {
     }
   }
 
-  // Driver Accept Order with Custom Fare
+  // Driver Accept Order with Custom Fare (Checks if Customer Approval is required)
   Future<void> acceptOrderWithFare({
     required String orderId,
     required String driverId,
@@ -386,6 +386,9 @@ class SupabaseService {
     double? driverLng,
   }) async {
     try {
+      final isApprovalEnabled = await getCustomerDriverApprovalSetting();
+      final targetStatus = isApprovalEnabled ? 'driver_assigned' : 'accepted';
+
       await client
           .from('rides_and_deliveries')
           .update({
@@ -397,7 +400,7 @@ class SupabaseService {
             'driver_lat': driverLat,
             'driver_lng': driverLng,
             'final_fare': agreedFare,
-            'status': 'accepted',
+            'status': targetStatus,
             'fare_status': 'agreed',
           })
           .eq('id', orderId);
@@ -1237,5 +1240,167 @@ class SupabaseService {
     final docs = await getDriverVerification(driverId);
     if (docs == null) return false;
     return docs['status'] == 'approved';
+  }
+
+  // ==========================================
+  // CUSTOMER DRIVER APPROVAL & RELIABILITY SYSTEM
+  // ==========================================
+
+  Future<bool> getCustomerDriverApprovalSetting() async {
+    try {
+      final res = await client
+          .from('app_settings')
+          .select('value')
+          .eq('key', 'customer_driver_approval_enabled')
+          .maybeSingle();
+      if (res != null && res['value'] != null) {
+        final val = res['value'];
+        if (val is bool) return val;
+        if (val is Map) return val['enabled'] as bool? ?? false;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Get customer driver approval setting error: $e');
+      return false;
+    }
+  }
+
+  Future<void> updateCustomerDriverApprovalSetting(bool enabled) async {
+    try {
+      await client.from('app_settings').upsert({
+        'key': 'customer_driver_approval_enabled',
+        'value': {'enabled': enabled, 'updated_at': DateTime.now().toIso8601String()},
+      });
+    } catch (e) {
+      debugPrint('Update customer driver approval setting error: $e');
+      rethrow;
+    }
+  }
+
+  // Rejection Reapply Limits & Settings
+  Future<Map<String, dynamic>> getRejectedDriverSettings() async {
+    try {
+      final res = await client
+          .from('app_settings')
+          .select('value')
+          .eq('key', 'rejected_driver_reapply_settings')
+          .maybeSingle();
+      if (res != null && res['value'] is Map) {
+        return {
+          'is_block_enabled': res['value']['is_block_enabled'] as bool? ?? true,
+          'max_retry_attempts': (res['value']['max_retry_attempts'] as num?)?.toInt() ?? 0,
+        };
+      }
+      return {'is_block_enabled': true, 'max_retry_attempts': 0};
+    } catch (e) {
+      debugPrint('Get rejected driver settings error: $e');
+      return {'is_block_enabled': true, 'max_retry_attempts': 0};
+    }
+  }
+
+  Future<void> updateRejectedDriverSettings({
+    required bool isBlockEnabled,
+    required int maxRetryAttempts,
+  }) async {
+    try {
+      await client.from('app_settings').upsert({
+        'key': 'rejected_driver_reapply_settings',
+        'value': {
+          'is_block_enabled': isBlockEnabled,
+          'max_retry_attempts': maxRetryAttempts,
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+      });
+    } catch (e) {
+      debugPrint('Update rejected driver settings error: $e');
+      rethrow;
+    }
+  }
+
+  // Passenger Approves the Assigned Driver
+  Future<void> passengerApproveDriver(String orderId) async {
+    try {
+      await client
+          .from('rides_and_deliveries')
+          .update({
+            'status': 'accepted',
+          })
+          .eq('id', orderId);
+    } catch (e) {
+      debugPrint('Passenger approve driver error: $e');
+      rethrow;
+    }
+  }
+
+  // Passenger Rejects the Assigned Driver & Looks for Another
+  Future<void> passengerRejectDriver({
+    required String orderId,
+    required String customerId,
+    required String driverId,
+  }) async {
+    try {
+      // 1. Fetch current order to update rejected drivers list & rejection counts
+      final order = await getOrderById(orderId);
+      List<String> rejected = [];
+      Map<String, dynamic> counts = {};
+      if (order != null) {
+        rejected = List<String>.from(order.rejectedDriverIds);
+        counts = Map<String, dynamic>.from(order.driverRejectionCounts);
+      }
+      if (driverId.isNotEmpty) {
+        final currentCount = (counts[driverId] as num?)?.toInt() ?? 0;
+        counts[driverId] = currentCount + 1;
+
+        // Check admin settings for reapply rules
+        final blockSettings = await getRejectedDriverSettings();
+        final isBlockEnabled = blockSettings['is_block_enabled'] as bool? ?? true;
+        final maxRetries = (blockSettings['max_retry_attempts'] as num?)?.toInt() ?? 0;
+
+        // If blocking is enabled AND driver has reached/exceeded max allowed retries, block them from this order
+        if (isBlockEnabled && (counts[driverId] as int) > maxRetries) {
+          if (!rejected.contains(driverId)) {
+            rejected.add(driverId);
+          }
+        }
+      }
+
+      // 2. Reset order back to pending so other drivers (or this driver if retries remain) can accept
+      await client
+          .from('rides_and_deliveries')
+          .update({
+            'driver_id': null,
+            'driver_name': null,
+            'driver_phone': null,
+            'driver_rating': null,
+            'vehicle_info': null,
+            'driver_lat': null,
+            'driver_lng': null,
+            'status': 'pending',
+            'rejected_driver_ids': rejected,
+            'driver_rejection_counts': counts,
+          })
+          .eq('id', orderId);
+
+      // 3. Update customer reliability score (-5% per rejection, min 30%)
+      if (customerId.isNotEmpty) {
+        final profileRes = await client
+            .from('profiles')
+            .select()
+            .eq('id', customerId)
+            .maybeSingle();
+        if (profileRes != null) {
+          final profile = UserProfile.fromJson(profileRes);
+          final newRejections = profile.rejectionsCount + 1;
+          final newScore = (profile.reliabilityScore - 5.0).clamp(30.0, 100.0);
+          await client.from('profiles').update({
+            'rejections_count': newRejections,
+            'reliability_score': newScore,
+          }).eq('id', customerId);
+        }
+      }
+    } catch (e) {
+      debugPrint('Passenger reject driver error: $e');
+      rethrow;
+    }
   }
 }

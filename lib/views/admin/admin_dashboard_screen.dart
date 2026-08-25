@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/services/pdf_service.dart';
+import '../../core/services/supabase_service.dart';
 import '../../core/state/admin_provider.dart';
 import '../../core/state/booking_provider.dart';
 import '../../core/state/theme_provider.dart';
@@ -34,6 +35,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   final TextEditingController _zaincashNumberController = TextEditingController();
   final TextEditingController _superqiNumberController = TextEditingController();
   final TextEditingController _paymentInstructionsController = TextEditingController();
+  final TextEditingController _maxDriverRetryAttemptsController = TextEditingController(text: '0');
 
   // Search & Filter state for Users & Orders
   final TextEditingController _userSearchController = TextEditingController();
@@ -48,6 +50,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   // Set of user IDs whose password visibility is toggled on
   final Set<String> _visiblePasswordUsers = {};
+  bool _customerDriverApprovalEnabled = false;
+  bool _isDriverBlockEnabled = true;
 
   @override
   void initState() {
@@ -71,8 +75,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     _superqiNumberController.text = admin.superqiNumber;
     _paymentInstructionsController.text = admin.paymentInstructions;
 
+    final approvalSetting = await SupabaseService().getCustomerDriverApprovalSetting();
+    final blockSettings = await SupabaseService().getRejectedDriverSettings();
+
     setState(() {
       _selectedMapStyle = admin.mapStyle;
+      _customerDriverApprovalEnabled = approvalSetting;
+      _isDriverBlockEnabled = blockSettings['is_block_enabled'] as bool? ?? true;
+      _maxDriverRetryAttemptsController.text =
+          (blockSettings['max_retry_attempts'] ?? 0).toString();
     });
   }
 
@@ -87,6 +98,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     _zaincashNumberController.dispose();
     _superqiNumberController.dispose();
     _paymentInstructionsController.dispose();
+    _maxDriverRetryAttemptsController.dispose();
     _userSearchController.dispose();
     _orderSearchController.dispose();
     super.dispose();
@@ -529,6 +541,33 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               color: isDark ? Colors.white70 : const Color(0xFF334155),
                             ),
                           ),
+                          if (u.role == 'user') ...[
+                            const SizedBox(height: 3),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: (u.reliabilityScore >= 75
+                                        ? AuroraTheme.accentEmerald
+                                        : (u.reliabilityScore >= 50
+                                            ? AuroraTheme.accentAmber
+                                            : AuroraTheme.accentRose))
+                                    .withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                'الموثوقية: ${u.reliabilityBadgeText} • الرفض: ${u.rejectionsCount}',
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: u.reliabilityScore >= 75
+                                      ? AuroraTheme.accentEmerald
+                                      : (u.reliabilityScore >= 50
+                                          ? AuroraTheme.accentAmber
+                                          : AuroraTheme.accentRose),
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -940,6 +979,249 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       children: [
+        // Special Section: Customer Driver Approval & Reliability Feature Toggle
+        Container(
+          padding: const EdgeInsets.all(18),
+          margin: const EdgeInsets.only(bottom: 18),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F172A) : Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: _customerDriverApprovalEnabled
+                  ? AuroraTheme.accentEmerald
+                  : (isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1)),
+              width: _customerDriverApprovalEnabled ? 1.8 : 1.0,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: _customerDriverApprovalEnabled
+                    ? AuroraTheme.accentEmerald.withValues(alpha: 0.15)
+                    : const Color(0x15000000),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: (_customerDriverApprovalEnabled
+                              ? AuroraTheme.accentEmerald
+                              : AuroraTheme.primaryBlue)
+                          .withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.how_to_reg_rounded,
+                      color: _customerDriverApprovalEnabled
+                          ? AuroraTheme.accentEmerald
+                          : AuroraTheme.primaryBlue,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'موافقة الزبون على الكابتن وموثوقية الركاب',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14.5,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _customerDriverApprovalEnabled
+                              ? 'الميزة مفعّلة الآن: يظهر للزبون خيار قبول أو رفض الكابتن مع تقييم موثوقية الركاب 🟢'
+                              : 'الميزة معطلة: قبول فوري للكابتن دون انتظار موافقة الزبون ⚪',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: _customerDriverApprovalEnabled
+                                ? AuroraTheme.accentEmerald
+                                : (isDark ? Colors.white60 : const Color(0xFF64748B)),
+                            fontWeight: _customerDriverApprovalEnabled
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Switch.adaptive(
+                    value: _customerDriverApprovalEnabled,
+                    activeThumbColor: AuroraTheme.accentEmerald,
+                    activeTrackColor: AuroraTheme.accentEmerald.withValues(alpha: 0.5),
+                    onChanged: (val) async {
+                      setState(() => _customerDriverApprovalEnabled = val);
+                      await SupabaseService().updateCustomerDriverApprovalSetting(val);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(val
+                                ? 'تم تفعيل نظام موافقة الزبون على الكابتن والموثوقية بنجاح 🟢'
+                                : 'تم تعطيل نظام موافقة الزبون على الكابتن ⚪'),
+                            backgroundColor:
+                                val ? AuroraTheme.accentEmerald : const Color(0xFF64748B),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0x221E293B) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline_rounded, size: 16, color: AuroraTheme.primaryCyan),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'عند التفعيل: يستعرض الزبون بيانات الكابتن وتقييمه ومركبته قبل القبول. وفي حال الرفض المتكرر تنخفض موثوقية الزبون.',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? Colors.white70 : const Color(0xFF475569),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 14),
+              Divider(height: 1, color: isDark ? const Color(0x2238BDF8) : const Color(0xFFE2E8F0)),
+              const SizedBox(height: 14),
+
+              // Sub-setting: Rejected Driver Reapply Controls
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: (_isDriverBlockEnabled ? AuroraTheme.accentRose : Colors.grey)
+                          .withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.block_flipped,
+                      color: _isDriverBlockEnabled ? AuroraTheme.accentRose : Colors.grey,
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'منع الكابتن المرفوض من أخذ نفس الرحلة',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
+                        ),
+                        Text(
+                          _isDriverBlockEnabled
+                              ? 'مفعّل: يتم حجب الطلب عن الكابتن بعد رفض الزبون له 🛑'
+                              : 'معطل: يمكن للكابتن المرفوض محاولة أخذ الطلب مجدداً ⚪',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Switch.adaptive(
+                    value: _isDriverBlockEnabled,
+                    activeThumbColor: AuroraTheme.accentRose,
+                    activeTrackColor: AuroraTheme.accentRose.withValues(alpha: 0.5),
+                    onChanged: (val) async {
+                      setState(() => _isDriverBlockEnabled = val);
+                      final maxRetries =
+                          int.tryParse(_maxDriverRetryAttemptsController.text.trim()) ?? 0;
+                      await SupabaseService().updateRejectedDriverSettings(
+                        isBlockEnabled: val,
+                        maxRetryAttempts: maxRetries,
+                      );
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(val
+                                ? 'تم تفعيل منع الكابتن المرفوض من نفس الرحلة 🛑'
+                                : 'تم تعطيل المنع (السماح بالكباتن المرفوضين بإعادة الطلب)'),
+                            backgroundColor:
+                                val ? AuroraTheme.accentRose : const Color(0xFF64748B),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                ],
+              ),
+
+              if (_isDriverBlockEnabled) ...[
+                const SizedBox(height: 12),
+                CustomTextField(
+                  controller: _maxDriverRetryAttemptsController,
+                  label: 'أقصى عدد محاولات مسموحة للكابتن بعد الرفض (0 = منع نهائي)',
+                  hint: '0',
+                  keyboardType: TextInputType.number,
+                  prefixIcon: Icons.repeat_rounded,
+                ),
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AuroraTheme.primaryBlue,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: const Icon(Icons.save_rounded, size: 16, color: Colors.white),
+                    label: const Text(
+                      'حفظ إعدادات المنع والتكرار',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                    ),
+                    onPressed: () async {
+                      final maxRetries =
+                          int.tryParse(_maxDriverRetryAttemptsController.text.trim()) ?? 0;
+                      await SupabaseService().updateRejectedDriverSettings(
+                        isBlockEnabled: _isDriverBlockEnabled,
+                        maxRetryAttempts: maxRetries,
+                      );
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('تم حفظ عدد مرات محاولات الكابتن بعد الرفض بنجاح ✅'),
+                            backgroundColor: AuroraTheme.accentEmerald,
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+
         // Section 1: General Base Pricing
         Container(
           padding: const EdgeInsets.all(20),

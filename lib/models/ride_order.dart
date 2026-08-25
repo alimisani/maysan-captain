@@ -29,6 +29,8 @@ class RideOrder {
   final String status; // 'pending', 'fare_proposed', 'accepted', 'on_way', 'arrived', 'in_progress', 'completed', 'cancelled'
   final String? notes;
   final String? packageDetails;
+  final List<String> rejectedDriverIds;
+  final Map<String, int> driverRejectionCounts;
   final DateTime createdAt;
   final DateTime? completedAt;
 
@@ -63,6 +65,8 @@ class RideOrder {
     this.status = 'pending',
     this.notes,
     this.packageDetails,
+    this.rejectedDriverIds = const [],
+    this.driverRejectionCounts = const {},
     required this.createdAt,
     this.completedAt,
   });
@@ -71,6 +75,7 @@ class RideOrder {
   bool get isDelivery => type == 'delivery';
   bool get isPending => status == 'pending';
   bool get isFareProposed => status == 'fare_proposed';
+  bool get isDriverAssigned => status == 'driver_assigned';
   bool get isAccepted => status == 'accepted';
   bool get isOnWay => status == 'on_way' || status == 'arriving';
   bool get isArrived => status == 'arrived';
@@ -111,6 +116,8 @@ class RideOrder {
     String? status,
     String? notes,
     String? packageDetails,
+    List<String>? rejectedDriverIds,
+    Map<String, int>? driverRejectionCounts,
     DateTime? createdAt,
     DateTime? completedAt,
   }) {
@@ -145,12 +152,30 @@ class RideOrder {
       status: status ?? this.status,
       notes: notes ?? this.notes,
       packageDetails: packageDetails ?? this.packageDetails,
+      rejectedDriverIds: rejectedDriverIds ?? this.rejectedDriverIds,
+      driverRejectionCounts: driverRejectionCounts ?? this.driverRejectionCounts,
       createdAt: createdAt ?? this.createdAt,
       completedAt: completedAt ?? this.completedAt,
     );
   }
 
   factory RideOrder.fromJson(Map<String, dynamic> json) {
+    List<String> parseRejectedDrivers() {
+      final raw = json['rejected_driver_ids'];
+      if (raw is List) {
+        return raw.map((e) => e.toString()).toList();
+      }
+      return [];
+    }
+
+    Map<String, int> parseRejectionCounts() {
+      final raw = json['driver_rejection_counts'];
+      if (raw is Map) {
+        return raw.map((k, v) => MapEntry(k.toString(), (v as num?)?.toInt() ?? 0));
+      }
+      return {};
+    }
+
     return RideOrder(
       id: json['id']?.toString() ?? '',
       orderNumber: json['order_number'] as String? ?? 'ORD-000',
@@ -182,6 +207,8 @@ class RideOrder {
       status: json['status'] as String? ?? 'pending',
       notes: json['notes'] as String?,
       packageDetails: json['package_details'] as String?,
+      rejectedDriverIds: parseRejectedDrivers(),
+      driverRejectionCounts: parseRejectionCounts(),
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now()
           : DateTime.now(),
@@ -223,6 +250,8 @@ class RideOrder {
       'status': status,
       'notes': notes,
       'package_details': packageDetails,
+      'rejected_driver_ids': rejectedDriverIds,
+      'driver_rejection_counts': driverRejectionCounts,
       'created_at': createdAt.toIso8601String(),
       'completed_at': completedAt?.toIso8601String(),
     };
@@ -232,6 +261,10 @@ class RideOrder {
     switch (status) {
       case 'pending':
         return isArabic ? 'قيد الانتظار' : 'Pending';
+      case 'driver_assigned':
+        return isArabic ? 'بانتظار موافقتك على الكابتن' : 'Waiting for approval';
+      case 'fare_proposed':
+        return isArabic ? 'تم اقتراح أجرة من الكابتن' : 'Fare proposed';
       case 'accepted':
         return isArabic ? 'تم قبول الطلب' : 'Accepted';
       case 'on_way':

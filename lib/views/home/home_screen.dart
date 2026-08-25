@@ -439,15 +439,19 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
-                        gradient: booking.activeOrder!.status == 'fare_proposed'
-                            ? const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFD97706)])
-                            : AuroraTheme.primaryGradient,
+                        gradient: booking.activeOrder!.status == 'driver_assigned'
+                            ? const LinearGradient(colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)])
+                            : (booking.activeOrder!.status == 'fare_proposed'
+                                ? const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFD97706)])
+                                : AuroraTheme.primaryGradient),
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: (booking.activeOrder!.status == 'fare_proposed'
-                                    ? const Color(0xFFF59E0B)
-                                    : AuroraTheme.primaryBlue)
+                            color: (booking.activeOrder!.status == 'driver_assigned'
+                                    ? const Color(0xFF8B5CF6)
+                                    : (booking.activeOrder!.status == 'fare_proposed'
+                                        ? const Color(0xFFF59E0B)
+                                        : AuroraTheme.primaryBlue))
                                 .withValues(alpha: 0.4),
                             blurRadius: 16,
                             offset: const Offset(0, 4),
@@ -457,9 +461,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Row(
                         children: [
                           Icon(
-                            booking.activeOrder!.status == 'fare_proposed'
-                                ? Icons.notifications_active_rounded
-                                : Icons.navigation_rounded,
+                            booking.activeOrder!.status == 'driver_assigned'
+                                ? Icons.how_to_reg_rounded
+                                : (booking.activeOrder!.status == 'fare_proposed'
+                                    ? Icons.notifications_active_rounded
+                                    : Icons.navigation_rounded),
                             color: Colors.white,
                             size: 22,
                           ),
@@ -470,11 +476,15 @@ class _HomeScreenState extends State<HomeScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  booking.activeOrder!.status == 'fare_proposed'
+                                  booking.activeOrder!.status == 'driver_assigned'
                                       ? (loc.isArabic
-                                          ? '🔔 الكابتن يقترح أجرة (${(booking.activeOrder!.proposedFare ?? booking.activeOrder!.finalFare).toInt()} د.ع)'
-                                          : '🔔 Captain proposed fare (${(booking.activeOrder!.proposedFare ?? booking.activeOrder!.finalFare).toInt()} IQD)')
-                                      : '${loc.translate("activeTripNotification")}: ${booking.activeOrder!.getLocalizedStatus(loc.isArabic)}',
+                                          ? '🔔 كابتن متاح لرحلتك: ${booking.activeOrder!.driverName ?? "كابتن ميسان"}'
+                                          : '🔔 Driver assigned: ${booking.activeOrder!.driverName ?? "Captain"}')
+                                      : (booking.activeOrder!.status == 'fare_proposed'
+                                          ? (loc.isArabic
+                                              ? '🔔 الكابتن يقترح أجرة (${(booking.activeOrder!.proposedFare ?? booking.activeOrder!.finalFare).toInt()} د.ع)'
+                                              : '🔔 Captain proposed fare (${(booking.activeOrder!.proposedFare ?? booking.activeOrder!.finalFare).toInt()} IQD)')
+                                          : '${loc.translate("activeTripNotification")}: ${booking.activeOrder!.getLocalizedStatus(loc.isArabic)}'),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
@@ -482,11 +492,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                 ),
                                 Text(
-                                  booking.activeOrder!.status == 'fare_proposed'
+                                  booking.activeOrder!.status == 'driver_assigned'
                                       ? (loc.isArabic
-                                          ? 'انقر هنا لتأكيد الأجرة أو إلغاء الطلب'
-                                          : 'Tap here to accept fare or decline')
-                                      : '${loc.isArabic ? "إلى" : "To"}: ${booking.activeOrder!.dropoffAddress}',
+                                          ? 'انقر هنا لمعاينة بيانات الكابتن وقبوله أو رفضه'
+                                          : 'Tap here to review driver & accept or decline')
+                                      : (booking.activeOrder!.status == 'fare_proposed'
+                                          ? (loc.isArabic
+                                              ? 'انقر هنا لتأكيد الأجرة أو إلغاء الطلب'
+                                              : 'Tap here to accept fare or decline')
+                                          : '${loc.isArabic ? "إلى" : "To"}: ${booking.activeOrder!.dropoffAddress}'),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(color: Colors.white70, fontSize: 11),
