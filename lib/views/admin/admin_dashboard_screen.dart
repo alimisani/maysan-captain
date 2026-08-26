@@ -2604,6 +2604,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget _buildAdminDocumentFieldTile(AdminProvider admin, Map<String, dynamic> field, bool isDark) {
     final fieldId = field['id'] as String? ?? '';
     final title = field['title'] as String? ?? 'حقل';
+    final isEnabled = field['is_enabled'] as bool? ?? true;
     final isRequired = field['is_required'] as bool? ?? false;
     final isDefaultField = [
       'national_id_front',
@@ -2621,15 +2622,24 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0F172A).withValues(alpha: 0.7) : Colors.white,
+        color: isDark
+            ? (isEnabled ? const Color(0xFF0F172A).withValues(alpha: 0.7) : const Color(0xFF0F172A).withValues(alpha: 0.3))
+            : (isEnabled ? Colors.white : const Color(0xFFF1F5F9)),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: isEnabled
+              ? (isDark ? Colors.white12 : const Color(0xFFE2E8F0))
+              : (isDark ? Colors.white10 : const Color(0xFFCBD5E1)),
+        ),
       ),
       child: Row(
         children: [
+          // Checkbox indicator: shows whether this document is Mandatory (إجباري) or Optional (اختياري)
           Icon(
             isRequired ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
-            color: isRequired ? AuroraTheme.primaryCyan : Colors.grey,
+            color: !isEnabled
+                ? Colors.grey.withValues(alpha: 0.4)
+                : (isRequired ? AuroraTheme.primaryCyan : Colors.grey),
             size: 20,
           ),
           const SizedBox(width: 10),
@@ -2639,27 +2649,39 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13.5,
+                    color: isEnabled
+                        ? (isDark ? Colors.white : const Color(0xFF0F172A))
+                        : (isDark ? Colors.white38 : const Color(0xFF94A3B8)),
+                    decoration: isEnabled ? null : TextDecoration.lineThrough,
+                  ),
                 ),
                 Text(
-                  isRequired ? 'مستمسك إجباري للقبول' : 'مستمسك اختياري (إضافي)',
+                  !isEnabled
+                      ? 'مستمسك معطّل ⚪ (لن يظهر في إثباتات الكابتن)'
+                      : (isRequired ? 'مستمسك إجباري للقبول' : 'مستمسك اختياري (إضافي)'),
                   style: TextStyle(
                     fontSize: 11,
-                    color: isRequired ? AuroraTheme.accentRose : Colors.grey,
+                    fontWeight: isEnabled && isRequired ? FontWeight.bold : FontWeight.normal,
+                    color: !isEnabled
+                        ? (isDark ? Colors.white38 : Colors.grey)
+                        : (isRequired ? AuroraTheme.accentRose : (isDark ? Colors.white70 : const Color(0xFF64748B))),
                   ),
                 ),
               ],
             ),
           ),
-          // Toggle Required Switch
+          // Main Switch: Controls whether this document is ENABLED / ACTIVE or completely disabled
           Switch(
-            value: isRequired,
+            value: isEnabled,
             activeThumbColor: AuroraTheme.primaryCyan,
             onChanged: (val) async {
               final fields = List<Map<String, dynamic>>.from(admin.verificationFields);
               final idx = fields.indexWhere((e) => e['id'] == fieldId);
               if (idx != -1) {
-                fields[idx]['is_required'] = val;
+                fields[idx]['is_enabled'] = val;
                 await admin.updateVerificationSettings({
                   'is_enabled': admin.isVerificationEnabled,
                   'fields': fields,
@@ -2669,7 +2691,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.edit_rounded, color: AuroraTheme.primaryBlue, size: 18),
-            tooltip: 'تعديل اسم الحقل',
+            tooltip: 'تعديل خيارات الحقل',
             onPressed: () => _showAddOrEditFieldDialog(admin, field: field),
           ),
           if (!isDefaultField)
@@ -3082,6 +3104,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final isEditing = field != null;
     final titleController = TextEditingController(text: field?['title']?.toString() ?? '');
     bool isRequired = field?['is_required'] as bool? ?? true;
+    final bool isEnabled = field?['is_enabled'] as bool? ?? true;
 
     showDialog(
       context: context,
@@ -3137,12 +3160,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   if (idx != -1) {
                     fields[idx]['title'] = title;
                     fields[idx]['is_required'] = isRequired;
+                    fields[idx]['is_enabled'] = isEnabled;
                   }
                 } else {
                   final newId = 'custom_${const Uuid().v4().substring(0, 8)}';
                   fields.add({
                     'id': newId,
                     'title': title,
+                    'is_enabled': true,
                     'is_required': isRequired,
                   });
                 }

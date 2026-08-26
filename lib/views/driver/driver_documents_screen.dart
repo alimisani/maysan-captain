@@ -49,7 +49,10 @@ class _DriverDocumentsScreenState extends State<DriverDocumentsScreen> {
       _isVerificationEnabled = settings['is_enabled'] as bool? ?? false;
 
       final rawFields = settings['fields'] as List? ?? [];
-      _fields = rawFields.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      _fields = rawFields
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .where((f) => f['is_enabled'] != false)
+          .toList();
 
       final submission = await SupabaseService().getDriverVerification(auth.currentUser!.id);
       _existingSubmission = submission;

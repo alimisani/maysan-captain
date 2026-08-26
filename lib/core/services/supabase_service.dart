@@ -1095,15 +1095,15 @@ class SupabaseService {
   static const Map<String, dynamic> defaultVerificationSettings = {
     'is_enabled': false,
     'fields': [
-      {'id': 'national_id_front', 'title': 'الوجه الأمامي للبطاقة الوطنية', 'is_required': true},
-      {'id': 'national_id_back', 'title': 'الوجه الخلفي للبطاقة الوطنية', 'is_required': true},
-      {'id': 'residence_card_front', 'title': 'الوجه الأمامي لبطاقة السكن', 'is_required': true},
-      {'id': 'residence_card_back', 'title': 'الوجه الخلفي لبطاقة السكن', 'is_required': true},
-      {'id': 'driver_license_front', 'title': 'الوجه الأمامي لإجازة السوق', 'is_required': true},
-      {'id': 'driver_license_back', 'title': 'الوجه الخلفي لإجازة السوق', 'is_required': true},
-      {'id': 'vehicle_reg_front', 'title': 'الوجه الأمامي للسنوية (ملكية المركبة)', 'is_required': true},
-      {'id': 'vehicle_reg_back', 'title': 'الوجه الخلفي للسنوية', 'is_required': true},
-      {'id': 'other_attachments', 'title': 'مرفقات ووثائق رسمية أخرى', 'is_required': false},
+      {'id': 'national_id_front', 'title': 'الوجه الأمامي للبطاقة الوطنية', 'is_enabled': true, 'is_required': true},
+      {'id': 'national_id_back', 'title': 'الوجه الخلفي للبطاقة الوطنية', 'is_enabled': true, 'is_required': true},
+      {'id': 'residence_card_front', 'title': 'الوجه الأمامي لبطاقة السكن', 'is_enabled': true, 'is_required': true},
+      {'id': 'residence_card_back', 'title': 'الوجه الخلفي لبطاقة السكن', 'is_enabled': true, 'is_required': true},
+      {'id': 'driver_license_front', 'title': 'الوجه الأمامي لإجازة السوق', 'is_enabled': true, 'is_required': true},
+      {'id': 'driver_license_back', 'title': 'الوجه الخلفي لإجازة السوق', 'is_enabled': true, 'is_required': true},
+      {'id': 'vehicle_reg_front', 'title': 'الوجه الأمامي للسنوية (ملكية المركبة)', 'is_enabled': true, 'is_required': true},
+      {'id': 'vehicle_reg_back', 'title': 'الوجه الخلفي للسنوية', 'is_enabled': true, 'is_required': true},
+      {'id': 'other_attachments', 'title': 'مرفقات ووثائق رسمية أخرى', 'is_enabled': true, 'is_required': false},
     ],
   };
 
