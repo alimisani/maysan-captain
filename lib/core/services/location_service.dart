@@ -132,6 +132,19 @@ class LocationService {
     }
   }
 
+  // Real-time GPS Position Stream for Dynamic Movement Tracking
+  static Stream<Position> getPositionStream({
+    LocationAccuracy accuracy = LocationAccuracy.high,
+    int distanceFilter = 1, // trigger every 1 meter of movement
+  }) {
+    return Geolocator.getPositionStream(
+      locationSettings: LocationSettings(
+        accuracy: accuracy,
+        distanceFilter: distanceFilter,
+      ),
+    );
+  }
+
   // Accurate Reverse Geocoding via Nominatim & Maysan Neighborhood Engine
   static Future<String> getRealAddress(LatLng point, {bool isArabic = true}) async {
     String? roadName;

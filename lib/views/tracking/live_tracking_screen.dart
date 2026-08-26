@@ -49,8 +49,6 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
 
     // Determine default navigation target based on current trip status
     final isHeadingToPickup = order.status == 'accepted';
-    final targetLat = isHeadingToPickup ? order.pickupLat : order.dropoffLat;
-    final targetLng = isHeadingToPickup ? order.pickupLng : order.dropoffLng;
     final targetTitle = isHeadingToPickup
         ? (loc.isArabic ? 'موقع الزبون (نقطة الانطلاق)' : 'Pickup Location (Customer)')
         : (loc.isArabic ? 'وجهة ومقصد الرحلة' : 'Dropoff Destination');
@@ -117,16 +115,23 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
               icon: Icons.map_rounded,
               iconColor: const Color(0xFF4285F4),
               title: loc.isArabic ? 'خرائط Google (Google Maps)' : 'Google Maps',
-              subtitle: loc.isArabic ? 'عرض وتوجيه مسار الرحلة كاملاً' : 'Full driving route & turn-by-turn navigation',
+              subtitle: loc.isArabic ? 'عرض وتوجيه مسار الرحلة كاملاً (انطلاق ← وصول)' : 'Full driving route (Pickup → Dropoff)',
               isDark: isDark,
               onTap: () async {
                 Navigator.pop(sheetCtx);
                 final routeUrl = Uri.parse(
                     'https://www.google.com/maps/dir/?api=1&origin=${order.pickupLat},${order.pickupLng}&destination=${order.dropoffLat},${order.dropoffLng}&travelmode=driving');
+                final navIntent = Uri.parse('google.navigation:q=${order.dropoffLat},${order.dropoffLng}&mode=d');
                 try {
-                  await launchUrl(routeUrl, mode: LaunchMode.externalApplication);
+                  if (await canLaunchUrl(routeUrl)) {
+                    await launchUrl(routeUrl, mode: LaunchMode.externalApplication);
+                  } else if (await canLaunchUrl(navIntent)) {
+                    await launchUrl(navIntent, mode: LaunchMode.externalApplication);
+                  } else {
+                    await launchUrl(routeUrl, mode: LaunchMode.platformDefault);
+                  }
                 } catch (_) {
-                  await launchUrl(routeUrl, mode: LaunchMode.platformDefault);
+                  await launchUrl(routeUrl, mode: LaunchMode.externalApplication);
                 }
               },
             ),
@@ -137,12 +142,12 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
               icon: Icons.directions_car_filled_rounded,
               iconColor: const Color(0xFF33CCFF),
               title: loc.isArabic ? 'تطبيق Waze' : 'Waze Navigation',
-              subtitle: loc.isArabic ? 'ملاحة وتوجيه وتنبيهات السرعة' : 'Traffic alerts & navigation',
+              subtitle: loc.isArabic ? 'ملاحة وتوجيه وتنبيهات السرعة نحو الوجهة' : 'Turn-by-turn navigation & traffic alerts',
               isDark: isDark,
               onTap: () async {
                 Navigator.pop(sheetCtx);
-                final wazeNative = Uri.parse('waze://?ll=${targetLat.toStringAsFixed(6)},${targetLng.toStringAsFixed(6)}&navigate=yes');
-                final wazeWeb = Uri.parse('https://www.waze.com/ul?ll=${targetLat.toStringAsFixed(6)},${targetLng.toStringAsFixed(6)}&navigate=yes');
+                final wazeNative = Uri.parse('waze://?ll=${order.dropoffLat.toStringAsFixed(6)},${order.dropoffLng.toStringAsFixed(6)}&navigate=yes');
+                final wazeWeb = Uri.parse('https://www.waze.com/ul?ll=${order.dropoffLat.toStringAsFixed(6)},${order.dropoffLng.toStringAsFixed(6)}&navigate=yes');
                 try {
                   if (await canLaunchUrl(wazeNative)) {
                     await launchUrl(wazeNative, mode: LaunchMode.externalNonBrowserApplication);

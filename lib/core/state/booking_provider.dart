@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import '../constants/app_constants.dart';
 import '../services/background_order_service.dart';
@@ -24,10 +25,17 @@ class BookingProvider extends ChangeNotifier {
   LatLng _dropoffLocation = AppConstants.maysanLocations[1].coordinates; // Corniche
   String _dropoffAddress = AppConstants.maysanLocations[1].nameAr;
 
+  LatLng? _liveUserGps;
+  double _liveUserHeading = 0.0;
+  bool _hasCustomPickupLocation = false;
+
   LatLng get pickupLocation => _pickupLocation;
   String get pickupAddress => _pickupAddress;
   LatLng get dropoffLocation => _dropoffLocation;
   String get dropoffAddress => _dropoffAddress;
+  LatLng? get liveUserGps => _liveUserGps ?? _pickupLocation;
+  double get liveUserHeading => _liveUserHeading;
+  bool get hasCustomPickupLocation => _hasCustomPickupLocation;
 
   // Selected Vehicle Type for booking
   String _selectedVehicleType = 'salon';
@@ -147,13 +155,50 @@ class BookingProvider extends ChangeNotifier {
     _recalculateFareLocal();
   }
 
+  StreamSubscription<Position>? _gpsStreamSubscription;
+
   Future<void> _initUserCurrentLocation() async {
     final gps = await LocationService.getCurrentLocation();
     if (gps != null) {
+      _liveUserGps = gps;
       _pickupLocation = gps;
-      _pickupAddress = await LocationService.getRealAddress(gps, isArabic: true);
+      LocationService.getRealAddress(gps, isArabic: true).then((addr) {
+        _pickupAddress = addr;
+        notifyListeners();
+      });
       notifyListeners();
     }
+
+    _gpsStreamSubscription?.cancel();
+    _gpsStreamSubscription = LocationService.getPositionStream(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 1, // continuous 1 meter updates
+    ).listen((Position pos) {
+      _liveUserGps = LatLng(pos.latitude, pos.longitude);
+      _liveUserHeading = pos.heading;
+
+      if (!_hasCustomPickupLocation && _activeOrder == null) {
+        _pickupLocation = _liveUserGps!;
+      }
+
+      notifyListeners();
+    }, onError: (e) {
+      debugPrint('GPS stream error: $e');
+    });
+  }
+
+  void updateLiveGps(LatLng point, {double heading = 0.0}) {
+    _liveUserGps = point;
+    _liveUserHeading = heading;
+    if (!_hasCustomPickupLocation && _activeOrder == null) {
+      _pickupLocation = point;
+    }
+    notifyListeners();
+  }
+
+  void setCustomPickupActive(bool isCustom) {
+    _hasCustomPickupLocation = isCustom;
+    notifyListeners();
   }
 
   void _startNearbyDriversPolling() {
@@ -237,13 +282,6 @@ class BookingProvider extends ChangeNotifier {
       heading: 0,
       isOnline: false,
     );
-  }
-
-  @override
-  void dispose() {
-    _driverBroadcastTimer?.cancel();
-    _nearbyDriversTimer?.cancel();
-    super.dispose();
   }
 
   String getLocalizedPickupAddress(bool isArabic) {
@@ -613,5 +651,14 @@ class BookingProvider extends ChangeNotifier {
     } catch (e) {
       return false;
     }
+  }
+
+  @override
+  void dispose() {
+    _gpsStreamSubscription?.cancel();
+    _driverBroadcastTimer?.cancel();
+    _nearbyDriversTimer?.cancel();
+    _ridesSubscription?.cancel();
+    super.dispose();
   }
 }
