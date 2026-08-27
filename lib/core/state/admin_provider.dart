@@ -28,6 +28,21 @@ class AdminProvider extends ChangeNotifier {
   String _paymentInstructions =
       'يرجى تحويل مبلغ الاشتراك عبر محفظة زين كاش أو بطاقة سوبر كي ثم إرسال الإشعار لتفعيل الحساب فورياً';
 
+  Map<String, dynamic> _referralSettings = {
+    'is_referral_system_enabled': true,
+    'is_referral_field_visible': true,
+    'driver_referral_bonus_days': 30,
+    'driver_free_annual_referral_target': 5,
+    'driver_referral_discount_percent': 20,
+    'customer_referral_bonus_days': 5,
+    'customers_target_per_bonus': 10,
+    'invitee_bonus_days': 15,
+    'bronze_ambassador_target': 3,
+    'silver_ambassador_target': 5,
+    'gold_ambassador_target': 10,
+  };
+  List<Map<String, dynamic>> _topReferrers = [];
+
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -49,6 +64,9 @@ class AdminProvider extends ChangeNotifier {
   String get zaincashNumber => _zaincashNumber;
   String get superqiNumber => _superqiNumber;
   String get paymentInstructions => _paymentInstructions;
+
+  Map<String, dynamic> get referralSettings => _referralSettings;
+  List<Map<String, dynamic>> get topReferrers => _topReferrers;
 
   // Backward compatibility getter
   double get driverFeeAmount => _lifetimeFeeAmount;
@@ -78,6 +96,8 @@ class AdminProvider extends ChangeNotifier {
         _supabaseService.getDriverFeeSettings(),
         _supabaseService.getDriverVerificationSettings(),
         _supabaseService.getAllDriverVerifications(),
+        _supabaseService.getReferralSettings(),
+        _supabaseService.getTopReferrers(),
       ]);
 
       _users = results[0] as List<UserProfile>;
@@ -104,6 +124,8 @@ class AdminProvider extends ChangeNotifier {
 
       _verificationSettings = results[6] as Map<String, dynamic>;
       _driverVerifications = results[7] as List<Map<String, dynamic>>;
+      _referralSettings = results[8] as Map<String, dynamic>;
+      _topReferrers = results[9] as List<Map<String, dynamic>>;
 
       _isLoading = false;
       notifyListeners();
@@ -430,6 +452,39 @@ class AdminProvider extends ChangeNotifier {
         rejectionReason: rejectionReason,
       );
       await fetchVerificationData();
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  // ==========================================
+  // --- REFERRAL & REWARDS ADMIN ACTIONS ---
+  // ==========================================
+
+  Future<void> updateReferralSettings(Map<String, dynamic> settings) async {
+    try {
+      await _supabaseService.updateReferralSettings(settings);
+      _referralSettings = settings;
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> updateUserReferredBy({
+    required String userId,
+    required String referrerCode,
+  }) async {
+    try {
+      await _supabaseService.updateUserReferredBy(
+        userId: userId,
+        referrerCode: referrerCode,
+      );
+      await fetchAllData();
     } catch (e) {
       _errorMessage = e.toString();
       notifyListeners();

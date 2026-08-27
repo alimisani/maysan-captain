@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../core/services/supabase_service.dart';
 import '../../core/state/auth_provider.dart';
 import '../../core/state/theme_provider.dart';
 import '../../core/theme/aurora_theme.dart';
@@ -25,10 +26,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _referralCodeController = TextEditingController();
 
   String _selectedRole = 'user'; // 'user' or 'driver'
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
+  bool _isReferralFieldVisible = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkReferralSettings();
+  }
+
+  Future<void> _checkReferralSettings() async {
+    try {
+      final s = await SupabaseService().getReferralSettings();
+      if (mounted) {
+        setState(() {
+          _isReferralFieldVisible = s['is_referral_field_visible'] == true && s['is_referral_system_enabled'] == true;
+        });
+      }
+    } catch (_) {}
+  }
 
   @override
   void dispose() {
@@ -37,6 +57,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _referralCodeController.dispose();
     super.dispose();
   }
 
@@ -60,6 +81,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       phone: _phoneController.text.trim(),
       password: _passwordController.text.trim(),
       role: _selectedRole,
+      referralCode: _referralCodeController.text.trim().isNotEmpty ? _referralCodeController.text.trim() : null,
     );
 
     if (success && mounted) {
@@ -253,6 +275,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             validator: (val) =>
                                 val == null || val.trim().isEmpty ? loc.translate('fillAllFields') : null,
                           ),
+
+                          if (_isReferralFieldVisible) ...[
+                            const SizedBox(height: 14),
+                            CustomTextField(
+                              controller: _referralCodeController,
+                              label: 'رمز الإحالة / كود الدعوة (اختياري)',
+                              hint: 'أدخل كود الكابتن الداعي (مثال: u2)',
+                              prefixIcon: Icons.card_giftcard_rounded,
+                            ),
+                          ],
 
                           const SizedBox(height: 24),
 

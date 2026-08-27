@@ -116,6 +116,7 @@ class AuthProvider extends ChangeNotifier {
     required String phone,
     required String password,
     required String role,
+    String? referralCode,
   }) async {
     _isLoading = true;
     _errorMessage = null;
@@ -128,6 +129,7 @@ class AuthProvider extends ChangeNotifier {
         phone: phone,
         password: password,
         role: role,
+        referralCode: referralCode,
       );
 
       _currentUser = user;

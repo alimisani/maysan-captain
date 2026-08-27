@@ -41,6 +41,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   final TextEditingController _paymentInstructionsController = TextEditingController();
   final TextEditingController _maxDriverRetryAttemptsController = TextEditingController(text: '0');
 
+  // Referral & Rewards controllers & state
+  bool _isReferralSystemEnabled = true;
+  bool _isReferralFieldVisible = true;
+  final TextEditingController _driverReferralBonusDaysController = TextEditingController(text: '30');
+  final TextEditingController _driverFreeAnnualTargetController = TextEditingController(text: '5');
+  final TextEditingController _driverDiscountPercentController = TextEditingController(text: '20');
+  final TextEditingController _customerReferralBonusDaysController = TextEditingController(text: '5');
+  final TextEditingController _customersTargetPerBonusController = TextEditingController(text: '10');
+  final TextEditingController _inviteeBonusDaysController = TextEditingController(text: '15');
+  final TextEditingController _bronzeAmbassadorTargetController = TextEditingController(text: '3');
+  final TextEditingController _silverAmbassadorTargetController = TextEditingController(text: '5');
+  final TextEditingController _goldAmbassadorTargetController = TextEditingController(text: '10');
+
   // Search & Filter state for Users & Orders
   final TextEditingController _userSearchController = TextEditingController();
   String _userFilter = 'all'; // 'all', 'user', 'driver'
@@ -82,6 +95,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
     final approvalSetting = await SupabaseService().getCustomerDriverApprovalSetting();
     final blockSettings = await SupabaseService().getRejectedDriverSettings();
+    final ref = admin.referralSettings;
+
+    _isReferralSystemEnabled = ref['is_referral_system_enabled'] as bool? ?? true;
+    _isReferralFieldVisible = ref['is_referral_field_visible'] as bool? ?? true;
+    _driverReferralBonusDaysController.text = (ref['driver_referral_bonus_days'] ?? 30).toString();
+    _driverFreeAnnualTargetController.text = (ref['driver_free_annual_referral_target'] ?? 5).toString();
+    _driverDiscountPercentController.text = (ref['driver_referral_discount_percent'] ?? 20).toString();
+    _customerReferralBonusDaysController.text = (ref['customer_referral_bonus_days'] ?? 5).toString();
+    _customersTargetPerBonusController.text = (ref['customers_target_per_bonus'] ?? 10).toString();
+    _inviteeBonusDaysController.text = (ref['invitee_bonus_days'] ?? 15).toString();
+    _bronzeAmbassadorTargetController.text = (ref['bronze_ambassador_target'] ?? 3).toString();
+    _silverAmbassadorTargetController.text = (ref['silver_ambassador_target'] ?? 5).toString();
+    _goldAmbassadorTargetController.text = (ref['gold_ambassador_target'] ?? 10).toString();
 
     setState(() {
       _selectedMapStyle = admin.mapStyle;
@@ -106,6 +132,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     _superqiNumberController.dispose();
     _paymentInstructionsController.dispose();
     _maxDriverRetryAttemptsController.dispose();
+    _driverReferralBonusDaysController.dispose();
+    _driverFreeAnnualTargetController.dispose();
+    _driverDiscountPercentController.dispose();
+    _customerReferralBonusDaysController.dispose();
+    _customersTargetPerBonusController.dispose();
+    _inviteeBonusDaysController.dispose();
+    _bronzeAmbassadorTargetController.dispose();
+    _silverAmbassadorTargetController.dispose();
+    _goldAmbassadorTargetController.dispose();
     _userSearchController.dispose();
     _orderSearchController.dispose();
     super.dispose();
@@ -227,6 +262,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       isSelected: _selectedTabIndex == 4,
                       isDark: isDark,
                     ),
+                    const SizedBox(width: 6),
+                    _buildCircularAdminTab(
+                      index: 5,
+                      icon: Icons.card_giftcard_rounded,
+                      title: 'المكافآت والإحالة',
+                      isSelected: _selectedTabIndex == 5,
+                      isDark: isDark,
+                    ),
                   ],
                 ),
               ),
@@ -243,6 +286,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           _buildPricingTab(admin, loc, isDark),
                           _buildMapSettingsTab(admin, loc, isDark),
                           _buildDriverVerificationTab(admin, loc, isDark),
+                          _buildReferralRewardsTab(admin, loc, isDark),
                         ],
                       ),
               ),
@@ -2762,6 +2806,84 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           },
                         ),
                       ],
+                      // Referral & Rewards Details Card
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Row(
+                                  children: [
+                                    Icon(Icons.card_giftcard_rounded, size: 18, color: AuroraTheme.accentAmber),
+                                    SizedBox(width: 8),
+                                    Text('سجل الإحالة والمكافآت', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                  ],
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    gradient: AuroraTheme.primaryGradient,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    u.ambassadorBadge,
+                                    style: const TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    'المشتركين المدعوين: ${u.referralCount} | الأيام المكتسبة: +${u.referralBonusDays} يوم',
+                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : const Color(0xFF334155)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    'تمت دعوته بواسطة: ${u.referredBy != null && u.referredBy!.isNotEmpty ? u.referredBy! : "تسجيل مباشر (لا يوجد)"}',
+                                    style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                                  ),
+                                ),
+                                TextButton.icon(
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    minimumSize: Size.zero,
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  icon: const Icon(Icons.edit_rounded, size: 14, color: AuroraTheme.primaryCyan),
+                                  label: Text(
+                                    u.referredBy != null && u.referredBy!.isNotEmpty ? 'تغيير' : 'تعيين كود الداعي',
+                                    style: const TextStyle(fontSize: 11, color: AuroraTheme.primaryCyan, fontWeight: FontWeight.bold),
+                                  ),
+                                  onPressed: () {
+                                    Navigator.pop(modalCtx);
+                                    _showAssignReferrerDialog(admin, u);
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
 
                       const SizedBox(height: 20),
 
@@ -4165,6 +4287,571 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  void _showAssignReferrerDialog(AdminProvider admin, UserProfile user) {
+    final refController = TextEditingController(text: user.referredBy ?? '');
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.card_giftcard_rounded, color: AuroraTheme.accentAmber),
+            const SizedBox(width: 10),
+            Text('تعيين كود الداعي للمشترك ${user.name}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'أدخل معرّف أو كود الكابتن الداعي (مثلاً u2). عند الحفظ سيتم احتساب المكافآت والأيام المجانية فورياً للكابتن الداعي.',
+              style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: refController,
+              decoration: InputDecoration(
+                labelText: 'كود / معرف الكابتن الداعي',
+                hintText: 'مثال: u2',
+                prefixIcon: const Icon(Icons.person_add_alt_1_rounded),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AuroraTheme.accentEmerald,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            icon: const Icon(Icons.check_circle_rounded, size: 18),
+            label: const Text('حفظ واحتساب المكافأة'),
+            onPressed: () async {
+              final code = refController.text.trim();
+              Navigator.pop(ctx);
+              try {
+                await admin.updateUserReferredBy(
+                  userId: user.id,
+                  referrerCode: code,
+                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('تم تعيين كود الداعي واحتساب المكافأة بنجاح ✅'),
+                      backgroundColor: AuroraTheme.accentEmerald,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('حدث خطأ: $e'), backgroundColor: AuroraTheme.accentRose),
+                  );
+                }
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- TAB 6: REFERRAL & REWARDS MANAGEMENT ---
+  Widget _buildReferralRewardsTab(AdminProvider admin, AppLocalizations loc, bool isDark) {
+    final topReferrers = admin.topReferrers;
+
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      children: [
+        // Main Switches Card
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: isDark ? const Color(0x3338BDF8) : const Color(0xFFE2E8F0)),
+            boxShadow: const [
+              BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 3)),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AuroraTheme.accentAmber.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.toggle_on_rounded, color: AuroraTheme.accentAmber, size: 24),
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('التحكم بنظام المكافآت والإحالة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        Text('تفعيل أو إيقاف الميزة والحقول في شاشة التسجيل', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(height: 20),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('تفعيل نظام المكافآت والإحالة بالكامل', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                subtitle: const Text('احتساب الأيام المجانية والأوسمة عند دعوة مستخدمين وكباتن', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                value: _isReferralSystemEnabled,
+                activeThumbColor: AuroraTheme.accentEmerald,
+                onChanged: (val) => setState(() => _isReferralSystemEnabled = val),
+              ),
+              const Divider(height: 14),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('إظهار حقل كود الدعوة في صفحة التسجيل', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                subtitle: const Text('إتاحة إدخال رمز الإحالة للمشتركين الجدد بشكل اختياري', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                value: _isReferralFieldVisible,
+                activeThumbColor: AuroraTheme.primaryCyan,
+                onChanged: (val) => setState(() => _isReferralFieldVisible = val),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 14),
+
+        // Section 1: Driver Referrals Settings
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: isDark ? const Color(0x3338BDF8) : const Color(0xFFE2E8F0)),
+            boxShadow: const [
+              BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 3)),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AuroraTheme.accentEmerald.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.directions_car_rounded, color: AuroraTheme.accentEmerald, size: 22),
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('مكافآت دعوة الكباتن الجدد 🚗', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        Text('المكافآت الممنوحة للكابتن عند دعوة زميل كابتن', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(height: 20),
+              CustomTextField(
+                controller: _driverReferralBonusDaysController,
+                label: 'أيام مجانية تضاف للاشتراك لكل كابتن جديد (يوم)',
+                hint: '30',
+                keyboardType: TextInputType.number,
+                prefixIcon: Icons.calendar_month_rounded,
+              ),
+              const SizedBox(height: 12),
+              CustomTextField(
+                controller: _driverFreeAnnualTargetController,
+                label: 'هدف الحصول على اشتراك سنوي مجاني 100% (عدد الكباتن)',
+                hint: '5',
+                keyboardType: TextInputType.number,
+                prefixIcon: Icons.card_giftcard_rounded,
+              ),
+              const SizedBox(height: 12),
+              CustomTextField(
+                controller: _driverDiscountPercentController,
+                label: 'نسبة الخصم على التجديد القادم لكل كابتن (%)',
+                hint: '20',
+                keyboardType: TextInputType.number,
+                prefixIcon: Icons.percent_rounded,
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 14),
+
+        // Section 2: Customer Referrals Settings
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: isDark ? const Color(0x3338BDF8) : const Color(0xFFE2E8F0)),
+            boxShadow: const [
+              BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 3)),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AuroraTheme.primaryBlue.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.people_alt_rounded, color: AuroraTheme.primaryBlue, size: 22),
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('مكافآت دعوة الزبائن والركاب 👥', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        Text('نقاط وأيام مجانية للكابتن عند نشر التطبيق للركاب', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(height: 20),
+              CustomTextField(
+                controller: _customerReferralBonusDaysController,
+                label: 'أيام مجانية تضاف للكابتن (يوم)',
+                hint: '5',
+                keyboardType: TextInputType.number,
+                prefixIcon: Icons.card_giftcard_rounded,
+              ),
+              const SizedBox(height: 12),
+              CustomTextField(
+                controller: _customersTargetPerBonusController,
+                label: 'لكل عدد زبائن يسجلون عن طريقه',
+                hint: '10',
+                keyboardType: TextInputType.number,
+                prefixIcon: Icons.group_add_rounded,
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 14),
+
+        // Section 3: Invitee Welcome Bonus
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: isDark ? const Color(0x3338BDF8) : const Color(0xFFE2E8F0)),
+            boxShadow: const [
+              BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 3)),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AuroraTheme.primaryCyan.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.celebration_rounded, color: AuroraTheme.primaryCyan, size: 22),
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('مكافأة الكابتن الجديد الترحيبية 🎁', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        Text('أيام مجانية إضافية تمنح للكابتن الجديد عند استخدامه كود دعوة', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(height: 20),
+              CustomTextField(
+                controller: _inviteeBonusDaysController,
+                label: 'أيام اشتراك ترحيبية مجانية للكابتن الجديد (يوم)',
+                hint: '15',
+                keyboardType: TextInputType.number,
+                prefixIcon: Icons.card_giftcard_rounded,
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 14),
+
+        // Section 4: Ambassador Ranks Targets
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: isDark ? const Color(0x3338BDF8) : const Color(0xFFE2E8F0)),
+            boxShadow: const [
+              BoxShadow(color: Color(0x0A000000), blurRadius: 10, offset: Offset(0, 3)),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.workspace_premium_rounded, color: Color(0xFFF59E0B), size: 22),
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('أوسمة ورتب السفراء 👑', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        Text('تحديد عدد الدعوات المطلوبة لكل رتبة', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: CustomTextField(
+                      controller: _bronzeAmbassadorTargetController,
+                      label: 'سفير برونزي 🥉',
+                      hint: '3',
+                      keyboardType: TextInputType.number,
+                      prefixIcon: Icons.military_tech_rounded,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: CustomTextField(
+                      controller: _silverAmbassadorTargetController,
+                      label: 'سفير فضي 🥈',
+                      hint: '5',
+                      keyboardType: TextInputType.number,
+                      prefixIcon: Icons.military_tech_rounded,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: CustomTextField(
+                      controller: _goldAmbassadorTargetController,
+                      label: 'سفير ذهبي 👑',
+                      hint: '10',
+                      keyboardType: TextInputType.number,
+                      prefixIcon: Icons.military_tech_rounded,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // Save Settings Button
+        ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AuroraTheme.primaryBlue,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            elevation: 2,
+          ),
+          icon: const Icon(Icons.save_rounded, size: 20),
+          label: const Text('حفظ إعدادات المكافآت والإحالة 💾', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+          onPressed: () async {
+            try {
+              final newSettings = {
+                'is_referral_system_enabled': _isReferralSystemEnabled,
+                'is_referral_field_visible': _isReferralFieldVisible,
+                'driver_referral_bonus_days': int.tryParse(_driverReferralBonusDaysController.text.trim()) ?? 30,
+                'driver_free_annual_referral_target': int.tryParse(_driverFreeAnnualTargetController.text.trim()) ?? 5,
+                'driver_referral_discount_percent': int.tryParse(_driverDiscountPercentController.text.trim()) ?? 20,
+                'customer_referral_bonus_days': int.tryParse(_customerReferralBonusDaysController.text.trim()) ?? 5,
+                'customers_target_per_bonus': int.tryParse(_customersTargetPerBonusController.text.trim()) ?? 10,
+                'invitee_bonus_days': int.tryParse(_inviteeBonusDaysController.text.trim()) ?? 15,
+                'bronze_ambassador_target': int.tryParse(_bronzeAmbassadorTargetController.text.trim()) ?? 3,
+                'silver_ambassador_target': int.tryParse(_silverAmbassadorTargetController.text.trim()) ?? 5,
+                'gold_ambassador_target': int.tryParse(_goldAmbassadorTargetController.text.trim()) ?? 10,
+              };
+
+              await admin.updateReferralSettings(newSettings);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('تم حفظ إعدادات المكافآت والإحالة بنجاح ✅'),
+                    backgroundColor: AuroraTheme.accentEmerald,
+                  ),
+                );
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('خطأ أثناء الحفظ: $e'), backgroundColor: AuroraTheme.accentRose),
+                );
+              }
+            }
+          },
+        ),
+
+        const SizedBox(height: 24),
+
+        // Section 5: Top Referrers Leaderboard
+        Row(
+          children: [
+            const Icon(Icons.emoji_events_rounded, color: Color(0xFFF59E0B), size: 22),
+            const SizedBox(width: 8),
+            Text(
+              'لوحة صدارة أكثر الكباتن دعوةً (${topReferrers.length})',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+
+        if (topReferrers.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: const Center(
+              child: Text(
+                'لا توجد إحالات مسجلة حتى الآن',
+                style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+              ),
+            ),
+          )
+        else
+          ...topReferrers.asMap().entries.map((entry) {
+            final idx = entry.key;
+            final item = entry.value;
+            final name = item['name']?.toString() ?? 'كابتن';
+            final phone = item['phone']?.toString() ?? '';
+            final count = (item['referral_count'] as num?)?.toInt() ?? 0;
+            final bonusDays = (item['referral_bonus_days'] as num?)?.toInt() ?? 0;
+            final id = item['id']?.toString() ?? '';
+
+            Color medalColor = const Color(0xFF64748B);
+            if (idx == 0) medalColor = const Color(0xFFF59E0B);
+            if (idx == 1) medalColor = const Color(0xFF94A3B8);
+            if (idx == 2) medalColor = const Color(0xFFD97706);
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: idx < 3 ? medalColor.withValues(alpha: 0.4) : (isDark ? const Color(0x3338BDF8) : const Color(0xFFE2E8F0)),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: medalColor.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        '#${idx + 1}',
+                        style: TextStyle(fontWeight: FontWeight.bold, color: medalColor, fontSize: 13),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '$name ($id)',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13.5,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
+                        ),
+                        Text(
+                          '$phone | $count مشترك مدعو',
+                          style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: AuroraTheme.primaryBlue.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '+$bonusDays يوم',
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.bold,
+                        color: AuroraTheme.primaryBlue,
+                      ),
+                    ),
+                  ),
+                  if (phone.isNotEmpty) ...[
+                    const SizedBox(width: 6),
+                    IconButton(
+                      icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18, color: AuroraTheme.accentEmerald),
+                      tooltip: 'واتساب',
+                      onPressed: () => WhatsAppService.openWhatsApp(phone: phone, message: 'مرحباً كابتن $name، شكراً لمساهمتك في نشر تطبيق كابتن ميسان!'),
+                    ),
+                  ],
+                ],
+              ),
+            );
+          }),
+        const SizedBox(height: 30),
+      ],
     );
   }
 }

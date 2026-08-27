@@ -133,6 +133,7 @@ class SupabaseService {
     required String phone,
     required String password,
     required String role, // 'user' or 'driver'
+    String? referralCode,
   }) async {
     try {
       final userId = await generateNextUserId(role: role);
@@ -166,6 +167,10 @@ class SupabaseService {
         'created_at': DateTime.now().toIso8601String(),
       };
 
+      if (referralCode != null && referralCode.trim().isNotEmpty) {
+        profileData['referred_by'] = referralCode.trim();
+      }
+
       // Auto-grant 1-year annual subscription for drivers within free quota limit
       if (role == 'driver') {
         try {
@@ -191,6 +196,20 @@ class SupabaseService {
       }
 
       await client.from('profiles').insert(profileData);
+
+      // Apply referral rewards if registered via referral code
+      if (referralCode != null && referralCode.trim().isNotEmpty) {
+        try {
+          await applyReferralReward(
+            newUserId: userId,
+            referrerCode: referralCode.trim(),
+            isDriver: role == 'driver',
+          );
+        } catch (e) {
+          debugPrint('Error applying referral reward on register: $e');
+        }
+      }
+
       return UserProfile.fromJson(profileData);
     } catch (e) {
       debugPrint('Registration error: $e');
@@ -816,6 +835,175 @@ class SupabaseService {
       });
     } catch (e) {
       debugPrint('Update map style error: $e');
+      rethrow;
+    }
+  }
+
+  // --- REFERRAL & REWARDS SYSTEM ---
+
+  Future<Map<String, dynamic>> getReferralSettings() async {
+    try {
+      final res = await client
+          .from('app_settings')
+          .select()
+          .eq('key', 'referral_rewards_settings')
+          .limit(1);
+
+      if (res.isNotEmpty) {
+        return Map<String, dynamic>.from(res.first['value'] as Map);
+      }
+    } catch (e) {
+      debugPrint('Error getting referral settings: $e');
+    }
+    return {
+      'is_referral_system_enabled': true,
+      'is_referral_field_visible': true,
+      'driver_referral_bonus_days': 30,
+      'driver_free_annual_referral_target': 5,
+      'driver_referral_discount_percent': 20,
+      'customer_referral_bonus_days': 5,
+      'customers_target_per_bonus': 10,
+      'invitee_bonus_days': 15,
+      'bronze_ambassador_target': 3,
+      'silver_ambassador_target': 5,
+      'gold_ambassador_target': 10,
+    };
+  }
+
+  Future<void> updateReferralSettings(Map<String, dynamic> settings) async {
+    try {
+      await client.from('app_settings').upsert({
+        'key': 'referral_rewards_settings',
+        'value': settings,
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      debugPrint('Error updating referral settings: $e');
+      rethrow;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getTopReferrers() async {
+    try {
+      final res = await client
+          .from('profiles')
+          .select('id, name, phone, role, referral_count, referral_bonus_days, avatar_url')
+          .gt('referral_count', 0)
+          .order('referral_count', ascending: false)
+          .limit(20);
+      return (res as List).cast<Map<String, dynamic>>();
+    } catch (e) {
+      debugPrint('Error getting top referrers: $e');
+      return [];
+    }
+  }
+
+  Future<void> applyReferralReward({
+    required String newUserId,
+    required String referrerCode,
+    required bool isDriver,
+  }) async {
+    try {
+      final settings = await getReferralSettings();
+      if (settings['is_referral_system_enabled'] != true) return;
+
+      final cleanRef = referrerCode.trim();
+      if (cleanRef.isEmpty || cleanRef == newUserId) return;
+
+      // Find Referrer Profile by id or referral_code
+      final referrerRes = await client
+          .from('profiles')
+          .select()
+          .or('id.eq.$cleanRef,referral_code.eq.$cleanRef')
+          .limit(1);
+
+      if (referrerRes.isEmpty) return;
+
+      final referrer = referrerRes.first;
+      final referrerId = referrer['id'] as String;
+      final currentReferrals = (referrer['referral_count'] as num?)?.toInt() ?? 0;
+      final currentBonusDays = (referrer['referral_bonus_days'] as num?)?.toInt() ?? 0;
+
+      int addedDays = isDriver
+          ? ((settings['driver_referral_bonus_days'] as num?)?.toInt() ?? 30)
+          : ((settings['customer_referral_bonus_days'] as num?)?.toInt() ?? 5);
+
+      final newTotalReferrals = currentReferrals + 1;
+      final newTotalBonusDays = currentBonusDays + addedDays;
+
+      final updateReferrer = <String, dynamic>{
+        'referral_count': newTotalReferrals,
+        'referral_bonus_days': newTotalBonusDays,
+      };
+
+      // If Referrer is a Driver, extend their subscription end date or grant free annual/lifetime
+      if (referrer['role'] == 'driver') {
+        final targetFree = (settings['driver_free_annual_referral_target'] as num?)?.toInt() ?? 5;
+        DateTime currentEnd = referrer['subscription_end_date'] != null
+            ? DateTime.tryParse(referrer['subscription_end_date'].toString()) ?? DateTime.now()
+            : DateTime.now();
+
+        if (currentEnd.isBefore(DateTime.now())) {
+          currentEnd = DateTime.now();
+        }
+
+        // Add bonus days
+        final newEnd = currentEnd.add(Duration(days: addedDays));
+        updateReferrer['subscription_end_date'] = newEnd.toIso8601String();
+        updateReferrer['is_subscription_active'] = true;
+        updateReferrer['is_fee_paid'] = true;
+
+        if (newTotalReferrals >= targetFree && referrer['subscription_type'] != 'lifetime') {
+          updateReferrer['subscription_type'] = 'annual';
+        }
+      }
+
+      await client.from('profiles').update(updateReferrer).eq('id', referrerId);
+
+      // Also award invitee bonus days if driver
+      final inviteeBonus = (settings['invitee_bonus_days'] as num?)?.toInt() ?? 15;
+      if (inviteeBonus > 0 && isDriver) {
+        final newProfileRes = await client.from('profiles').select().eq('id', newUserId).maybeSingle();
+        if (newProfileRes != null) {
+          DateTime end = newProfileRes['subscription_end_date'] != null
+              ? DateTime.tryParse(newProfileRes['subscription_end_date'].toString()) ?? DateTime.now()
+              : DateTime.now();
+          if (end.isBefore(DateTime.now())) end = DateTime.now();
+          final extendedEnd = end.add(Duration(days: inviteeBonus));
+          await client.from('profiles').update({
+            'subscription_end_date': extendedEnd.toIso8601String(),
+            'is_subscription_active': true,
+            'is_fee_paid': true,
+            'subscription_type': newProfileRes['subscription_type'] == 'none' ? 'annual' : newProfileRes['subscription_type'],
+          }).eq('id', newUserId);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error applying referral reward: $e');
+    }
+  }
+
+  Future<void> updateUserReferredBy({
+    required String userId,
+    required String referrerCode,
+  }) async {
+    try {
+      final cleanRef = referrerCode.trim();
+      await client.from('profiles').update({
+        'referred_by': cleanRef.isEmpty ? null : cleanRef,
+      }).eq('id', userId);
+
+      if (cleanRef.isNotEmpty) {
+        final userRes = await client.from('profiles').select('role').eq('id', userId).maybeSingle();
+        final isDriver = userRes?['role'] == 'driver';
+        await applyReferralReward(
+          newUserId: userId,
+          referrerCode: cleanRef,
+          isDriver: isDriver,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error updating user referred_by: $e');
       rethrow;
     }
   }

@@ -16,6 +16,10 @@ class UserProfile {
   final DateTime? subscriptionStartDate;
   final DateTime? subscriptionEndDate;
   final bool isSubscriptionActive;
+  final String? referredBy; // ID of the referring user (e.g. u2)
+  final String? referralCode; // Custom or auto code
+  final int referralCount; // Successful referrals made
+  final int referralBonusDays; // Cumulative bonus days earned
   final DateTime createdAt;
 
   UserProfile({
@@ -36,12 +40,25 @@ class UserProfile {
     this.subscriptionStartDate,
     this.subscriptionEndDate,
     this.isSubscriptionActive = false,
+    this.referredBy,
+    this.referralCode,
+    this.referralCount = 0,
+    this.referralBonusDays = 0,
     required this.createdAt,
   });
 
   bool get isAdmin => role == 'admin';
   bool get isDriver => role == 'driver';
   bool get isUser => role == 'user';
+
+  String get myReferralCode => (referralCode != null && referralCode!.isNotEmpty) ? referralCode! : id;
+
+  String get ambassadorBadge {
+    if (referralCount >= 10) return 'سفير ذهبي 👑';
+    if (referralCount >= 5) return 'سفير فضي 🥈';
+    if (referralCount >= 3) return 'سفير برونزي 🥉';
+    return 'كابتن متميز ⭐';
+  }
 
   // Customer Reliability Badge
   String get reliabilityBadgeText {
@@ -120,6 +137,10 @@ class UserProfile {
           ? DateTime.tryParse(json['subscription_end_date'].toString())
           : null,
       isSubscriptionActive: json['is_subscription_active'] as bool? ?? false,
+      referredBy: json['referred_by'] as String?,
+      referralCode: json['referral_code'] as String?,
+      referralCount: (json['referral_count'] as num?)?.toInt() ?? 0,
+      referralBonusDays: (json['referral_bonus_days'] as num?)?.toInt() ?? 0,
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now()
           : DateTime.now(),
@@ -145,6 +166,10 @@ class UserProfile {
       'subscription_start_date': subscriptionStartDate?.toIso8601String(),
       'subscription_end_date': subscriptionEndDate?.toIso8601String(),
       'is_subscription_active': isSubscriptionActive,
+      'referred_by': referredBy,
+      'referral_code': referralCode,
+      'referral_count': referralCount,
+      'referral_bonus_days': referralBonusDays,
       'created_at': createdAt.toIso8601String(),
     };
   }
@@ -167,6 +192,10 @@ class UserProfile {
     DateTime? subscriptionStartDate,
     DateTime? subscriptionEndDate,
     bool? isSubscriptionActive,
+    String? referredBy,
+    String? referralCode,
+    int? referralCount,
+    int? referralBonusDays,
     DateTime? createdAt,
   }) {
     return UserProfile(
@@ -187,6 +216,10 @@ class UserProfile {
       subscriptionStartDate: subscriptionStartDate ?? this.subscriptionStartDate,
       subscriptionEndDate: subscriptionEndDate ?? this.subscriptionEndDate,
       isSubscriptionActive: isSubscriptionActive ?? this.isSubscriptionActive,
+      referredBy: referredBy ?? this.referredBy,
+      referralCode: referralCode ?? this.referralCode,
+      referralCount: referralCount ?? this.referralCount,
+      referralBonusDays: referralBonusDays ?? this.referralBonusDays,
       createdAt: createdAt ?? this.createdAt,
     );
   }

@@ -14,6 +14,7 @@ import '../../core/theme/aurora_theme.dart';
 import '../admin/admin_dashboard_screen.dart';
 import '../auth/login_screen.dart';
 import '../driver/driver_dashboard_screen.dart';
+import '../driver/driver_referral_dialog.dart';
 import '../driver/vehicle_registration_screen.dart';
 import '../history/order_history_screen.dart';
 import '../profile/edit_profile_screen.dart';
@@ -736,6 +737,18 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                   ),
                 ],
+
+                // Referral Rewards & Ambassadors Program
+                _drawerItem(
+                  icon: Icons.card_giftcard_rounded,
+                  iconColor: AuroraTheme.accentAmber,
+                  title: 'برنامج المكافآت والإحالة 🎁',
+                  subtitle: 'شارك كودك واكسب اشتراكاً مجانياً',
+                  onTap: () {
+                    Navigator.pop(context);
+                    DriverReferralDialog.show(context);
+                  },
+                ),
 
                 // Edit Profile
                 _drawerItem(
