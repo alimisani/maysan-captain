@@ -6,6 +6,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/services/location_service.dart';
+import '../../core/services/supabase_service.dart';
 import '../../core/services/whatsapp_service.dart';
 import '../../core/state/auth_provider.dart';
 import '../../core/state/booking_provider.dart';
@@ -236,7 +237,43 @@ class _MaysanMapWidgetState extends State<MaysanMapWidget> {
                     child: _buildLiveGpsMarker(isDark, _liveHeading),
                   ),
 
-                // 3. Dropoff Pin Marker (Only appears once destination is selected)
+                // 3. Extra Waypoint Markers (Stop 1, Stop 2, etc.)
+                if (widget.order == null && booking.extraDestinations.isNotEmpty)
+                  ...booking.extraDestinations.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final item = entry.value;
+                    final point = item['point'] as LatLng;
+                    return Marker(
+                      point: point,
+                      width: 44,
+                      height: 44,
+                      child: _buildNumberedMarker(
+                        number: index + 1,
+                        color: const Color(0xFF0284C7),
+                        label: 'محطة ${index + 1}',
+                      ),
+                    );
+                  }),
+
+                // Extra Waypoint Markers in Active Order Tracking
+                if (widget.order != null && widget.order!.destinations.isNotEmpty)
+                  ...widget.order!.destinations.where((d) => d['is_final'] != true).map((d) {
+                    final lat = (d['lat'] as num?)?.toDouble() ?? 0.0;
+                    final lng = (d['lng'] as num?)?.toDouble() ?? 0.0;
+                    final stopNum = (d['stop_number'] as num?)?.toInt() ?? 1;
+                    return Marker(
+                      point: LatLng(lat, lng),
+                      width: 44,
+                      height: 44,
+                      child: _buildNumberedMarker(
+                        number: stopNum,
+                        color: const Color(0xFF0284C7),
+                        label: 'محطة $stopNum',
+                      ),
+                    );
+                  }),
+
+                // 4. Final Dropoff Pin Marker (Only appears once destination is selected)
                 if (widget.order != null || booking.dropoffAddress != 'تحديد الوجهة والمقصد')
                   Marker(
                     point: dropoffPoint,
@@ -245,11 +282,13 @@ class _MaysanMapWidgetState extends State<MaysanMapWidget> {
                     child: _buildPinMarker(
                       icon: Icons.location_on_rounded,
                       color: AuroraTheme.accentRose,
-                      label: loc.isArabic ? 'الوصول' : 'Dropoff',
+                      label: loc.isArabic
+                          ? (booking.extraDestinations.isNotEmpty ? 'الوجهة الأخيرة' : 'الوصول')
+                          : 'Dropoff',
                     ),
                   ),
 
-                // 4. Real Driver Vehicle Marker ONLY during Active Accepted/In-Progress Trip
+                // 5. Real Driver Vehicle Marker ONLY during Active Accepted/In-Progress Trip
                 if (widget.order != null &&
                     widget.order!.status != 'pending' &&
                     widget.order!.driverId != null &&
@@ -378,141 +417,242 @@ class _MaysanMapWidgetState extends State<MaysanMapWidget> {
     );
   }
 
-  void _showAdminDriverInfoModal(BuildContext context, Map<String, dynamic> driverData) {
+  Widget _buildNumberedMarker({
+    required int number,
+    required Color color,
+    required String label,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: color,
+            border: Border.all(color: Colors.white, width: 2.2),
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.6),
+                blurRadius: 10,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            '$number',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showAdminDriverInfoModal(BuildContext context, Map<String, dynamic> driverData) async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final driverId = driverData['driver_id']?.toString() ?? driverData['id']?.toString() ?? '';
     final driverName = driverData['driver_name']?.toString() ?? 'كابتن مسجل';
-    final driverPhone = driverData['driver_phone']?.toString() ?? '07800000000';
-    final vehicleType = driverData['vehicle_type']?.toString() ?? 'صالون (أجرة)';
-    final plateNumber = driverData['plate_number']?.toString() ?? 'غير محدد';
+    String driverPhone = driverData['driver_phone']?.toString() ?? '07800000000';
+    String rawVehicleType = driverData['vehicle_type']?.toString() ?? 'salon';
+    String plateNumber = driverData['plate_number']?.toString() ?? '';
+    String vehicleModel = driverData['vehicle_model']?.toString() ?? '';
+    String vehicleColor = driverData['vehicle_color']?.toString() ?? '';
+    String vehicleYear = driverData['vehicle_year']?.toString() ?? '';
     final isOnline = driverData['is_online'] == true;
+
+    // Localize vehicle type to Arabic
+    String localizeVehicleType(String type) {
+      switch (type.toLowerCase()) {
+        case 'salon':
+        case 'private':
+          return 'صالون (خصوصي)';
+        case 'taxi':
+          return 'صالون (أجرة)';
+        case 'vip':
+          return 'VIP فارهة';
+        case 'motorcycle':
+          return 'دراجة توصيل';
+        case 'tuk_tuk':
+          return 'ستوتة / تك تك';
+        case 'pickup':
+          return 'حمل / بيك آب';
+        default:
+          return type;
+      }
+    }
 
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF0F172A) : Colors.white,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          boxShadow: const [
-            BoxShadow(color: Colors.black26, blurRadius: 20, offset: Offset(0, -4)),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
+      builder: (ctx) => FutureBuilder<Map<String, dynamic>?>(
+        future: SupabaseService().getVehicleByDriverId(driverId),
+        builder: (context, snapshot) {
+          final veh = snapshot.data;
+          if (veh != null) {
+            if (plateNumber.isEmpty || plateNumber == 'غير محدد') {
+              plateNumber = veh['plate_number']?.toString() ?? '';
+            }
+            if (vehicleModel.isEmpty) {
+              vehicleModel = veh['model']?.toString() ?? '';
+            }
+            if (vehicleColor.isEmpty) {
+              vehicleColor = veh['color']?.toString() ?? '';
+            }
+            if (vehicleYear.isEmpty) {
+              vehicleYear = veh['year']?.toString() ?? '';
+            }
+            if (rawVehicleType == 'salon' || rawVehicleType == 'private') {
+              rawVehicleType = veh['vehicle_type']?.toString() ?? rawVehicleType;
+            }
+          }
+
+          final vehicleTypeDisplay = localizeVehicleType(rawVehicleType);
+          final plateDisplay = plateNumber.isNotEmpty && plateNumber != 'غير محدد' ? plateNumber : 'ميسان - خصوصي';
+          final modelDisplay = [vehicleModel, vehicleColor, vehicleYear].where((s) => s.isNotEmpty).join(' ');
+
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : Colors.white,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+              boxShadow: const [
+                BoxShadow(color: Colors.black26, blurRadius: 20, offset: Offset(0, -4)),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AuroraTheme.primaryBlue.withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.local_taxi_rounded, color: AuroraTheme.primaryBlue, size: 28),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AuroraTheme.primaryBlue.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.local_taxi_rounded, color: AuroraTheme.primaryBlue, size: 28),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: Text(
-                              driverName,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  driverName,
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: (isOnline ? AuroraTheme.accentEmerald : Colors.grey).withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  isOnline ? 'متصل الآن 🟢' : 'غير متصل ⚪',
+                                  style: TextStyle(
+                                    color: isOnline ? AuroraTheme.accentEmerald : Colors.grey,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            'نوع المركبة: $vehicleTypeDisplay${modelDisplay.isNotEmpty ? " ($modelDisplay)" : ""}',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white70 : const Color(0xFF334155),
                             ),
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: (isOnline ? AuroraTheme.accentEmerald : Colors.grey).withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              isOnline ? 'متصل الآن 🟢' : 'غير متصل ⚪',
-                              style: TextStyle(
-                                color: isOnline ? AuroraTheme.accentEmerald : Colors.grey,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                              ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'رقم اللوحة: $plateDisplay${driverId.isNotEmpty ? " • ID: $driverId" : ""}',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: isDark ? Colors.white60 : const Color(0xFF64748B),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'نوع المركبة: $vehicleType • رقم اللوحة: $plateNumber${driverId.isNotEmpty ? " • ID: ${driverId.substring(0, driverId.length > 8 ? 8 : driverId.length)}" : ""}',
-                        style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // Contact Actions (Call & WhatsApp)
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AuroraTheme.accentEmerald,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        icon: const Icon(Icons.call_rounded, size: 18),
+                        label: const Text('اتصال بالكابتن', style: TextStyle(fontWeight: FontWeight.bold)),
+                        onPressed: () => WhatsAppService.makePhoneCall(driverPhone),
                       ),
-                    ],
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF25D366),
+                          side: const BorderSide(color: Color(0xFF25D366)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        icon: const Icon(Icons.chat_rounded, size: 18),
+                        label: const Text('واتساب', style: TextStyle(fontWeight: FontWeight.bold)),
+                        onPressed: () => WhatsAppService.openWhatsApp(
+                          phone: driverPhone,
+                          message: 'مرحباً كابتن $driverName، رسالة من الإدارة العامة لتطبيق كابتن ميسان.',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                // Open Admin Dashboard Button
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AuroraTheme.primaryBlue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
+                  icon: const Icon(Icons.admin_panel_settings_rounded, size: 18),
+                  label: const Text('إدارة الكابتن والاشتراك في لوحة التحكم', style: TextStyle(fontWeight: FontWeight.bold)),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
+                    );
+                  },
                 ),
               ],
             ),
-            const SizedBox(height: 20),
-
-            // Contact Actions (Call & WhatsApp)
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AuroraTheme.accentEmerald,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    icon: const Icon(Icons.call_rounded, size: 18),
-                    label: const Text('اتصال بالكابتن', style: TextStyle(fontWeight: FontWeight.bold)),
-                    onPressed: () => WhatsAppService.makePhoneCall(driverPhone),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF25D366),
-                      side: const BorderSide(color: Color(0xFF25D366)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    icon: const Icon(Icons.chat_rounded, size: 18),
-                    label: const Text('واتساب', style: TextStyle(fontWeight: FontWeight.bold)),
-                    onPressed: () => WhatsAppService.openWhatsApp(
-                      phone: driverPhone,
-                      message: 'مرحباً كابتن $driverName، رسالة من الإدارة العامة لتطبيق كابتن ميسان.',
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-
-            // Open Admin Dashboard Button
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AuroraTheme.primaryBlue,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 13),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              icon: const Icon(Icons.admin_panel_settings_rounded, size: 18),
-              label: const Text('إدارة الكابتن والاشتراك في لوحة التحكم', style: TextStyle(fontWeight: FontWeight.bold)),
-              onPressed: () {
-                Navigator.pop(ctx);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
-                );
-              },
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

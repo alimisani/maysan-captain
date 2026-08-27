@@ -234,9 +234,22 @@ class LocationService {
   }
   // REAL Road Network Routing using OSRM Driving Engine
   static Future<Map<String, dynamic>> fetchRealRoadRoute(LatLng start, LatLng end) async {
+    return fetchMultiPointRoadRoute([start, end]);
+  }
+
+  // Multi-point Road Network Routing (Pickup -> Stop 1 -> Stop 2 -> Final Destination)
+  static Future<Map<String, dynamic>> fetchMultiPointRoadRoute(List<LatLng> waypoints) async {
+    if (waypoints.length < 2) {
+      return {'points': waypoints, 'distanceKm': 0.0};
+    }
+
     try {
+      final coordString = waypoints
+          .map((p) => '${p.longitude.toStringAsFixed(6)},${p.latitude.toStringAsFixed(6)}')
+          .join(';');
+
       final url = Uri.parse(
-        'https://router.project-osrm.org/route/v1/driving/${start.longitude},${start.latitude};${end.longitude},${end.latitude}?overview=full&geometries=geojson',
+        'https://router.project-osrm.org/route/v1/driving/$coordString?overview=full&geometries=geojson',
       );
 
       final response = await http.get(url).timeout(const Duration(seconds: 6));
@@ -268,14 +281,18 @@ class LocationService {
         }
       }
     } catch (e) {
-      debugPrint('OSRM routing network error: $e');
+      debugPrint('OSRM multi-routing network error: $e');
     }
 
-    // Direct clean 2-point straight line fallback (NO ZIG-ZAGS!)
-    final dist = calculateDistance(start, end);
+    // Direct clean straight line fallback between all points
+    double totalDist = 0.0;
+    for (int i = 0; i < waypoints.length - 1; i++) {
+      totalDist += calculateDistance(waypoints[i], waypoints[i + 1]);
+    }
+
     return {
-      'points': [start, end],
-      'distanceKm': dist > 0 ? dist : 1.0,
+      'points': waypoints,
+      'distanceKm': totalDist > 0 ? double.parse(totalDist.toStringAsFixed(1)) : 1.0,
     };
   }
 }

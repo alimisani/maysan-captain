@@ -80,9 +80,21 @@ class _DriverFeePaymentDialogState extends State<DriverFeePaymentDialog> {
     try {
       final settings = await SupabaseService().getDriverFeeSettings();
       if (mounted) {
+        final life = (settings['lifetime_fee_amount'] as num?)?.toDouble() ?? 0.0;
+        final annual = (settings['annual_fee_amount'] as num?)?.toDouble() ?? 0.0;
+        String plan = 'annual';
+        if (life > 0 && annual <= 0) {
+          plan = 'lifetime';
+        } else if (annual > 0 && life <= 0) {
+          plan = 'annual';
+        } else if (life > 0) {
+          plan = 'lifetime';
+        }
+
         setState(() {
-          _lifetimeFeeAmount = (settings['lifetime_fee_amount'] as num?)?.toDouble() ?? 5000.0;
-          _annualFeeAmount = (settings['annual_fee_amount'] as num?)?.toDouble() ?? 10000.0;
+          _lifetimeFeeAmount = life;
+          _annualFeeAmount = annual;
+          _selectedPlan = plan;
           _zaincashNumber = (settings['zaincash_number'] as String?)?.trim() ?? '7117648506';
           _superqiNumber = (settings['superqi_number'] as String?)?.trim() ?? '07800000000';
           _instructions = (settings['payment_instructions'] as String?) ??
@@ -170,115 +182,20 @@ class _DriverFeePaymentDialogState extends State<DriverFeePaymentDialog> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Subscription Plans Selector
-                    Row(
-                      children: [
-                        // Annual Plan Card
-                        Expanded(
-                          child: InkWell(
-                            onTap: () => setState(() => _selectedPlan = 'annual'),
-                            borderRadius: BorderRadius.circular(16),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
-                              decoration: BoxDecoration(
-                                color: _selectedPlan == 'annual'
-                                    ? AuroraTheme.primaryCyan.withValues(alpha: 0.15)
-                                    : (isDark ? const Color(0x221E293B) : const Color(0xFFF8FAFC)),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: _selectedPlan == 'annual'
-                                      ? AuroraTheme.primaryCyan
-                                      : (isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1)),
-                                  width: _selectedPlan == 'annual' ? 2 : 1,
-                                ),
-                              ),
-                              child: Column(
-                                children: [
-                                  const Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.calendar_today_rounded, size: 14, color: AuroraTheme.primaryCyan),
-                                      SizedBox(width: 4),
-                                      Text(
-                                        'اشتراك سنوي',
-                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '${currencyFormatter.format(_annualFeeAmount)} د.ع',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                      color: AuroraTheme.primaryCyan,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'لمدة 1 سنة',
-                                    style: TextStyle(fontSize: 10, color: isDark ? Colors.white60 : Colors.grey),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-
-                        // Lifetime Plan Card
-                        Expanded(
-                          child: InkWell(
-                            onTap: () => setState(() => _selectedPlan = 'lifetime'),
-                            borderRadius: BorderRadius.circular(16),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
-                              decoration: BoxDecoration(
-                                color: _selectedPlan == 'lifetime'
-                                    ? const Color(0xFFF59E0B).withValues(alpha: 0.15)
-                                    : (isDark ? const Color(0x221E293B) : const Color(0xFFF8FAFC)),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: _selectedPlan == 'lifetime'
-                                      ? const Color(0xFFF59E0B)
-                                      : (isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1)),
-                                  width: _selectedPlan == 'lifetime' ? 2 : 1,
-                                ),
-                              ),
-                              child: Column(
-                                children: [
-                                  const Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.stars_rounded, size: 16, color: Color(0xFFF59E0B)),
-                                      SizedBox(width: 4),
-                                      Text(
-                                        'اشتراك دائمي',
-                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '${currencyFormatter.format(_lifetimeFeeAmount)} د.ع',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                      color: Color(0xFFF59E0B),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'مدى الحياة للأبد',
-                                    style: TextStyle(fontSize: 10, color: isDark ? Colors.white60 : Colors.grey),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                    // Subscription Plans Selector (Only shows plans with amount > 0)
+                    if (_annualFeeAmount > 0 && _lifetimeFeeAmount > 0) ...[
+                      Row(
+                        children: [
+                          Expanded(child: _buildAnnualCard(isDark, currencyFormatter)),
+                          const SizedBox(width: 10),
+                          Expanded(child: _buildLifetimeCard(isDark, currencyFormatter)),
+                        ],
+                      ),
+                    ] else if (_annualFeeAmount > 0) ...[
+                      _buildAnnualCard(isDark, currencyFormatter),
+                    ] else if (_lifetimeFeeAmount > 0) ...[
+                      _buildLifetimeCard(isDark, currencyFormatter),
+                    ],
                     const SizedBox(height: 14),
 
                     // Payment Methods Details Box (ZainCash & SuperQi)
@@ -447,6 +364,108 @@ class _DriverFeePaymentDialogState extends State<DriverFeePaymentDialog> {
                   ],
                 ),
               ),
+      ),
+    );
+  }
+
+  Widget _buildAnnualCard(bool isDark, intl.NumberFormat currencyFormatter) {
+    return InkWell(
+      onTap: () => setState(() => _selectedPlan = 'annual'),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+        decoration: BoxDecoration(
+          color: _selectedPlan == 'annual'
+              ? AuroraTheme.primaryCyan.withValues(alpha: 0.15)
+              : (isDark ? const Color(0x221E293B) : const Color(0xFFF8FAFC)),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: _selectedPlan == 'annual'
+                ? AuroraTheme.primaryCyan
+                : (isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1)),
+            width: _selectedPlan == 'annual' ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.calendar_today_rounded, size: 14, color: AuroraTheme.primaryCyan),
+                SizedBox(width: 4),
+                Text(
+                  'اشتراك سنوي',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${currencyFormatter.format(_annualFeeAmount)} د.ع',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: AuroraTheme.primaryCyan,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'لمدة 1 سنة',
+              style: TextStyle(fontSize: 10, color: isDark ? Colors.white60 : Colors.grey),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLifetimeCard(bool isDark, intl.NumberFormat currencyFormatter) {
+    return InkWell(
+      onTap: () => setState(() => _selectedPlan = 'lifetime'),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+        decoration: BoxDecoration(
+          color: _selectedPlan == 'lifetime'
+              ? const Color(0xFFF59E0B).withValues(alpha: 0.15)
+              : (isDark ? const Color(0x221E293B) : const Color(0xFFF8FAFC)),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: _selectedPlan == 'lifetime'
+                ? const Color(0xFFF59E0B)
+                : (isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1)),
+            width: _selectedPlan == 'lifetime' ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.stars_rounded, size: 16, color: Color(0xFFF59E0B)),
+                SizedBox(width: 4),
+                Text(
+                  'اشتراك دائمي',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${currencyFormatter.format(_lifetimeFeeAmount)} د.ع',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: Color(0xFFF59E0B),
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'مدى الحياة للأبد',
+              style: TextStyle(fontSize: 10, color: isDark ? Colors.white60 : Colors.grey),
+            ),
+          ],
+        ),
       ),
     );
   }

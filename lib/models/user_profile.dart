@@ -89,6 +89,14 @@ class UserProfile {
     return 'غير مسدد (بانتظار التفعيل) ⏳';
   }
 
+  bool get isSubscriptionLifetime => subscriptionType == 'lifetime';
+
+  int get remainingSubscriptionDays {
+    if (subscriptionEndDate == null) return 0;
+    final diff = subscriptionEndDate!.difference(DateTime.now()).inDays;
+    return diff > 0 ? diff : 0;
+  }
+
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
       id: json['id'] as String,

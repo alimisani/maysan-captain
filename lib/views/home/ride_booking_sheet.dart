@@ -61,7 +61,7 @@ class _RideBookingSheetState extends State<RideBookingSheet> {
 
     final result = await LocationPickerSheet.show(
       context,
-      title: isPickup ? 'مكان الانطلاق' : 'مكان الوصول (الوجهة)',
+      title: isPickup ? 'مكان الانطلاق' : 'مكان الوصول (الوجهة الأخيرة)',
       initialLocation: isPickup ? booking.pickupLocation : booking.dropoffLocation,
       isPickup: isPickup,
     );
@@ -73,6 +73,30 @@ class _RideBookingSheetState extends State<RideBookingSheet> {
         booking.setPickupLocation(point, customAddress: address, isArabic: loc.isArabic);
       } else {
         booking.setDropoffLocation(point, customAddress: address, isArabic: loc.isArabic);
+      }
+    }
+  }
+
+  void _pickExtraDestination(int? editIndex) async {
+    final booking = context.read<BookingProvider>();
+    final initial = editIndex != null
+        ? (booking.extraDestinations[editIndex]['point'] as LatLng)
+        : booking.dropoffLocation;
+
+    final result = await LocationPickerSheet.show(
+      context,
+      title: editIndex != null ? 'تعديل المحطة ${editIndex + 1}' : 'إضافة محطة / وجهة إضافية',
+      initialLocation: initial,
+      isPickup: false,
+    );
+
+    if (result != null && mounted) {
+      final point = result['location'] as LatLng;
+      final address = result['address'] as String;
+      if (editIndex != null) {
+        booking.updateExtraDestination(editIndex, point, address);
+      } else {
+        booking.addExtraDestination(point, address);
       }
     }
   }
@@ -265,7 +289,7 @@ class _RideBookingSheetState extends State<RideBookingSheet> {
 
           const SizedBox(height: 14),
 
-          // Interactive Pickup & Dropoff Location Selector Cards
+          // Interactive Multi-Destination Location Selector Cards
           Container(
             decoration: BoxDecoration(
               color: isDark ? const Color(0x661E293B) : const Color(0xFFF8FAFC),
@@ -276,7 +300,7 @@ class _RideBookingSheetState extends State<RideBookingSheet> {
             ),
             child: Column(
               children: [
-                // Pickup Field (Clickable to open Picker)
+                // 1. Pickup Field
                 InkWell(
                   onTap: () => _pickLocation(true),
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
@@ -323,12 +347,84 @@ class _RideBookingSheetState extends State<RideBookingSheet> {
                   ),
                 ),
 
+                // 2. Extra Intermediate Destinations (Stops)
+                if (booking.extraDestinations.isNotEmpty)
+                  ...booking.extraDestinations.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final item = entry.value;
+                    final address = item['address']?.toString() ?? 'محطة ${index + 1}';
+
+                    return Column(
+                      children: [
+                        Divider(height: 1, color: isDark ? const Color(0x3338BDF8) : const Color(0xFFE2E8F0)),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 24,
+                                height: 24,
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Color(0xFF0284C7),
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  '${index + 1}',
+                                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: InkWell(
+                                  onTap: () => _pickExtraDestination(index),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'وجهة ومحطة ${index + 1}',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                                        ),
+                                      ),
+                                      Text(
+                                        address,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.close_rounded, size: 18, color: Colors.redAccent),
+                                visualDensity: VisualDensity.compact,
+                                onPressed: () => booking.removeExtraDestination(index),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  }),
+
                 Divider(height: 1, color: isDark ? const Color(0x3338BDF8) : const Color(0xFFE2E8F0)),
 
-                // Dropoff Field (Clickable to open Picker)
+                // 3. Final Dropoff Field
                 InkWell(
                   onTap: () => _pickLocation(false),
-                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                  borderRadius: BorderRadius.vertical(
+                    bottom: (booking.isMultiDestinationsEnabled &&
+                            booking.extraDestinations.length < (booking.maxDestinations - 1))
+                        ? Radius.zero
+                        : const Radius.circular(16),
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     child: Row(
@@ -347,7 +443,7 @@ class _RideBookingSheetState extends State<RideBookingSheet> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                loc.translate('dropoffLocation'),
+                                booking.extraDestinations.isNotEmpty ? 'الوجهة الأخيرة (النهائية)' : loc.translate('dropoffLocation'),
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: isDark ? Colors.white60 : const Color(0xFF64748B),
@@ -371,6 +467,39 @@ class _RideBookingSheetState extends State<RideBookingSheet> {
                     ),
                   ),
                 ),
+
+                // 4. Add Extra Destination Button (+ إضافة وجهة أخرى)
+                if (booking.isMultiDestinationsEnabled &&
+                    booking.extraDestinations.length < (booking.maxDestinations - 1)) ...[
+                  Divider(height: 1, color: isDark ? const Color(0x3338BDF8) : const Color(0xFFE2E8F0)),
+                  InkWell(
+                    onTap: () => _pickExtraDestination(null),
+                    borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 14),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0x330284C7) : const Color(0x150284C7),
+                        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.add_circle_outline_rounded, size: 16, color: Color(0xFF0284C7)),
+                          const SizedBox(width: 6),
+                          Text(
+                            '+ إضافة محطة / وجهة أخرى (${booking.extraDestinations.length + 1}/${booking.maxDestinations - 1})',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF0284C7),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

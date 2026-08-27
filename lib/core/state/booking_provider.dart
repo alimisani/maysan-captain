@@ -25,6 +25,32 @@ class BookingProvider extends ChangeNotifier {
   LatLng _dropoffLocation = AppConstants.maysanLocations[1].coordinates; // Corniche
   String _dropoffAddress = AppConstants.maysanLocations[1].nameAr;
 
+  // Multi-Destination Waypoints (Stop 1, Stop 2, etc.)
+  List<Map<String, dynamic>> _extraDestinations = [];
+  int _maxDestinations = 3;
+  bool _isMultiDestinationsEnabled = true;
+
+  int get maxDestinations => _maxDestinations;
+  bool get isMultiDestinationsEnabled => _isMultiDestinationsEnabled;
+
+  void setMultiDestinationSettings({bool? isEnabled, int? maxDest}) {
+    if (isEnabled != null) _isMultiDestinationsEnabled = isEnabled;
+    if (maxDest != null) _maxDestinations = maxDest;
+    notifyListeners();
+  }
+
+  Future<void> loadPricingSettings() async {
+    try {
+      final pricing = await _supabaseService.getPricingSettings();
+      _baseFare = (pricing['base_fare'] as num?)?.toDouble() ?? 3000.0;
+      _perKmRate = (pricing['per_km_rate'] as num?)?.toDouble() ?? 0.0;
+      _deliveryBaseFare = (pricing['delivery_base_fare'] as num?)?.toDouble() ?? 3000.0;
+      _isMultiDestinationsEnabled = pricing['is_multi_destinations_enabled'] as bool? ?? true;
+      _maxDestinations = (pricing['max_destinations'] as num?)?.toInt() ?? 3;
+      _recalculateFareLocal();
+    } catch (_) {}
+  }
+
   LatLng? _liveUserGps;
   double _liveUserHeading = 0.0;
   bool _hasCustomPickupLocation = false;
@@ -33,6 +59,19 @@ class BookingProvider extends ChangeNotifier {
   String get pickupAddress => _pickupAddress;
   LatLng get dropoffLocation => _dropoffLocation;
   String get dropoffAddress => _dropoffAddress;
+  List<Map<String, dynamic>> get extraDestinations => _extraDestinations;
+
+  List<LatLng> get allWaypoints {
+    final list = <LatLng>[_pickupLocation];
+    for (final e in _extraDestinations) {
+      if (e['point'] != null) {
+        list.add(e['point'] as LatLng);
+      }
+    }
+    list.add(_dropoffLocation);
+    return list;
+  }
+
   LatLng? get liveUserGps => _liveUserGps ?? _pickupLocation;
   double get liveUserHeading => _liveUserHeading;
   bool get hasCustomPickupLocation => _hasCustomPickupLocation;
@@ -301,11 +340,49 @@ class BookingProvider extends ChangeNotifier {
   void resetSelections() {
     _pickupAddress = 'تحديد موقع الانطلاق';
     _dropoffAddress = 'تحديد الوجهة والمقصد';
+    _extraDestinations = [];
     _routePoints = [];
     _distanceKm = 0.0;
     _estimatedFare = 3000.0;
     _activeOrder = null;
     notifyListeners();
+  }
+
+  void addExtraDestination(LatLng point, String address) {
+    if (_extraDestinations.length < (_maxDestinations - 1)) {
+      _extraDestinations.add({
+        'point': point,
+        'address': address,
+        'stop_number': _extraDestinations.length + 1,
+      });
+      _recalculateRouteAndFare();
+    }
+  }
+
+  void removeExtraDestination(int index) {
+    if (index >= 0 && index < _extraDestinations.length) {
+      _extraDestinations.removeAt(index);
+      for (int i = 0; i < _extraDestinations.length; i++) {
+        _extraDestinations[i]['stop_number'] = i + 1;
+      }
+      _recalculateRouteAndFare();
+    }
+  }
+
+  void updateExtraDestination(int index, LatLng point, String address) {
+    if (index >= 0 && index < _extraDestinations.length) {
+      _extraDestinations[index] = {
+        'point': point,
+        'address': address,
+        'stop_number': index + 1,
+      };
+      _recalculateRouteAndFare();
+    }
+  }
+
+  void clearExtraDestinations() {
+    _extraDestinations.clear();
+    _recalculateRouteAndFare();
   }
 
   void setServiceType(String type) {
@@ -350,7 +427,9 @@ class BookingProvider extends ChangeNotifier {
       notifyListeners();
       return;
     }
-    final routeData = await LocationService.fetchRealRoadRoute(_pickupLocation, _dropoffLocation);
+
+    final waypoints = allWaypoints;
+    final routeData = await LocationService.fetchMultiPointRoadRoute(waypoints);
     _routePoints = (routeData['points'] as List).cast<LatLng>();
     _distanceKm = routeData['distanceKm'] as double;
     _recalculateFareLocal();
@@ -390,7 +469,19 @@ class BookingProvider extends ChangeNotifier {
       if (_selectedVehicleType == 'tuk_tuk') vehicleMultiplier = 0.8;
       if (_selectedVehicleType == 'pickup') vehicleMultiplier = 1.3;
 
-      double calculated = (base + (_distanceKm * _perKmRate)) * vehicleMultiplier;
+      double calculated;
+      if (_perKmRate > 0) {
+        // Ceiling for partial kilometers (e.g. 1.1 km -> 2 km, 2.4 km -> 3 km)
+        double billedKm = _distanceKm.ceilToDouble();
+        if (billedKm < 1.0) billedKm = 1.0;
+        double fareFromKm = billedKm * _perKmRate;
+        
+        // Exact rule: fare by km should not exceed the base fare for trips (e.g. 1-3km shows calculated, >=4km capped at base)
+        calculated = (fareFromKm < base ? fareFromKm : base) * vehicleMultiplier;
+      } else {
+        calculated = base * vehicleMultiplier;
+      }
+
       // Round to nearest 250 IQD
       _estimatedFare = (calculated / 250).ceil() * 250.0;
     }
@@ -410,6 +501,26 @@ class BookingProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final List<Map<String, dynamic>> destinationsList = [];
+      for (int i = 0; i < _extraDestinations.length; i++) {
+        final item = _extraDestinations[i];
+        final pt = item['point'] as LatLng;
+        destinationsList.add({
+          'stop_number': i + 1,
+          'address': item['address'] ?? 'وجهة ${i + 1}',
+          'lat': pt.latitude,
+          'lng': pt.longitude,
+          'is_final': false,
+        });
+      }
+      destinationsList.add({
+        'stop_number': _extraDestinations.length + 1,
+        'address': _dropoffAddress,
+        'lat': _dropoffLocation.latitude,
+        'lng': _dropoffLocation.longitude,
+        'is_final': true,
+      });
+
       final order = await _supabaseService.createOrder(
         customerId: customerId,
         customerName: customerName,
@@ -423,6 +534,7 @@ class BookingProvider extends ChangeNotifier {
         dropoffLng: _dropoffLocation.longitude,
         distanceKm: _distanceKm,
         fare: _estimatedFare,
+        destinations: destinationsList,
         notes: notes,
         packageDetails: packageDetails,
       );

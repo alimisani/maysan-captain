@@ -29,6 +29,7 @@ class RideOrder {
   final String status; // 'pending', 'fare_proposed', 'accepted', 'on_way', 'arrived', 'in_progress', 'completed', 'cancelled'
   final String? notes;
   final String? packageDetails;
+  final List<Map<String, dynamic>> destinations;
   final List<String> rejectedDriverIds;
   final Map<String, int> driverRejectionCounts;
   final DateTime createdAt;
@@ -65,6 +66,7 @@ class RideOrder {
     this.status = 'pending',
     this.notes,
     this.packageDetails,
+    this.destinations = const [],
     this.rejectedDriverIds = const [],
     this.driverRejectionCounts = const {},
     required this.createdAt,
@@ -116,6 +118,7 @@ class RideOrder {
     String? status,
     String? notes,
     String? packageDetails,
+    List<Map<String, dynamic>>? destinations,
     List<String>? rejectedDriverIds,
     Map<String, int>? driverRejectionCounts,
     DateTime? createdAt,
@@ -152,6 +155,7 @@ class RideOrder {
       status: status ?? this.status,
       notes: notes ?? this.notes,
       packageDetails: packageDetails ?? this.packageDetails,
+      destinations: destinations ?? this.destinations,
       rejectedDriverIds: rejectedDriverIds ?? this.rejectedDriverIds,
       driverRejectionCounts: driverRejectionCounts ?? this.driverRejectionCounts,
       createdAt: createdAt ?? this.createdAt,
@@ -174,6 +178,14 @@ class RideOrder {
         return raw.map((k, v) => MapEntry(k.toString(), (v as num?)?.toInt() ?? 0));
       }
       return {};
+    }
+
+    List<Map<String, dynamic>> parseDestinations() {
+      final raw = json['destinations'];
+      if (raw is List) {
+        return raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+      return [];
     }
 
     return RideOrder(
@@ -207,6 +219,7 @@ class RideOrder {
       status: json['status'] as String? ?? 'pending',
       notes: json['notes'] as String?,
       packageDetails: json['package_details'] as String?,
+      destinations: parseDestinations(),
       rejectedDriverIds: parseRejectedDrivers(),
       driverRejectionCounts: parseRejectionCounts(),
       createdAt: json['created_at'] != null
@@ -250,6 +263,7 @@ class RideOrder {
       'status': status,
       'notes': notes,
       'package_details': packageDetails,
+      'destinations': destinations,
       'rejected_driver_ids': rejectedDriverIds,
       'driver_rejection_counts': driverRejectionCounts,
       'created_at': createdAt.toIso8601String(),

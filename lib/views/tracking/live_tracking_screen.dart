@@ -119,8 +119,14 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
               isDark: isDark,
               onTap: () async {
                 Navigator.pop(sheetCtx);
+                String waypointsParam = '';
+                final intermediateStops = order.destinations.where((d) => d['is_final'] != true).toList();
+                if (intermediateStops.isNotEmpty) {
+                  final coords = intermediateStops.map((d) => '${d['lat']},${d['lng']}').join('%7C');
+                  waypointsParam = '&waypoints=$coords';
+                }
                 final routeUrl = Uri.parse(
-                    'https://www.google.com/maps/dir/?api=1&origin=${order.pickupLat},${order.pickupLng}&destination=${order.dropoffLat},${order.dropoffLng}&travelmode=driving');
+                    'https://www.google.com/maps/dir/?api=1&origin=${order.pickupLat},${order.pickupLng}&destination=${order.dropoffLat},${order.dropoffLng}$waypointsParam&travelmode=driving');
                 final navIntent = Uri.parse('google.navigation:q=${order.dropoffLat},${order.dropoffLng}&mode=d');
                 try {
                   if (await canLaunchUrl(routeUrl)) {

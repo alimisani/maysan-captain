@@ -1,11 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart' as intl;
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/services/pdf_service.dart';
 import '../../core/services/supabase_service.dart';
+import '../../core/services/whatsapp_service.dart';
 import '../../core/state/admin_provider.dart';
 import '../../core/state/booking_provider.dart';
 import '../../core/state/theme_provider.dart';
@@ -28,6 +30,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   final TextEditingController _baseFareController = TextEditingController();
   final TextEditingController _perKmController = TextEditingController();
   final TextEditingController _deliveryFareController = TextEditingController();
+  final TextEditingController _maxDestinationsController = TextEditingController(text: '3');
+  bool _isMultiDestinationsEnabled = true;
 
   final TextEditingController _freeDriverQuotaController = TextEditingController();
   final TextEditingController _lifetimeFeeAmountController = TextEditingController();
@@ -67,6 +71,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     _baseFareController.text = admin.baseFare.toInt().toString();
     _perKmController.text = admin.perKmRate.toInt().toString();
     _deliveryFareController.text = admin.deliveryBaseFare.toInt().toString();
+    _maxDestinationsController.text = admin.maxDestinations.toString();
 
     _freeDriverQuotaController.text = admin.freeDriverQuota.toString();
     _lifetimeFeeAmountController.text = admin.lifetimeFeeAmount.toInt().toString();
@@ -82,6 +87,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       _selectedMapStyle = admin.mapStyle;
       _customerDriverApprovalEnabled = approvalSetting;
       _isDriverBlockEnabled = blockSettings['is_block_enabled'] as bool? ?? true;
+      _isMultiDestinationsEnabled = admin.isMultiDestinationsEnabled;
       _maxDriverRetryAttemptsController.text =
           (blockSettings['max_retry_attempts'] ?? 0).toString();
     });
@@ -92,6 +98,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     _baseFareController.dispose();
     _perKmController.dispose();
     _deliveryFareController.dispose();
+    _maxDestinationsController.dispose();
     _freeDriverQuotaController.dispose();
     _lifetimeFeeAmountController.dispose();
     _annualFeeAmountController.dispose();
@@ -480,95 +487,110 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               children: [
                 Row(
                   children: [
-                    Container(
-                      width: 46,
-                      height: 46,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: u.isAdmin
-                            ? AuroraTheme.accentAmber
-                            : (u.isDriver ? AuroraTheme.accentEmerald : AuroraTheme.primaryBlue),
-                      ),
-                      child: Icon(
-                        u.isAdmin
-                            ? Icons.admin_panel_settings_rounded
-                            : (u.isDriver ? Icons.drive_eta_rounded : Icons.person_rounded),
-                        color: Colors.white,
-                        size: 24,
+                    InkWell(
+                      onTap: () => _showUserDetailsModal(admin, u),
+                      borderRadius: BorderRadius.circular(24),
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: u.isAdmin
+                              ? AuroraTheme.accentAmber
+                              : (u.isDriver ? AuroraTheme.accentEmerald : AuroraTheme.primaryBlue),
+                          boxShadow: [
+                            BoxShadow(
+                              color: (u.isDriver ? AuroraTheme.accentEmerald : AuroraTheme.primaryBlue).withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          u.isAdmin
+                              ? Icons.admin_panel_settings_rounded
+                              : (u.isDriver ? Icons.drive_eta_rounded : Icons.person_rounded),
+                          color: Colors.white,
+                          size: 24,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                u.name,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
-                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                ),
-                              ),
-                              if (u.isBlocked) ...[
-                                const SizedBox(width: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: AuroraTheme.accentRose,
-                                    borderRadius: BorderRadius.circular(6),
+                      child: InkWell(
+                        onTap: () => _showUserDetailsModal(admin, u),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  u.name,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                    color: isDark ? Colors.white : const Color(0xFF0F172A),
                                   ),
-                                  child: const Text('محظور',
-                                      style: TextStyle(color: Colors.white, fontSize: 10)),
                                 ),
+                                if (u.isBlocked) ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AuroraTheme.accentRose,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: const Text('محظور',
+                                        style: TextStyle(color: Colors.white, fontSize: 10)),
+                                  ),
+                                ],
                               ],
-                            ],
-                          ),
-                          Text(
-                            '${u.phone ?? ""} | ${u.email ?? ""}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isDark ? Colors.white70 : const Color(0xFF64748B),
                             ),
-                          ),
-                          Text(
-                            'الرتبة: ${u.role == "driver" ? "كابتن" : (u.role == "admin" ? "مدير عام" : "زبون")} | التقييم: ${u.rating} ⭐',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? Colors.white70 : const Color(0xFF334155),
+                            Text(
+                              '${u.phone ?? ""} | ${u.email ?? ""}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                              ),
                             ),
-                          ),
-                          if (u.role == 'user') ...[
-                            const SizedBox(height: 3),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: (u.reliabilityScore >= 75
+                            Text(
+                              'الرتبة: ${u.role == "driver" ? "كابتن" : (u.role == "admin" ? "مدير عام" : "زبون")} | التقييم: ${u.rating} ⭐',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? Colors.white70 : const Color(0xFF334155),
+                              ),
+                            ),
+                            if (u.role == 'user') ...[
+                              const SizedBox(height: 3),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: (u.reliabilityScore >= 75
+                                          ? AuroraTheme.accentEmerald
+                                          : (u.reliabilityScore >= 50
+                                              ? AuroraTheme.accentAmber
+                                              : AuroraTheme.accentRose))
+                                      .withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'الموثوقية: ${u.reliabilityBadgeText} • الرفض: ${u.rejectionsCount}',
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: u.reliabilityScore >= 75
                                         ? AuroraTheme.accentEmerald
                                         : (u.reliabilityScore >= 50
                                             ? AuroraTheme.accentAmber
-                                            : AuroraTheme.accentRose))
-                                    .withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                'الموثوقية: ${u.reliabilityBadgeText} • الرفض: ${u.rejectionsCount}',
-                                style: TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.bold,
-                                  color: u.reliabilityScore >= 75
-                                      ? AuroraTheme.accentEmerald
-                                      : (u.reliabilityScore >= 50
-                                          ? AuroraTheme.accentAmber
-                                          : AuroraTheme.accentRose),
+                                            : AuroraTheme.accentRose),
+                                  ),
                                 ),
                               ),
-                            ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     ),
                   ],
@@ -631,7 +653,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       ),
                     ),
 
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
+
+                    // View Full Profile & Documents Button
+                    IconButton(
+                      icon: const Icon(Icons.badge_outlined, color: AuroraTheme.primaryCyan, size: 20),
+                      tooltip: 'عرض تفاصيل المشترك والمستمسكات',
+                      onPressed: () => _showUserDetailsModal(admin, u),
+                    ),
 
                     // Edit Button
                     IconButton(
@@ -1222,7 +1251,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
         ),
 
-        // Section 1: General Base Pricing
+        // Section 1: General Base Pricing & Multi-Destination Settings
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
@@ -1266,7 +1295,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               CustomTextField(
                 controller: _perKmController,
                 label: 'سعر الكيلومتر الواحد (د.ع)',
-                hint: '500',
+                hint: '0',
                 keyboardType: TextInputType.number,
                 prefixIcon: Icons.route_rounded,
               ),
@@ -1275,30 +1304,92 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               CustomTextField(
                 controller: _deliveryFareController,
                 label: 'أجرة توصيل الطرود والطلبات (د.ع)',
-                hint: '4000',
+                hint: '3000',
                 keyboardType: TextInputType.number,
                 prefixIcon: Icons.local_shipping_rounded,
               ),
+              const SizedBox(height: 16),
+
+              // Multi-Destination Section inside General Pricing
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0x331E293B) : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.alt_route_rounded, size: 20, color: AuroraTheme.primaryCyan),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'ميزة تعدد الوجهات والمحطات',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                ),
+                              ),
+                              Text(
+                                'السماح للزبون بإضافة أكثر من مقصد أو محطة توقف في الرحلة الواحدة',
+                                style: TextStyle(fontSize: 10.5, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch(
+                          value: _isMultiDestinationsEnabled,
+                          activeThumbColor: AuroraTheme.accentEmerald,
+                          onChanged: (val) => setState(() => _isMultiDestinationsEnabled = val),
+                        ),
+                      ],
+                    ),
+                    if (_isMultiDestinationsEnabled) ...[
+                      const SizedBox(height: 10),
+                      CustomTextField(
+                        controller: _maxDestinationsController,
+                        label: 'الحد الأقصى للوجهات في الرحلة الواحدة (2 إلى 5)',
+                        hint: '3',
+                        keyboardType: TextInputType.number,
+                        prefixIcon: Icons.pin_drop_rounded,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
               const SizedBox(height: 20),
 
               AuroraButton(
                 text: 'تحديث التسعير العام',
                 onPressed: () async {
                   final base = double.tryParse(_baseFareController.text.trim()) ?? 3000.0;
-                  final perKm = double.tryParse(_perKmController.text.trim()) ?? 500.0;
+                  final perKm = double.tryParse(_perKmController.text.trim()) ?? 0.0;
                   final delivery =
-                      double.tryParse(_deliveryFareController.text.trim()) ?? 4000.0;
+                      double.tryParse(_deliveryFareController.text.trim()) ?? 3000.0;
+                  final maxDest = int.tryParse(_maxDestinationsController.text.trim()) ?? 3;
 
                   await admin.updatePricing(
                     baseFare: base,
                     perKmRate: perKm,
                     deliveryBaseFare: delivery,
+                    isMultiDestinationsEnabled: _isMultiDestinationsEnabled,
+                    maxDestinations: maxDest,
                   );
 
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('تم حفظ وتحديث التسعير العام بنجاح'),
+                        content: Text('تم حفظ وتحديث التسعير العام وإعدادات تعدد الوجهات بنجاح'),
                         backgroundColor: AuroraTheme.accentEmerald,
                       ),
                     );
@@ -1357,21 +1448,139 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 16),
+
+              // Dynamic Driver Quota & Statistics Banner
+              Builder(
+                builder: (context) {
+                  final registeredCount = admin.users.where((u) => u.role == 'driver').length;
+                  final currentQuota = int.tryParse(_freeDriverQuotaController.text.trim()) ?? admin.freeDriverQuota;
+                  final remainingFree = (currentQuota - registeredCount) > 0 ? (currentQuota - registeredCount) : 0;
+                  final isQuotaReached = registeredCount >= currentQuota;
+
+                  return Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0x331E293B) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isQuotaReached ? AuroraTheme.accentAmber : AuroraTheme.accentEmerald.withValues(alpha: 0.5),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              isQuotaReached ? Icons.info_outline_rounded : Icons.check_circle_outline_rounded,
+                              size: 18,
+                              color: isQuotaReached ? AuroraTheme.accentAmber : AuroraTheme.accentEmerald,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'إحصائيات حد السائقين المجانيين (مباشر)',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            // 1. Registered
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                                decoration: BoxDecoration(
+                                  color: AuroraTheme.primaryBlue.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Column(
+                                  children: [
+                                    const Text('العدد المسجل', style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '$registeredCount',
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AuroraTheme.primaryBlue),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+
+                            // 2. Free Quota Limit
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Column(
+                                  children: [
+                                    const Text('الحد المجاني', style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '$currentQuota',
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFFF59E0B)),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+
+                            // 3. Remaining
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                                decoration: BoxDecoration(
+                                  color: (remainingFree > 0 ? AuroraTheme.accentEmerald : AuroraTheme.accentRose).withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Column(
+                                  children: [
+                                    const Text('المتبقي للمجاني', style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '$remainingFree',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                        color: remainingFree > 0 ? AuroraTheme.accentEmerald : AuroraTheme.accentRose,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
 
               CustomTextField(
                 controller: _freeDriverQuotaController,
                 label: 'حد السائقين المجانيين (يبدأ فرض الرسوم بعده)',
-                hint: '1',
+                hint: '100',
                 keyboardType: TextInputType.number,
                 prefixIcon: Icons.people_outline_rounded,
+                onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: 14),
 
               CustomTextField(
                 controller: _lifetimeFeeAmountController,
                 label: 'مبلغ رسم الاشتراك الدائمي (مدى الحياة) (د.ع)',
-                hint: '5000',
+                hint: '50000',
                 keyboardType: TextInputType.number,
                 prefixIcon: Icons.stars_rounded,
               ),
@@ -1380,7 +1589,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               CustomTextField(
                 controller: _annualFeeAmountController,
                 label: 'مبلغ رسم الاشتراك السنوي (لمدة 1 سنة) (د.ع)',
-                hint: '10000',
+                hint: '15000',
                 keyboardType: TextInputType.number,
                 prefixIcon: Icons.calendar_today_rounded,
               ),
@@ -1389,7 +1598,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               CustomTextField(
                 controller: _zaincashNumberController,
                 label: 'رقم محفظة زين كاش (ZainCash)',
-                hint: '7117648506',
+                hint: '07721655570',
                 keyboardType: TextInputType.text,
                 prefixIcon: Icons.phone_android_rounded,
               ),
@@ -1398,7 +1607,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               CustomTextField(
                 controller: _superqiNumberController,
                 label: 'رقم بطاقة سوبر كي (SuperQi)',
-                hint: '07800000000',
+                hint: '7117648506',
                 keyboardType: TextInputType.text,
                 prefixIcon: Icons.credit_card_rounded,
               ),
@@ -1407,7 +1616,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               CustomTextField(
                 controller: _paymentInstructionsController,
                 label: 'تعليمات وطريقة التحويل الموجهة للسائق',
-                hint: 'تحويل الرسوم عبر زين كاش أو سوبر كي لتفعيل الحساب',
+                hint: 'تحويل الرسوم لمرة واحدة عبر زين كاش أو ماستر كارد لتفعيل الحساب مدى الحياة',
                 maxLines: 2,
                 prefixIcon: Icons.info_outline_rounded,
               ),
@@ -1417,7 +1626,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 text: 'حفظ إعدادات رسوم واشتراكات السائقين',
                 icon: Icons.save_rounded,
                 onPressed: () async {
-                  final quota = int.tryParse(_freeDriverQuotaController.text.trim()) ?? 1;
+                  final quota = int.tryParse(_freeDriverQuotaController.text.trim()) ?? 100;
                   final lifetimeFee = double.tryParse(_lifetimeFeeAmountController.text.trim()) ?? 5000.0;
                   final annualFee = double.tryParse(_annualFeeAmountController.text.trim()) ?? 10000.0;
                   final zaincash = _zaincashNumberController.text.trim();
@@ -1846,7 +2055,756 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  // --- DIALOGS ---
+  // --- DIALOGS & USER PROFILE MODAL ---
+
+  void _showImagePreviewDialog(BuildContext context, String imageSource, String title) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F172A),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0x3338BDF8)),
+              ),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, color: Colors.white70),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.of(context).size.height * 0.65,
+                        maxWidth: MediaQuery.of(context).size.width * 0.9,
+                      ),
+                      child: imageSource.startsWith('data:image')
+                          ? Image.memory(
+                              base64Decode(imageSource.split(',').last),
+                              fit: BoxFit.contain,
+                            )
+                          : (imageSource.startsWith('http')
+                              ? Image.network(imageSource, fit: BoxFit.contain)
+                              : const Center(
+                                  child: Icon(Icons.picture_as_pdf_rounded, size: 80, color: AuroraTheme.accentAmber),
+                                )),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showUserDetailsModal(AdminProvider admin, UserProfile u) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    bool isPassRevealed = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (modalCtx) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.88,
+          ),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0B132B) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            border: Border.all(
+              color: isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1),
+            ),
+            boxShadow: const [
+              BoxShadow(color: Color(0x33000000), blurRadius: 24, offset: Offset(0, -6)),
+            ],
+          ),
+          child: Column(
+            children: [
+              // Sheet Drag Handle & Close
+              Padding(
+                padding: const EdgeInsets.only(top: 12, left: 16, right: 16, bottom: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const SizedBox(width: 32),
+                    Container(
+                      width: 48,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.pop(modalCtx),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Scrollable Content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Header Card with Avatar and Basic Info
+                      Container(
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: u.isAdmin
+                                ? [const Color(0xFFF59E0B), const Color(0xFFD97706)]
+                                : (u.isDriver
+                                    ? [const Color(0xFF059669), const Color(0xFF10B981)]
+                                    : [const Color(0xFF2563EB), const Color(0xFF3B82F6)]),
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(22),
+                          boxShadow: [
+                            BoxShadow(
+                              color: (u.isDriver ? const Color(0xFF10B981) : const Color(0xFF3B82F6))
+                                  .withValues(alpha: 0.3),
+                              blurRadius: 16,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  width: 60,
+                                  height: 60,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                    boxShadow: const [
+                                      BoxShadow(color: Color(0x22000000), blurRadius: 10, offset: Offset(0, 3)),
+                                    ],
+                                  ),
+                                  child: Icon(
+                                    u.isAdmin
+                                        ? Icons.admin_panel_settings_rounded
+                                        : (u.isDriver ? Icons.drive_eta_rounded : Icons.person_rounded),
+                                    color: u.isAdmin
+                                        ? const Color(0xFFD97706)
+                                        : (u.isDriver ? const Color(0xFF059669) : const Color(0xFF2563EB)),
+                                    size: 34,
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              u.name,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          if (u.isBlocked)
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                              decoration: BoxDecoration(
+                                                color: AuroraTheme.accentRose,
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: const Text('محظور', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                                            ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        u.role == "driver"
+                                            ? "كابتن معتمد"
+                                            : (u.role == "admin" ? "مدير عام" : "زبون"),
+                                        style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.star_rounded, color: Colors.amberAccent, size: 16),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            '${u.rating} ⭐',
+                                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // ID & Contact Quick Actions Row
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.fingerprint_rounded, size: 18, color: AuroraTheme.primaryCyan),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'معرف الحساب (ID): ${u.id}',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontFamily: 'monospace',
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? Colors.white70 : const Color(0xFF334155),
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.copy_rounded, size: 16, color: AuroraTheme.primaryBlue),
+                              tooltip: 'نسخ المعرف',
+                              onPressed: () {
+                                Clipboard.setData(ClipboardData(text: u.id));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('تم نسخ معرف المشترك'), duration: Duration(seconds: 1)),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Contact & Communication Card
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('بيانات التواصل والحساب', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                const Icon(Icons.phone_rounded, size: 16, color: AuroraTheme.accentEmerald),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    u.phone != null && u.phone!.isNotEmpty ? u.phone! : 'غير محدد',
+                                    style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                                  ),
+                                ),
+                                if (u.phone != null && u.phone!.isNotEmpty) ...[
+                                  IconButton(
+                                    icon: const Icon(Icons.call_rounded, size: 18, color: AuroraTheme.accentEmerald),
+                                    tooltip: 'اتصال هاتفياً',
+                                    onPressed: () => WhatsAppService.makePhoneCall(u.phone!),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18, color: AuroraTheme.accentEmerald),
+                                    tooltip: 'محادثة واتساب',
+                                    onPressed: () => WhatsAppService.openWhatsApp(phone: u.phone!, message: 'مرحباً كابتن ${u.name}، بخصوص حسابك في تطبيق ميسان كابتن:'),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            const Divider(height: 14),
+                            Row(
+                              children: [
+                                const Icon(Icons.email_outlined, size: 16, color: AuroraTheme.primaryBlue),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    u.email != null && u.email!.isNotEmpty ? u.email! : 'غير محدد',
+                                    style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const Divider(height: 14),
+                            Row(
+                              children: [
+                                const Icon(Icons.lock_outline_rounded, size: 16, color: AuroraTheme.accentAmber),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'كلمة المرور: ',
+                                  style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                                ),
+                                Text(
+                                  isPassRevealed ? (u.password ?? '123456') : '••••••••',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: Icon(
+                                    isPassRevealed ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                    size: 16,
+                                    color: AuroraTheme.primaryCyan,
+                                  ),
+                                  onPressed: () => setModalState(() => isPassRevealed = !isPassRevealed),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Customer Reliability Section
+                      if (u.role == 'user') ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('سجل موثوقية الزبون', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                                      decoration: BoxDecoration(
+                                        color: (u.reliabilityScore >= 75
+                                                ? AuroraTheme.accentEmerald
+                                                : (u.reliabilityScore >= 50
+                                                    ? AuroraTheme.accentAmber
+                                                    : AuroraTheme.accentRose))
+                                            .withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          const Text('درجة الموثوقية', style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B))),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            '${u.reliabilityScore}% (${u.reliabilityBadgeText})',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                              color: u.reliabilityScore >= 75
+                                                  ? AuroraTheme.accentEmerald
+                                                  : (u.reliabilityScore >= 50
+                                                      ? AuroraTheme.accentAmber
+                                                      : AuroraTheme.accentRose),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                                      decoration: BoxDecoration(
+                                        color: AuroraTheme.primaryBlue.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          const Text('مرات رفض الكباتن', style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B))),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            '${u.rejectionsCount} مرة',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                              color: AuroraTheme.primaryBlue,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
+                      // Driver Vehicle Details Section (If Driver)
+                      if (u.isDriver) ...[
+                        const SizedBox(height: 12),
+                        FutureBuilder<Map<String, dynamic>?>(
+                          future: SupabaseService().getVehicleByDriverId(u.id),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator()));
+                            }
+
+                            final veh = snapshot.data;
+                            final vehType = veh?['vehicle_type']?.toString() ?? 'private';
+                            final arabicVehType = (vehType == 'taxi' || vehType == 'أجرة')
+                                ? 'أجرة (تاكسي)'
+                                : (vehType == 'vip' ? 'VIP مميز' : 'صالون خصوصي');
+                            final plateNum = veh?['plate_number']?.toString() ?? 'غير محدد';
+                            final model = veh?['model']?.toString() ?? 'غير محدد';
+                            final make = veh?['make']?.toString() ?? '';
+                            final color = veh?['color']?.toString() ?? 'غير محدد';
+                            final year = veh?['year']?.toString() ?? '';
+
+                            return Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.directions_car_rounded, size: 18, color: AuroraTheme.primaryBlue),
+                                      const SizedBox(width: 8),
+                                      const Text('معلومات المركبة والسيارة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Row(
+                                    children: [
+                                      Expanded(child: _buildInfoItem('نوع المركبة', arabicVehType, Icons.category_rounded)),
+                                      Expanded(child: _buildInfoItem('رقم اللوحة', plateNum, Icons.pin_rounded)),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      Expanded(child: _buildInfoItem('الموديل والمصنع', '$make $model'.trim().isEmpty ? 'غير محدد' : '$make $model', Icons.minor_crash_rounded)),
+                                      Expanded(child: _buildInfoItem('اللون وسنة الصنع', '$color $year'.trim().isEmpty ? 'غير محدد' : '$color $year', Icons.color_lens_rounded)),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        // Driver Subscription Status Card
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: u.isSubscriptionValid ? AuroraTheme.accentEmerald.withValues(alpha: 0.5) : AuroraTheme.accentRose.withValues(alpha: 0.5),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        u.isSubscriptionValid ? Icons.verified_rounded : Icons.warning_amber_rounded,
+                                        size: 18,
+                                        color: u.isSubscriptionValid ? AuroraTheme.accentEmerald : AuroraTheme.accentRose,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'حالة الاشتراك: ${u.subscriptionBadgeText}',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                          color: u.isSubscriptionValid ? AuroraTheme.accentEmerald : AuroraTheme.accentRose,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  TextButton.icon(
+                                    style: TextButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      minimumSize: Size.zero,
+                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                    icon: const Icon(Icons.edit_calendar_rounded, size: 14, color: AuroraTheme.primaryBlue),
+                                    label: const Text('تعديل', style: TextStyle(fontSize: 11, color: AuroraTheme.primaryBlue, fontWeight: FontWeight.bold)),
+                                    onPressed: () {
+                                      Navigator.pop(modalCtx);
+                                      _showDriverSubscriptionDialog(admin, u);
+                                    },
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                u.isSubscriptionLifetime
+                                    ? 'الاشتراك دائمي مدى الحياة ولا يحتاج لتجديد'
+                                    : (u.subscriptionEndDate != null
+                                        ? 'ينتهي بتاريخ: ${intl.DateFormat('yyyy/MM/dd').format(u.subscriptionEndDate!)} (${u.remainingSubscriptionDays} يوم متبقي)'
+                                        : 'لا يوجد اشتراك نشط حالياً'),
+                                style: TextStyle(fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF64748B)),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        // Driver Uploaded Verification Documents Card
+                        FutureBuilder<Map<String, dynamic>?>(
+                          future: SupabaseService().getDriverVerification(u.id),
+                          builder: (context, docSnap) {
+                            if (docSnap.connectionState == ConnectionState.waiting) {
+                              return const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator()));
+                            }
+
+                            final sub = docSnap.data;
+                            final docs = sub != null && sub['documents'] is Map ? Map<String, dynamic>.from(sub['documents'] as Map) : <String, dynamic>{};
+                            final fileNames = sub != null && sub['file_names'] is Map ? Map<String, dynamic>.from(sub['file_names'] as Map) : <String, dynamic>{};
+                            final status = sub?['status']?.toString() ?? 'pending';
+
+                            return Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.document_scanner_rounded, size: 18, color: AuroraTheme.primaryCyan),
+                                          const SizedBox(width: 8),
+                                          const Text('مستمسكات ووثائق الكابتن', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                        ],
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: (status == 'approved'
+                                                  ? AuroraTheme.accentEmerald
+                                                  : (status == 'rejected' ? AuroraTheme.accentRose : AuroraTheme.accentAmber))
+                                              .withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          status == 'approved'
+                                              ? 'معتمد'
+                                              : (status == 'rejected' ? 'مرفوض' : 'قيد المراجعة'),
+                                          style: TextStyle(
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.bold,
+                                            color: status == 'approved'
+                                                ? AuroraTheme.accentEmerald
+                                                : (status == 'rejected' ? AuroraTheme.accentRose : AuroraTheme.accentAmber),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+                                  if (docs.isEmpty) ...[
+                                    const Text('لم يقم الكابتن برفع أي مستمسكات بعد.', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                                  ] else ...[
+                                    Column(
+                                      children: docs.entries.map((entry) {
+                                        final fieldKey = entry.key;
+                                        final val = entry.value.toString();
+                                        final name = fileNames[fieldKey]?.toString() ?? fieldKey;
+                                        final isImage = val.startsWith('data:image') || val.startsWith('http');
+
+                                        return Container(
+                                          margin: const EdgeInsets.only(bottom: 8),
+                                          padding: const EdgeInsets.all(10),
+                                          decoration: BoxDecoration(
+                                            color: isDark ? const Color(0x330F172A) : Colors.white,
+                                            borderRadius: BorderRadius.circular(12),
+                                            border: Border.all(
+                                              color: isDark ? const Color(0x2238BDF8) : const Color(0xFFE2E8F0),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              // Thumbnail preview
+                                              InkWell(
+                                                onTap: () => _showImagePreviewDialog(context, val, name),
+                                                child: ClipRRect(
+                                                  borderRadius: BorderRadius.circular(8),
+                                                  child: Container(
+                                                    width: 44,
+                                                    height: 44,
+                                                    color: AuroraTheme.primaryBlue.withValues(alpha: 0.1),
+                                                    child: isImage
+                                                        ? (val.startsWith('data:image')
+                                                            ? Image.memory(base64Decode(val.split(',').last), fit: BoxFit.cover)
+                                                            : Image.network(val, fit: BoxFit.cover))
+                                                        : const Icon(Icons.picture_as_pdf_rounded, color: AuroraTheme.accentAmber, size: 24),
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 10),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                                    const Text('اضغط للمعاينة الكاملة', style: TextStyle(fontSize: 10, color: AuroraTheme.primaryCyan)),
+                                                  ],
+                                                ),
+                                              ),
+                                              IconButton(
+                                                icon: const Icon(Icons.fullscreen_rounded, color: AuroraTheme.primaryBlue, size: 22),
+                                                tooltip: 'معاينة المستمسك',
+                                                onPressed: () => _showImagePreviewDialog(context, val, name),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      }).toList(),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+
+                      const SizedBox(height: 20),
+
+                      // Action Buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AuroraTheme.primaryBlue,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              ),
+                              icon: const Icon(Icons.edit_rounded, color: Colors.white, size: 18),
+                              label: const Text('تعديل الحساب', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                              onPressed: () {
+                                Navigator.pop(modalCtx);
+                                _showEditUserDialog(admin, u);
+                              },
+                            ),
+                          ),
+                          if (!u.isAdmin) ...[
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: u.isBlocked ? AuroraTheme.accentEmerald : AuroraTheme.accentRose,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                ),
+                                icon: Icon(u.isBlocked ? Icons.lock_open_rounded : Icons.block_rounded, color: Colors.white, size: 18),
+                                label: Text(u.isBlocked ? 'إلغاء الحظر' : 'حظر المشترك', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                onPressed: () async {
+                                  await admin.toggleBlockUser(u.id, u.isBlocked);
+                                  if (modalCtx.mounted) Navigator.pop(modalCtx);
+                                },
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoItem(String label, String value, IconData icon) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: AuroraTheme.primaryCyan),
+        const SizedBox(width: 6),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: TextStyle(fontSize: 10, color: isDark ? Colors.white60 : const Color(0xFF64748B))),
+            Text(value, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F172A))),
+          ],
+        ),
+      ],
+    );
+  }
 
   void _showEditUserDialog(AdminProvider admin, UserProfile user) {
     final nameCtrl = TextEditingController(text: user.name);

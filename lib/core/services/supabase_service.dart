@@ -271,6 +271,25 @@ class SupabaseService {
     }
   }
 
+  Future<Map<String, dynamic>?> getVehicleByDriverId(String driverId) async {
+    try {
+      final res = await client
+          .from('vehicles')
+          .select()
+          .eq('driver_id', driverId)
+          .order('created_at', ascending: false)
+          .limit(1);
+
+      if (res.isNotEmpty) {
+        return Map<String, dynamic>.from(res.first);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error getting vehicle map: $e');
+      return null;
+    }
+  }
+
   Future<Vehicle> registerOrUpdateVehicle({
     required String driverId,
     required String vehicleType,
@@ -334,6 +353,7 @@ class SupabaseService {
     required double dropoffLng,
     required double distanceKm,
     required double fare,
+    List<Map<String, dynamic>> destinations = const [],
     String? notes,
     String? packageDetails,
   }) async {
@@ -362,6 +382,7 @@ class SupabaseService {
         'fare_status': 'agreed',
         'notes': notes,
         'package_details': packageDetails,
+        'destinations': destinations,
         'created_at': DateTime.now().toIso8601String(),
       };
 
@@ -711,8 +732,10 @@ class SupabaseService {
     } catch (_) {}
     return {
       'base_fare': 3000.0,
-      'per_km_rate': 500.0,
-      'delivery_base_fare': 4000.0,
+      'per_km_rate': 0.0,
+      'delivery_base_fare': 3000.0,
+      'is_multi_destinations_enabled': true,
+      'max_destinations': 3,
     };
   }
 
@@ -720,6 +743,8 @@ class SupabaseService {
     required double baseFare,
     required double perKmRate,
     required double deliveryBaseFare,
+    bool isMultiDestinationsEnabled = true,
+    int maxDestinations = 3,
   }) async {
     try {
       await client.from('app_settings').upsert({
@@ -728,6 +753,8 @@ class SupabaseService {
           'base_fare': baseFare,
           'per_km_rate': perKmRate,
           'delivery_base_fare': deliveryBaseFare,
+          'is_multi_destinations_enabled': isMultiDestinationsEnabled,
+          'max_destinations': maxDestinations,
         },
         'updated_at': DateTime.now().toIso8601String(),
       });

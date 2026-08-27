@@ -14,8 +14,10 @@ class AdminProvider extends ChangeNotifier {
   List<CustomRoutePricing> _customRoutePricings = [];
 
   double _baseFare = 3000.0;
-  double _perKmRate = 500.0;
-  double _deliveryBaseFare = 4000.0;
+  double _perKmRate = 0.0;
+  double _deliveryBaseFare = 3000.0;
+  bool _isMultiDestinationsEnabled = true;
+  int _maxDestinations = 3;
   String _mapStyle = 'google_roadmap';
 
   int _freeDriverQuota = 1;
@@ -37,6 +39,8 @@ class AdminProvider extends ChangeNotifier {
   double get baseFare => _baseFare;
   double get perKmRate => _perKmRate;
   double get deliveryBaseFare => _deliveryBaseFare;
+  bool get isMultiDestinationsEnabled => _isMultiDestinationsEnabled;
+  int get maxDestinations => _maxDestinations;
   String get mapStyle => _mapStyle;
 
   int get freeDriverQuota => _freeDriverQuota;
@@ -81,20 +85,22 @@ class AdminProvider extends ChangeNotifier {
 
       final pricing = results[2] as Map<String, dynamic>;
       _baseFare = (pricing['base_fare'] as num?)?.toDouble() ?? 3000.0;
-      _perKmRate = (pricing['per_km_rate'] as num?)?.toDouble() ?? 500.0;
-      _deliveryBaseFare = (pricing['delivery_base_fare'] as num?)?.toDouble() ?? 4000.0;
+      _perKmRate = (pricing['per_km_rate'] as num?)?.toDouble() ?? 0.0;
+      _deliveryBaseFare = (pricing['delivery_base_fare'] as num?)?.toDouble() ?? 3000.0;
+      _isMultiDestinationsEnabled = pricing['is_multi_destinations_enabled'] as bool? ?? true;
+      _maxDestinations = (pricing['max_destinations'] as num?)?.toInt() ?? 3;
 
       _customRoutePricings = results[3] as List<CustomRoutePricing>;
       _mapStyle = results[4] as String;
 
       final feeSettings = results[5] as Map<String, dynamic>;
-      _freeDriverQuota = (feeSettings['free_driver_quota'] as num?)?.toInt() ?? 1;
-      _lifetimeFeeAmount = (feeSettings['lifetime_fee_amount'] as num?)?.toDouble() ?? 5000.0;
-      _annualFeeAmount = (feeSettings['annual_fee_amount'] as num?)?.toDouble() ?? 10000.0;
-      _zaincashNumber = feeSettings['zaincash_number'] as String? ?? '7117648506';
-      _superqiNumber = feeSettings['superqi_number'] as String? ?? '07800000000';
+      _freeDriverQuota = (feeSettings['free_driver_quota'] as num?)?.toInt() ?? 100;
+      _lifetimeFeeAmount = (feeSettings['lifetime_fee_amount'] as num?)?.toDouble() ?? 50000.0;
+      _annualFeeAmount = (feeSettings['annual_fee_amount'] as num?)?.toDouble() ?? 15000.0;
+      _zaincashNumber = feeSettings['zaincash_number'] as String? ?? '07721655570';
+      _superqiNumber = feeSettings['superqi_number'] as String? ?? '7117648506';
       _paymentInstructions = feeSettings['payment_instructions'] as String? ??
-          'يرجى تحويل مبلغ الاشتراك عبر محفظة زين كاش أو بطاقة سوبر كي ثم إرسال الإشعار لتفعيل الحساب فورياً';
+          'تحويل الرسوم لمرة واحدة عبر زين كاش أو ماستر كارد لتفعيل الحساب مدى الحياة';
 
       _verificationSettings = results[6] as Map<String, dynamic>;
       _driverVerifications = results[7] as List<Map<String, dynamic>>;
@@ -184,6 +190,8 @@ class AdminProvider extends ChangeNotifier {
     required double baseFare,
     required double perKmRate,
     required double deliveryBaseFare,
+    bool isMultiDestinationsEnabled = true,
+    int maxDestinations = 3,
   }) async {
     _isLoading = true;
     notifyListeners();
@@ -193,10 +201,14 @@ class AdminProvider extends ChangeNotifier {
         baseFare: baseFare,
         perKmRate: perKmRate,
         deliveryBaseFare: deliveryBaseFare,
+        isMultiDestinationsEnabled: isMultiDestinationsEnabled,
+        maxDestinations: maxDestinations,
       );
       _baseFare = baseFare;
       _perKmRate = perKmRate;
       _deliveryBaseFare = deliveryBaseFare;
+      _isMultiDestinationsEnabled = isMultiDestinationsEnabled;
+      _maxDestinations = maxDestinations;
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -212,11 +224,15 @@ class AdminProvider extends ChangeNotifier {
     required double baseFare,
     required double perKmRate,
     required double deliveryBaseFare,
+    bool isMultiDestinationsEnabled = true,
+    int maxDestinations = 3,
   }) =>
       updateGeneralPricing(
         baseFare: baseFare,
         perKmRate: perKmRate,
         deliveryBaseFare: deliveryBaseFare,
+        isMultiDestinationsEnabled: isMultiDestinationsEnabled,
+        maxDestinations: maxDestinations,
       );
 
   Future<void> addCustomRoutePricing({
