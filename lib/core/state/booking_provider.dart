@@ -349,12 +349,17 @@ class BookingProvider extends ChangeNotifier {
   }
 
   void addExtraDestination(LatLng point, String address) {
-    if (_extraDestinations.length < (_maxDestinations - 1)) {
-      _extraDestinations.add({
-        'point': point,
-        'address': address,
-        'stop_number': _extraDestinations.length + 1,
-      });
+    if ((_extraDestinations.length + 1) < _maxDestinations) {
+      // Move current dropoff to extraDestinations as previous stop, set new point as dropoff
+      if (_dropoffAddress != 'تحديد الوجهة والمقصد' && _dropoffAddress.isNotEmpty) {
+        _extraDestinations.add({
+          'point': _dropoffLocation,
+          'address': _dropoffAddress,
+          'stop_number': _extraDestinations.length + 1,
+        });
+      }
+      _dropoffLocation = point;
+      _dropoffAddress = address;
       _recalculateRouteAndFare();
     }
   }
@@ -470,16 +475,24 @@ class BookingProvider extends ChangeNotifier {
       if (_selectedVehicleType == 'pickup') vehicleMultiplier = 1.3;
 
       double calculated;
+      int totalLegs = 1 + _extraDestinations.length;
+
       if (_perKmRate > 0) {
-        // Ceiling for partial kilometers (e.g. 1.1 km -> 2 km, 2.4 km -> 3 km)
+        // Ceiling for partial kilometers (e.g. 1.1 km -> 2 km, 16.1 km -> 17 km)
         double billedKm = _distanceKm.ceilToDouble();
         if (billedKm < 1.0) billedKm = 1.0;
         double fareFromKm = billedKm * _perKmRate;
         
-        // Exact rule: fare by km should not exceed the base fare for trips (e.g. 1-3km shows calculated, >=4km capped at base)
-        calculated = (fareFromKm < base ? fareFromKm : base) * vehicleMultiplier;
+        if (_extraDestinations.isNotEmpty) {
+          // Multi-destination trip: apply total distance * perKmRate (minimum base fare * total legs)
+          calculated = (fareFromKm > (base * totalLegs) ? fareFromKm : (base * totalLegs)) * vehicleMultiplier;
+        } else {
+          // Single destination trip:
+          calculated = (fareFromKm < base && fareFromKm > 0 ? fareFromKm : (fareFromKm >= base ? fareFromKm : base)) * vehicleMultiplier;
+        }
       } else {
-        calculated = base * vehicleMultiplier;
+        // When perKmRate is 0, each leg adds baseFare
+        calculated = (base * totalLegs) * vehicleMultiplier;
       }
 
       // Round to nearest 250 IQD

@@ -488,7 +488,7 @@ class _RideBookingSheetState extends State<RideBookingSheet> {
                           const Icon(Icons.add_circle_outline_rounded, size: 16, color: Color(0xFF0284C7)),
                           const SizedBox(width: 6),
                           Text(
-                            '+ إضافة محطة / وجهة أخرى (${booking.extraDestinations.length + 1}/${booking.maxDestinations - 1})',
+                            '+ إضافة محطة / وجهة أخرى (${booking.extraDestinations.length + 2}/${booking.maxDestinations})',
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,

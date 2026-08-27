@@ -606,39 +606,35 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     // Password Box
                     Expanded(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                         decoration: BoxDecoration(
                           color: isDark ? const Color(0x331E293B) : const Color(0xFFF1F5F9),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.lock_outline_rounded, size: 16, color: AuroraTheme.primaryBlue),
-                            const SizedBox(width: 6),
+                            const Icon(Icons.lock_outline_rounded, size: 14, color: AuroraTheme.primaryBlue),
+                            const SizedBox(width: 4),
                             Text(
                               'كلمة المرور: ',
                               style: TextStyle(
-                                fontSize: 11,
+                                fontSize: 10.5,
                                 color: isDark ? Colors.white60 : const Color(0xFF64748B),
                               ),
                             ),
-                            Text(
-                              isPassVisible ? (u.password ?? '123456') : '••••••••',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            Expanded(
+                              child: Text(
+                                isPassVisible ? (u.password ?? '123456') : '••••••••',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            IconButton(
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              icon: Icon(
-                                isPassVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                                size: 16,
-                                color: AuroraTheme.primaryCyan,
-                              ),
-                              onPressed: () {
+                            InkWell(
+                              onTap: () {
                                 setState(() {
                                   if (isPassVisible) {
                                     _visiblePasswordUsers.remove(u.id);
@@ -647,48 +643,70 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                   }
                                 });
                               },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 3),
+                                child: Icon(
+                                  isPassVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                  size: 15,
+                                  color: AuroraTheme.primaryCyan,
+                                ),
+                              ),
                             ),
                           ],
                         ),
                       ),
                     ),
 
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 4),
 
                     // View Full Profile & Documents Button
                     IconButton(
-                      icon: const Icon(Icons.badge_outlined, color: AuroraTheme.primaryCyan, size: 20),
+                      padding: const EdgeInsets.all(5),
+                      constraints: const BoxConstraints(),
+                      icon: const Icon(Icons.badge_outlined, color: AuroraTheme.primaryCyan, size: 19),
                       tooltip: 'عرض تفاصيل المشترك والمستمسكات',
                       onPressed: () => _showUserDetailsModal(admin, u),
                     ),
 
+                    const SizedBox(width: 2),
+
                     // Edit Button
                     IconButton(
-                      icon: const Icon(Icons.edit_rounded, color: AuroraTheme.primaryBlue, size: 20),
+                      padding: const EdgeInsets.all(5),
+                      constraints: const BoxConstraints(),
+                      icon: const Icon(Icons.edit_rounded, color: AuroraTheme.primaryBlue, size: 19),
                       tooltip: 'تعديل بيانات المشترك',
                       onPressed: () => _showEditUserDialog(admin, u),
                     ),
 
                     // Block/Unblock Button (Not for admin)
-                    if (!u.isAdmin)
+                    if (!u.isAdmin) ...[
+                      const SizedBox(width: 2),
                       IconButton(
+                        padding: const EdgeInsets.all(5),
+                        constraints: const BoxConstraints(),
                         icon: Icon(
                           u.isBlocked ? Icons.lock_open_rounded : Icons.block_rounded,
                           color: u.isBlocked ? AuroraTheme.accentEmerald : AuroraTheme.accentAmber,
-                          size: 20,
+                          size: 19,
                         ),
                         tooltip: u.isBlocked ? 'إلغاء الحظر' : 'حظر الحساب',
                         onPressed: () => admin.toggleBlockUser(u.id, u.isBlocked),
                       ),
+                    ],
 
                     // Delete Button
-                    if (!u.isAdmin)
+                    if (!u.isAdmin) ...[
+                      const SizedBox(width: 2),
                       IconButton(
+                        padding: const EdgeInsets.all(5),
+                        constraints: const BoxConstraints(),
                         icon: const Icon(Icons.delete_forever_rounded,
-                            color: AuroraTheme.accentRose, size: 20),
+                            color: AuroraTheme.accentRose, size: 19),
                         tooltip: 'حذف الحساب نهائياً',
                         onPressed: () => _confirmDeleteUser(admin, u.id, u.name),
                       ),
+                    ],
                   ],
                 ),
 
@@ -2563,24 +2581,31 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        u.isSubscriptionValid ? Icons.verified_rounded : Icons.warning_amber_rounded,
-                                        size: 18,
-                                        color: u.isSubscriptionValid ? AuroraTheme.accentEmerald : AuroraTheme.accentRose,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        'حالة الاشتراك: ${u.subscriptionBadgeText}',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
+                                  Expanded(
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          u.isSubscriptionValid ? Icons.verified_rounded : Icons.warning_amber_rounded,
+                                          size: 18,
                                           color: u.isSubscriptionValid ? AuroraTheme.accentEmerald : AuroraTheme.accentRose,
                                         ),
-                                      ),
-                                    ],
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            'حالة الاشتراك: ${u.subscriptionBadgeText}',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12.5,
+                                              color: u.isSubscriptionValid ? AuroraTheme.accentEmerald : AuroraTheme.accentRose,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                            maxLines: 1,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
+                                  const SizedBox(width: 6),
                                   TextButton.icon(
                                     style: TextButton.styleFrom(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),

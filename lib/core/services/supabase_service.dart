@@ -95,6 +95,37 @@ class SupabaseService {
     }
   }
 
+  // Generate clean sequential user IDs: u1, u2, u3... where u1 is reserved for Admin
+  Future<String> generateNextUserId({String? role}) async {
+    try {
+      if (role == 'admin') {
+        final existingAdmin = await client.from('profiles').select('id').eq('id', 'u1').limit(1);
+        if (existingAdmin.isEmpty) return 'u1';
+      }
+
+      final profiles = await client.from('profiles').select('id');
+      int maxIdNum = 0;
+      final regex = RegExp(r'^u(\d+)$', caseSensitive: false);
+
+      for (final p in profiles) {
+        final idStr = p['id']?.toString() ?? '';
+        final match = regex.firstMatch(idStr);
+        if (match != null) {
+          final num = int.tryParse(match.group(1)!) ?? 0;
+          if (num > maxIdNum) maxIdNum = num;
+        }
+      }
+
+      if (maxIdNum == 0) {
+        return role == 'admin' ? 'u1' : 'u2';
+      }
+      return 'u${maxIdNum + 1}';
+    } catch (e) {
+      debugPrint('Error generating next user ID: $e');
+      return 'u${DateTime.now().millisecondsSinceEpoch % 100000}';
+    }
+  }
+
   // Register New Account
   Future<UserProfile> register({
     required String name,
@@ -104,7 +135,7 @@ class SupabaseService {
     required String role, // 'user' or 'driver'
   }) async {
     try {
-      final userId = 'usr_${const Uuid().v4().substring(0, 12)}';
+      final userId = await generateNextUserId(role: role);
       final cleanName = name.trim();
       final cleanEmail = email.trim().toLowerCase();
       final cleanPhone = phone.trim();
