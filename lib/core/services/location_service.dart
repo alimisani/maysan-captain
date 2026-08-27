@@ -20,44 +20,38 @@ class LocationService {
   static const String googleSatelliteTiles =
       'https://mt{s}.google.com/vt/lyrs=y&hl=ar&gl=IQ&x={x}&y={y}&z={z}';
 
-  static const String darkMatterTiles =
-      'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
-
   static const String osmStandardTiles =
       'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 
-  static String getTileUrl(String? style, {bool isDark = false}) {
-    // If the app is in Dark Mode (Aurora Dark) and style is not satellite, automatically adapt to dark map
-    if (isDark && style != 'google_satellite') {
-      return darkMatterTiles;
-    }
+  // High-contrast inverted matrix for dark mode maps without any watermark or API key
+  static const List<double> darkMapMatrix = [
+    -0.82, 0.0, 0.0, 0.0, 225,
+    0.0, -0.82, 0.0, 0.0, 225,
+    0.0, 0.0, -0.82, 0.0, 225,
+    0.0, 0.0, 0.0, 1.0, 0,
+  ];
 
-    switch (style) {
-      case 'waze_traffic':
-        return wazeTrafficTiles;
-      case 'carto_clean':
-        return cartoCleanTiles;
-      case 'google_satellite':
-        return googleSatelliteTiles;
-      case 'dark_matter':
-        return darkMatterTiles;
-      case 'osm_standard':
-        return osmStandardTiles;
-      case 'google_roadmap':
-      default:
-        return googleRoadmapTiles;
+  static String getTileUrl(String? style, {bool isDark = false}) {
+    if (style == 'google_satellite') {
+      return googleSatelliteTiles;
     }
+    if (style == 'waze_traffic') {
+      return wazeTrafficTiles;
+    }
+    if (style == 'osm_standard') {
+      return osmStandardTiles;
+    }
+    return googleRoadmapTiles;
   }
 
   static List<String> getSubdomains(String? style, {bool isDark = false}) {
-    final effectiveStyle = (isDark && style != 'google_satellite') ? 'dark_matter' : style;
-    if (effectiveStyle == 'google_roadmap' || effectiveStyle == 'google_satellite') {
-      return const ['0', '1', '2', '3'];
-    }
-    if (effectiveStyle == 'waze_traffic') {
+    if (style == 'waze_traffic') {
       return const ['a', 'b'];
     }
-    return const ['a', 'b', 'c', 'd'];
+    if (style == 'osm_standard') {
+      return const ['a', 'b', 'c'];
+    }
+    return const ['0', '1', '2', '3'];
   }
 
   // Bearing / Heading angle between two coordinates in degrees (0 to 360)

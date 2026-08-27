@@ -420,6 +420,14 @@ class _FullscreenMapPickerState extends State<_FullscreenMapPicker> {
                 urlTemplate: tileUrl,
                 subdomains: subdomains,
                 userAgentPackageName: 'com.maysantech.maysancaptain',
+                tileBuilder: (isDark && effectiveStyle != 'google_satellite')
+                    ? (context, tileWidget, tile) {
+                        return ColorFiltered(
+                          colorFilter: const ColorFilter.matrix(LocationService.darkMapMatrix),
+                          child: tileWidget,
+                        );
+                      }
+                    : null,
               ),
             ],
           ),

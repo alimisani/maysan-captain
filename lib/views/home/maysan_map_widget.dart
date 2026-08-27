@@ -145,6 +145,14 @@ class _MaysanMapWidgetState extends State<MaysanMapWidget> {
               urlTemplate: tileUrl,
               subdomains: subdomains,
               userAgentPackageName: 'com.maysancaptain.maysantech',
+              tileBuilder: (isDark && booking.mapStyle != 'google_satellite')
+                  ? (context, tileWidget, tile) {
+                      return ColorFiltered(
+                        colorFilter: const ColorFilter.matrix(LocationService.darkMapMatrix),
+                        child: tileWidget,
+                      );
+                    }
+                  : null,
             ),
 
             // Polyline Road Routing Layer
@@ -169,8 +177,8 @@ class _MaysanMapWidgetState extends State<MaysanMapWidget> {
             // Markers Layer
             MarkerLayer(
               markers: [
-                // 1. Nearby Online Drivers on Map (Visible to Customers and Admin)
-                if (widget.order == null && (auth.currentUser?.role != 'driver'))
+                // 1. Nearby Online Drivers on Map (Always Visible to Customers and Admin, even during active orders)
+                if (auth.currentUser?.role != 'driver')
                   ...booking.nearbyDrivers.where((driver) {
                     final lat = (driver['lat'] as num?)?.toDouble();
                     final lng = (driver['lng'] as num?)?.toDouble();
@@ -183,7 +191,7 @@ class _MaysanMapWidgetState extends State<MaysanMapWidget> {
                     }
 
                     final distKm = LocationService.calculateDistance(pickupPoint, LatLng(lat, lng));
-                    return distKm <= 15.0; // 15 km radius
+                    return distKm <= 35.0; // 35 km radius across Maysan
                   }).map((driver) {
                     final lat = (driver['lat'] as num).toDouble();
                     final lng = (driver['lng'] as num).toDouble();
