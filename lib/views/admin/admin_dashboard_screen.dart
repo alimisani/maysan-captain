@@ -44,6 +44,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   // Referral & Rewards controllers & state
   bool _isReferralSystemEnabled = true;
   bool _isReferralFieldVisible = true;
+  bool _isDriverReferralEnabled = true;
+  bool _isCustomerReferralEnabled = true;
+  bool _isInviteeBonusEnabled = true;
+  bool _isAmbassadorRanksEnabled = true;
   final TextEditingController _driverReferralBonusDaysController = TextEditingController(text: '30');
   final TextEditingController _driverFreeAnnualTargetController = TextEditingController(text: '5');
   final TextEditingController _driverDiscountPercentController = TextEditingController(text: '20');
@@ -99,6 +103,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
     _isReferralSystemEnabled = ref['is_referral_system_enabled'] as bool? ?? true;
     _isReferralFieldVisible = ref['is_referral_field_visible'] as bool? ?? true;
+    _isDriverReferralEnabled = ref['is_driver_referral_enabled'] as bool? ?? true;
+    _isCustomerReferralEnabled = ref['is_customer_referral_enabled'] as bool? ?? true;
+    _isInviteeBonusEnabled = ref['is_invitee_bonus_enabled'] as bool? ?? true;
+    _isAmbassadorRanksEnabled = ref['is_ambassador_ranks_enabled'] as bool? ?? true;
     _driverReferralBonusDaysController.text = (ref['driver_referral_bonus_days'] ?? 30).toString();
     _driverFreeAnnualTargetController.text = (ref['driver_free_annual_referral_target'] ?? 5).toString();
     _driverDiscountPercentController.text = (ref['driver_referral_discount_percent'] ?? 20).toString();
@@ -4467,6 +4475,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       ],
                     ),
                   ),
+                  Switch(
+                    value: _isDriverReferralEnabled,
+                    activeThumbColor: AuroraTheme.accentEmerald,
+                    onChanged: (v) => setState(() => _isDriverReferralEnabled = v),
+                  ),
                 ],
               ),
               const Divider(height: 20),
@@ -4533,6 +4546,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       ],
                     ),
                   ),
+                  Switch(
+                    value: _isCustomerReferralEnabled,
+                    activeThumbColor: AuroraTheme.primaryBlue,
+                    onChanged: (v) => setState(() => _isCustomerReferralEnabled = v),
+                  ),
                 ],
               ),
               const Divider(height: 20),
@@ -4591,6 +4609,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       ],
                     ),
                   ),
+                  Switch(
+                    value: _isInviteeBonusEnabled,
+                    activeThumbColor: AuroraTheme.primaryCyan,
+                    onChanged: (v) => setState(() => _isInviteeBonusEnabled = v),
+                  ),
                 ],
               ),
               const Divider(height: 20),
@@ -4640,6 +4663,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         Text('تحديد عدد الدعوات المطلوبة لكل رتبة', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
                       ],
                     ),
+                  ),
+                  Switch(
+                    value: _isAmbassadorRanksEnabled,
+                    activeThumbColor: const Color(0xFFF59E0B),
+                    onChanged: (v) => setState(() => _isAmbassadorRanksEnabled = v),
                   ),
                 ],
               ),
@@ -4699,6 +4727,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               final newSettings = {
                 'is_referral_system_enabled': _isReferralSystemEnabled,
                 'is_referral_field_visible': _isReferralFieldVisible,
+                'is_driver_referral_enabled': _isDriverReferralEnabled,
+                'is_customer_referral_enabled': _isCustomerReferralEnabled,
+                'is_invitee_bonus_enabled': _isInviteeBonusEnabled,
+                'is_ambassador_ranks_enabled': _isAmbassadorRanksEnabled,
                 'driver_referral_bonus_days': int.tryParse(_driverReferralBonusDaysController.text.trim()) ?? 30,
                 'driver_free_annual_referral_target': int.tryParse(_driverFreeAnnualTargetController.text.trim()) ?? 5,
                 'driver_referral_discount_percent': int.tryParse(_driverDiscountPercentController.text.trim()) ?? 20,

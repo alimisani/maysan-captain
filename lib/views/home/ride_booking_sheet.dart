@@ -287,7 +287,56 @@ class _RideBookingSheetState extends State<RideBookingSheet> {
             ),
           ),
 
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
+
+          // Header with reset destinations button
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                booking.isRide ? 'تحديد نقاط ومسار الرحلة' : 'تحديد نقاط التوصيل والاستلام',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white70 : const Color(0xFF475569),
+                ),
+              ),
+              if (booking.extraDestinations.isNotEmpty || booking.routePoints.isNotEmpty)
+                InkWell(
+                  onTap: () {
+                    booking.resetAllDestinations(isArabic: loc.isArabic);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('تم تصفير وحذف جميع الوجهات والمسار بنجاح 🔄'),
+                        duration: Duration(seconds: 2),
+                        backgroundColor: AuroraTheme.accentAmber,
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AuroraTheme.accentRose.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AuroraTheme.accentRose.withValues(alpha: 0.3)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.restart_alt_rounded, size: 14, color: AuroraTheme.accentRose),
+                        SizedBox(width: 4),
+                        Text(
+                          'تصفير الوجهات',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AuroraTheme.accentRose),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
 
           // Interactive Multi-Destination Location Selector Cards
           Container(

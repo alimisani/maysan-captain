@@ -133,7 +133,7 @@ class AppConstants {
       nameAr: 'حي الحسين (ع)',
       nameEn: 'Al-Hussein District',
       districtAr: 'قضاء العمارة',
-      coordinates: const LatLng(31.8320, 47.1380),
+      coordinates: const LatLng(31.8285, 47.1360),
     ),
     MaysanLocation(
       nameAr: 'حي القاهرة',
@@ -157,7 +157,7 @@ class AppConstants {
       nameAr: 'حي العسكري',
       nameEn: 'Al-Askari District',
       districtAr: 'قضاء العمارة',
-      coordinates: const LatLng(31.8370, 47.1330),
+      coordinates: const LatLng(31.8445, 47.1350),
     ),
     MaysanLocation(
       nameAr: 'حي الشرطة',

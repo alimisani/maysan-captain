@@ -924,9 +924,16 @@ class SupabaseService {
       final currentReferrals = (referrer['referral_count'] as num?)?.toInt() ?? 0;
       final currentBonusDays = (referrer['referral_bonus_days'] as num?)?.toInt() ?? 0;
 
-      int addedDays = isDriver
-          ? ((settings['driver_referral_bonus_days'] as num?)?.toInt() ?? 30)
-          : ((settings['customer_referral_bonus_days'] as num?)?.toInt() ?? 5);
+      final isDriverReferralEnabled = settings['is_driver_referral_enabled'] as bool? ?? true;
+      final isCustomerReferralEnabled = settings['is_customer_referral_enabled'] as bool? ?? true;
+      final isInviteeBonusEnabled = settings['is_invitee_bonus_enabled'] as bool? ?? true;
+
+      int addedDays = 0;
+      if (isDriver && isDriverReferralEnabled) {
+        addedDays = (settings['driver_referral_bonus_days'] as num?)?.toInt() ?? 30;
+      } else if (!isDriver && isCustomerReferralEnabled) {
+        addedDays = (settings['customer_referral_bonus_days'] as num?)?.toInt() ?? 5;
+      }
 
       final newTotalReferrals = currentReferrals + 1;
       final newTotalBonusDays = currentBonusDays + addedDays;
@@ -937,7 +944,7 @@ class SupabaseService {
       };
 
       // If Referrer is a Driver, extend their subscription end date or grant free annual/lifetime
-      if (referrer['role'] == 'driver') {
+      if (referrer['role'] == 'driver' && addedDays > 0) {
         final targetFree = (settings['driver_free_annual_referral_target'] as num?)?.toInt() ?? 5;
         DateTime currentEnd = referrer['subscription_end_date'] != null
             ? DateTime.tryParse(referrer['subscription_end_date'].toString()) ?? DateTime.now()
@@ -960,9 +967,9 @@ class SupabaseService {
 
       await client.from('profiles').update(updateReferrer).eq('id', referrerId);
 
-      // Also award invitee bonus days if driver
+      // Also award invitee bonus days if driver and invitee bonus is enabled
       final inviteeBonus = (settings['invitee_bonus_days'] as num?)?.toInt() ?? 15;
-      if (inviteeBonus > 0 && isDriver) {
+      if (isInviteeBonusEnabled && inviteeBonus > 0 && isDriver) {
         final newProfileRes = await client.from('profiles').select().eq('id', newUserId).maybeSingle();
         if (newProfileRes != null) {
           DateTime end = newProfileRes['subscription_end_date'] != null

@@ -183,11 +183,18 @@ class BookingProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void resetAllDestinations({bool isArabic = true}) {
+    _extraDestinations.clear();
+    _dropoffAddress = isArabic ? 'تحديد الوجهة والمقصد' : 'Select Destination';
+    _dropoffLocation = _pickupLocation;
+    _routePoints = [];
+    _distanceKm = 0.0;
+    _recalculateFareLocal();
+    notifyListeners();
+  }
+
   Future<void> _initPricing() async {
-    final pricing = await _supabaseService.getPricingSettings();
-    _baseFare = (pricing['base_fare'] as num?)?.toDouble() ?? 3000.0;
-    _perKmRate = (pricing['per_km_rate'] as num?)?.toDouble() ?? 500.0;
-    _deliveryBaseFare = (pricing['delivery_base_fare'] as num?)?.toDouble() ?? 4000.0;
+    await loadPricingSettings();
     try {
       _customRoutePricings = await _supabaseService.getCustomRoutePricings();
     } catch (_) {}
@@ -251,6 +258,9 @@ class BookingProvider extends ChangeNotifier {
           _mapStyle = latestStyle;
           notifyListeners();
         }
+      } catch (_) {}
+      try {
+        loadPricingSettings();
       } catch (_) {}
     });
   }

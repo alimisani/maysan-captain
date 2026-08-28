@@ -139,14 +139,63 @@ class LocationService {
     );
   }
 
-  // Accurate Reverse Geocoding via Nominatim & Maysan Neighborhood Engine
+  // --- GOOGLE PLUS CODE (OPEN LOCATION CODE) ENCODER ---
+  static String getPlusCode(LatLng point) {
+    try {
+      const alphabet = '23456789CFGHJMPQRVWX';
+      const base = 20;
+
+      double lat = point.latitude.clamp(-90.0, 90.0);
+      if (lat == 90.0) lat = 89.9999999;
+      double lng = point.longitude;
+      while (lng < -180.0) {
+        lng += 360.0;
+      }
+      while (lng >= 180.0) {
+        lng -= 360.0;
+      }
+
+      lat += 90.0;
+      lng += 180.0;
+
+      double latVal = lat;
+      double lngVal = lng;
+      double latRes = 20.0;
+      double lngRes = 20.0;
+
+      final digits = <String>[];
+      for (int i = 0; i < 4; i++) {
+        final latDigit = (latVal / latRes).floor().clamp(0, 19);
+        final lngDigit = (lngVal / lngRes).floor().clamp(0, 19);
+        latVal -= latDigit * latRes;
+        lngVal -= lngDigit * lngRes;
+        digits.add(alphabet[latDigit]);
+        digits.add(alphabet[lngDigit]);
+        latRes /= base;
+        lngRes /= base;
+      }
+
+      // Plus code format: 8Q74+3M (last 4 characters before +, plus 2 high-precision digits)
+      final d4 = '${digits[4]}${digits[5]}${digits[6]}${digits[7]}';
+      final extraLat = (latVal / latRes).floor().clamp(0, 19);
+      final extraLng = (lngVal / lngRes).floor().clamp(0, 19);
+      final d2 = '${alphabet[extraLat]}${alphabet[extraLng]}';
+
+      return '$d4+$d2';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  // Accurate Reverse Geocoding via Nominatim, Maysan Local Landmarks & Google Plus Code
   static Future<String> getRealAddress(LatLng point, {bool isArabic = true}) async {
     String? roadName;
     String? neighborhood;
+    final plusCode = getPlusCode(point);
 
     try {
       final url = Uri.parse(
-        'https://nominatim.openstreetmap.org/reverse?lat=${point.latitude}&lon=${point.longitude}&format=json&accept-language=ar&zoom=18',
+        'https://nominatim.openstreetmap.org/reverse?lat=${point.latitude}&lon=${point.longitude}&format=json&accept-language=ar&zoom=19',
       );
 
       final response = await http.get(
@@ -182,31 +231,45 @@ class LocationService {
 
     // Find nearest Maysan location/neighborhood
     final nearest = _findNearestLandmark(point);
+    String baseTitle;
 
     if (roadName != null && neighborhood != null) {
-      return '$roadName، $neighborhood';
+      baseTitle = '$roadName، $neighborhood';
     } else if (roadName != null && nearest != null) {
       final landmark = isArabic ? nearest.location.nameAr : nearest.location.nameEn;
       if (!roadName.contains(landmark)) {
-        return '$roadName - $landmark';
+        baseTitle = '$roadName - $landmark';
+      } else {
+        baseTitle = roadName;
       }
-      return roadName;
     } else if (neighborhood != null) {
-      return neighborhood;
+      baseTitle = neighborhood;
     } else if (nearest != null) {
-      return isArabic ? nearest.location.nameAr : nearest.location.nameEn;
+      baseTitle = isArabic ? nearest.location.nameAr : nearest.location.nameEn;
+    } else {
+      baseTitle = isArabic ? 'موقع محدد في ميسان' : 'Maysan Location';
     }
 
-    return isArabic ? 'موقع محدد في ميسان' : 'Maysan Location';
+    if (plusCode.isNotEmpty) {
+      return '$baseTitle ($plusCode)';
+    }
+    return baseTitle;
   }
 
   // Find the closest named landmark in Maysan as local fallback
   static String findNearestMaysanPlace(LatLng point, {bool isArabic = true}) {
     final nearest = _findNearestLandmark(point);
+    final plusCode = getPlusCode(point);
+    String baseTitle = isArabic ? 'موقع محدد في ميسان' : 'Maysan Location';
+
     if (nearest != null) {
-      return isArabic ? nearest.location.nameAr : nearest.location.nameEn;
+      baseTitle = isArabic ? nearest.location.nameAr : nearest.location.nameEn;
     }
-    return isArabic ? 'موقع محدد في ميسان' : 'Maysan Location';
+
+    if (plusCode.isNotEmpty) {
+      return '$baseTitle ($plusCode)';
+    }
+    return baseTitle;
   }
 
   static _NearestResult? _findNearestLandmark(LatLng point) {
