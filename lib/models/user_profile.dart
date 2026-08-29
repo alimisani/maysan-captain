@@ -54,6 +54,13 @@ class UserProfile {
   String get myReferralCode => (referralCode != null && referralCode!.isNotEmpty) ? referralCode! : id;
 
   String get ambassadorBadge {
+    if (isAdmin) return '👑 المدير العام';
+    if (isUser) {
+      if (referralCount >= 10) return 'زبون ذهبي 👑';
+      if (referralCount >= 5) return 'زبون فضي 🥈';
+      if (referralCount >= 3) return 'زبون برونزي 🥉';
+      return 'زبون متميز ⭐';
+    }
     if (referralCount >= 10) return 'سفير ذهبي 👑';
     if (referralCount >= 5) return 'سفير فضي 🥈';
     if (referralCount >= 3) return 'سفير برونزي 🥉';

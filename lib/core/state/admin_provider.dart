@@ -114,7 +114,27 @@ class AdminProvider extends ChangeNotifier {
         _supabaseService.getTopReferrers(),
       ]);
 
-      _users = results[0] as List<UserProfile>;
+      final rawUsers = results[0] as List<UserProfile>;
+      final seenAdmin = <bool>[false];
+      final seenIds = <String>{};
+      final uniqueUsers = <UserProfile>[];
+
+      for (final u in rawUsers) {
+        final email = u.email?.trim().toLowerCase() ?? '';
+        final isAdmin = u.isAdmin || email == 'maysan.tech1@gmail.com' || u.id == 'admin-maysan-tech';
+
+        if (isAdmin) {
+          if (seenAdmin[0]) continue;
+          seenAdmin[0] = true;
+        } else {
+          if (seenIds.contains(u.id)) continue;
+        }
+
+        seenIds.add(u.id);
+        uniqueUsers.add(u);
+      }
+
+      _users = uniqueUsers;
       _orders = results[1] as List<RideOrder>;
 
       final pricing = results[2] as Map<String, dynamic>;

@@ -1103,13 +1103,34 @@ class SupabaseService {
           .from('profiles')
           .select()
           .order('created_at', ascending: false);
-      return (res as List).map((e) {
+
+      final seenIds = <String>{};
+      final seenAdmin = <bool>[false];
+      final List<UserProfile> list = [];
+
+      for (final e in (res as List)) {
         final map = Map<String, dynamic>.from(e as Map);
-        if (paidIds.contains(map['id'])) {
+        final id = map['id']?.toString().trim() ?? '';
+        final email = map['email']?.toString().trim().toLowerCase() ?? '';
+        final role = map['role']?.toString().trim().toLowerCase() ?? '';
+        final isAdmin = role == 'admin' || email == 'maysan.tech1@gmail.com' || id == 'admin-maysan-tech';
+
+        if (isAdmin) {
+          if (seenAdmin[0]) continue; // Skip duplicate admin entry
+          seenAdmin[0] = true;
+        } else {
+          if (id.isNotEmpty && seenIds.contains(id)) continue;
+        }
+
+        if (paidIds.contains(id)) {
           map['is_fee_paid'] = true;
         }
-        return UserProfile.fromJson(map);
-      }).toList();
+
+        if (id.isNotEmpty) seenIds.add(id);
+        list.add(UserProfile.fromJson(map));
+      }
+
+      return list;
     } catch (e) {
       debugPrint('Error getting all profiles: $e');
       return [];
