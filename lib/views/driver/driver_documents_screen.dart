@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/localization/app_localizations.dart';
+import '../../core/services/r2_storage_service.dart';
 import '../../core/services/supabase_service.dart';
 import '../../core/state/auth_provider.dart';
 import '../../core/theme/aurora_theme.dart';
@@ -26,10 +27,12 @@ class _DriverDocumentsScreenState extends State<DriverDocumentsScreen> {
   List<Map<String, dynamic>> _fields = [];
   Map<String, dynamic>? _existingSubmission;
 
-  // Key: fieldId -> Base64 data URI or URL
+  // Key: fieldId -> Cloudflare R2 URL or Base64 data URI
   final Map<String, String> _uploadedDocuments = {};
   // Key: fieldId -> File Name
   final Map<String, String> _fileNames = {};
+  // Key: fieldId -> is currently uploading to R2
+  final Map<String, bool> _uploadingFields = {};
 
   final ImagePicker _imagePicker = ImagePicker();
 
@@ -75,27 +78,54 @@ class _DriverDocumentsScreenState extends State<DriverDocumentsScreen> {
   }
 
   Future<void> _pickImage(String fieldId, ImageSource source) async {
+    final auth = context.read<AuthProvider>();
+    final driverId = auth.currentUser?.id ?? 'driver';
+
     try {
       final picked = await _imagePicker.pickImage(
         source: source,
-        imageQuality: 80,
+        imageQuality: 85,
         maxWidth: 1600,
       );
 
       if (picked != null) {
+        setState(() => _uploadingFields[fieldId] = true);
         final bytes = await picked.readAsBytes();
-        final base64Str = 'data:image/jpeg;base64,${base64Encode(bytes)}';
-        setState(() {
-          _uploadedDocuments[fieldId] = base64Str;
-          _fileNames[fieldId] = picked.name;
-        });
+        final fileName = '${fieldId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+        String finalUrl;
+        try {
+          // Compress and upload to Cloudflare R2
+          finalUrl = await R2StorageService.uploadFile(
+            rawBytes: bytes,
+            folder: 'verifications/$driverId',
+            customFileName: fileName,
+            mimeType: 'image/jpeg',
+            autoCompress: true,
+          );
+        } catch (e) {
+          debugPrint('R2 upload fallback to base64: $e');
+          finalUrl = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+        }
+
+        if (mounted) {
+          setState(() {
+            _uploadedDocuments[fieldId] = finalUrl;
+            _fileNames[fieldId] = picked.name;
+            _uploadingFields[fieldId] = false;
+          });
+        }
       }
     } catch (e) {
+      if (mounted) setState(() => _uploadingFields[fieldId] = false);
       _showErrorSnackBar('تعذر التقاط/اختيار الصورة: $e');
     }
   }
 
   Future<void> _pickFile(String fieldId) async {
+    final auth = context.read<AuthProvider>();
+    final driverId = auth.currentUser?.id ?? 'driver';
+
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -108,17 +138,38 @@ class _DriverDocumentsScreenState extends State<DriverDocumentsScreen> {
         final bytes = file.bytes ?? (file.path != null ? await File(file.path!).readAsBytes() : null);
 
         if (bytes != null) {
+          setState(() => _uploadingFields[fieldId] = true);
           final isPdf = file.extension?.toLowerCase() == 'pdf';
           final mime = isPdf ? 'application/pdf' : 'image/jpeg';
-          final base64Str = 'data:$mime;base64,${base64Encode(bytes)}';
+          final ext = isPdf ? 'pdf' : 'jpg';
+          final fileName = '${fieldId}_${DateTime.now().millisecondsSinceEpoch}.$ext';
 
-          setState(() {
-            _uploadedDocuments[fieldId] = base64Str;
-            _fileNames[fieldId] = file.name;
-          });
+          String finalUrl;
+          try {
+            // Compress and upload to Cloudflare R2
+            finalUrl = await R2StorageService.uploadFile(
+              rawBytes: bytes,
+              folder: 'verifications/$driverId',
+              customFileName: fileName,
+              mimeType: mime,
+              autoCompress: !isPdf,
+            );
+          } catch (e) {
+            debugPrint('R2 upload fallback to base64: $e');
+            finalUrl = 'data:$mime;base64,${base64Encode(bytes)}';
+          }
+
+          if (mounted) {
+            setState(() {
+              _uploadedDocuments[fieldId] = finalUrl;
+              _fileNames[fieldId] = file.name;
+              _uploadingFields[fieldId] = false;
+            });
+          }
         }
       }
     } catch (e) {
+      if (mounted) setState(() => _uploadingFields[fieldId] = false);
       _showErrorSnackBar('تعذر اختيار الملف: $e');
     }
   }
@@ -442,10 +493,11 @@ class _DriverDocumentsScreenState extends State<DriverDocumentsScreen> {
     final title = field['title'] as String? ?? 'مستمسك';
     final isRequired = field['is_required'] as bool? ?? false;
 
+    final isUploading = _uploadingFields[fieldId] == true;
     final isUploaded = _uploadedDocuments.containsKey(fieldId) && _uploadedDocuments[fieldId]!.isNotEmpty;
     final docData = _uploadedDocuments[fieldId] ?? '';
     final fileName = _fileNames[fieldId] ?? '';
-    final isPdf = docData.startsWith('data:application/pdf') || fileName.toLowerCase().endsWith('.pdf');
+    final isPdf = docData.startsWith('data:application/pdf') || docData.endsWith('.pdf') || fileName.toLowerCase().endsWith('.pdf');
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
@@ -498,7 +550,31 @@ class _DriverDocumentsScreenState extends State<DriverDocumentsScreen> {
             ),
             const SizedBox(height: 12),
 
-            if (isUploaded)
+            if (isUploading)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Row(
+                  children: [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2.5, color: AuroraTheme.primaryCyan),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'جاري ضغط الملف ورفعه إلى التخزين السحابي...',
+                        style: TextStyle(fontSize: 12, color: AuroraTheme.primaryCyan, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else if (isUploaded)
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
@@ -515,6 +591,17 @@ class _DriverDocumentsScreenState extends State<DriverDocumentsScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(Icons.picture_as_pdf_rounded, color: AuroraTheme.accentRose, size: 24),
+                      )
+                    else if (docData.startsWith('http'))
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          docData,
+                          width: 48,
+                          height: 48,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_rounded, size: 28),
+                        ),
                       )
                     else if (docData.startsWith('data:image'))
                       ClipRRect(
@@ -534,14 +621,14 @@ class _DriverDocumentsScreenState extends State<DriverDocumentsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            fileName.isNotEmpty ? fileName : 'ملف تم إرفاقه بنجاح',
+                            fileName.isNotEmpty ? fileName : 'ملف تم رفعه بنجاح',
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 2),
                           const Text(
-                            'جاهز للإرسال • اضغط للتغيير',
+                            'مرفوع سحابياً • اضغط للتغيير',
                             style: TextStyle(color: AuroraTheme.accentEmerald, fontSize: 11),
                           ),
                         ],

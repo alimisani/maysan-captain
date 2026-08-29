@@ -33,6 +33,7 @@ dependencies:
   # Utilities & Formatting
   intl: ^0.20.2
   http: ^1.2.2
+  crypto: ^3.0.6
   shared_preferences: ^2.3.5
   flutter_animate: ^4.5.2
   uuid: ^4.5.1
