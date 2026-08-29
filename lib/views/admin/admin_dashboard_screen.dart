@@ -30,8 +30,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   final TextEditingController _baseFareController = TextEditingController();
   final TextEditingController _perKmController = TextEditingController();
   final TextEditingController _deliveryFareController = TextEditingController();
-  final TextEditingController _maxDestinationsController = TextEditingController(text: '3');
+  final TextEditingController _maxDestinationsController = TextEditingController(text: '5');
   bool _isMultiDestinationsEnabled = true;
+
+  // Tiered Distance Pricing controllers & state
+  bool _isTieredPricingEnabled = true;
+  final TextEditingController _tier0To1000Controller = TextEditingController(text: '2000');
+  final TextEditingController _tier1001To1500Controller = TextEditingController(text: '2250');
+  final TextEditingController _tier1501To2000Controller = TextEditingController(text: '2500');
+  final TextEditingController _tier2001To2500Controller = TextEditingController(text: '2750');
+  final TextEditingController _tier2501To3000Controller = TextEditingController(text: '3000');
 
   final TextEditingController _freeDriverQuotaController = TextEditingController();
   final TextEditingController _lifetimeFeeAmountController = TextEditingController();
@@ -117,6 +125,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     _silverAmbassadorTargetController.text = (ref['silver_ambassador_target'] ?? 5).toString();
     _goldAmbassadorTargetController.text = (ref['gold_ambassador_target'] ?? 10).toString();
 
+    _isTieredPricingEnabled = admin.isTieredPricingEnabled;
+    _tier0To1000Controller.text = admin.tier0To1000.toInt().toString();
+    _tier1001To1500Controller.text = admin.tier1001To1500.toInt().toString();
+    _tier1501To2000Controller.text = admin.tier1501To2000.toInt().toString();
+    _tier2001To2500Controller.text = admin.tier2001To2500.toInt().toString();
+    _tier2501To3000Controller.text = admin.tier2501To3000.toInt().toString();
+
     setState(() {
       _selectedMapStyle = admin.mapStyle;
       _customerDriverApprovalEnabled = approvalSetting;
@@ -133,6 +148,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     _perKmController.dispose();
     _deliveryFareController.dispose();
     _maxDestinationsController.dispose();
+    _tier0To1000Controller.dispose();
+    _tier1001To1500Controller.dispose();
+    _tier1501To2000Controller.dispose();
+    _tier2001To2500Controller.dispose();
+    _tier2501To3000Controller.dispose();
     _freeDriverQuotaController.dispose();
     _lifetimeFeeAmountController.dispose();
     _annualFeeAmountController.dispose();
@@ -1428,9 +1448,116 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       CustomTextField(
                         controller: _maxDestinationsController,
                         label: 'الحد الأقصى للوجهات في الرحلة الواحدة (2 إلى 5)',
-                        hint: '3',
+                        hint: '5',
                         keyboardType: TextInputType.number,
                         prefixIcon: Icons.pin_drop_rounded,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Section: Tiered Distance Pricing (شرائح تسعير المسافات بالمتر)
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0x331E293B) : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.straighten_rounded, size: 20, color: AuroraTheme.primaryCyan),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'نظام شرائح تسعير المسافة بالمتر (د.ع)',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                ),
+                              ),
+                              Text(
+                                'تسعير مخصص للمسافات القصيرة (من 0 إلى 3000 متر)',
+                                style: TextStyle(fontSize: 10.5, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch(
+                          value: _isTieredPricingEnabled,
+                          activeThumbColor: AuroraTheme.accentEmerald,
+                          onChanged: (val) => setState(() => _isTieredPricingEnabled = val),
+                        ),
+                      ],
+                    ),
+                    if (_isTieredPricingEnabled) ...[
+                      const SizedBox(height: 12),
+                      CustomTextField(
+                        controller: _tier0To1000Controller,
+                        label: 'أجرة الشريحة من 0 إلى 1000 متر (د.ع)',
+                        hint: '2000',
+                        keyboardType: TextInputType.number,
+                        prefixIcon: Icons.looks_one_rounded,
+                      ),
+                      const SizedBox(height: 10),
+                      CustomTextField(
+                        controller: _tier1001To1500Controller,
+                        label: 'أجرة الشريحة من 1001 إلى 1500 متر (د.ع)',
+                        hint: '2250',
+                        keyboardType: TextInputType.number,
+                        prefixIcon: Icons.looks_two_rounded,
+                      ),
+                      const SizedBox(height: 10),
+                      CustomTextField(
+                        controller: _tier1501To2000Controller,
+                        label: 'أجرة الشريحة من 1501 إلى 2000 متر (د.ع)',
+                        hint: '2500',
+                        keyboardType: TextInputType.number,
+                        prefixIcon: Icons.looks_3_rounded,
+                      ),
+                      const SizedBox(height: 10),
+                      CustomTextField(
+                        controller: _tier2001To2500Controller,
+                        label: 'أجرة الشريحة من 2001 إلى 2500 متر (د.ع)',
+                        hint: '2750',
+                        keyboardType: TextInputType.number,
+                        prefixIcon: Icons.looks_4_rounded,
+                      ),
+                      const SizedBox(height: 10),
+                      CustomTextField(
+                        controller: _tier2501To3000Controller,
+                        label: 'أجرة الشريحة من 2501 إلى 3000 متر (د.ع)',
+                        hint: '3000',
+                        keyboardType: TextInputType.number,
+                        prefixIcon: Icons.looks_5_rounded,
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(Icons.info_outline_rounded, size: 14, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              'عند تجاوز 3000 متر، يتم تطبيق نظام الأجرة الأساسية وسعر الكيلومتر.',
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ],
@@ -1443,10 +1570,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 text: 'تحديث التسعير العام',
                 onPressed: () async {
                   final base = double.tryParse(_baseFareController.text.trim()) ?? 3000.0;
-                  final perKm = double.tryParse(_perKmController.text.trim()) ?? 0.0;
+                  final perKm = double.tryParse(_perKmController.text.trim()) ?? 1000.0;
                   final delivery =
                       double.tryParse(_deliveryFareController.text.trim()) ?? 3000.0;
-                  final maxDest = int.tryParse(_maxDestinationsController.text.trim()) ?? 3;
+                  final maxDest = int.tryParse(_maxDestinationsController.text.trim()) ?? 5;
+                  final tier0 = double.tryParse(_tier0To1000Controller.text.trim()) ?? 2000.0;
+                  final tier1 = double.tryParse(_tier1001To1500Controller.text.trim()) ?? 2250.0;
+                  final tier2 = double.tryParse(_tier1501To2000Controller.text.trim()) ?? 2500.0;
+                  final tier3 = double.tryParse(_tier2001To2500Controller.text.trim()) ?? 2750.0;
+                  final tier4 = double.tryParse(_tier2501To3000Controller.text.trim()) ?? 3000.0;
 
                   await admin.updatePricing(
                     baseFare: base,
@@ -1454,12 +1586,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     deliveryBaseFare: delivery,
                     isMultiDestinationsEnabled: _isMultiDestinationsEnabled,
                     maxDestinations: maxDest,
+                    isTieredPricingEnabled: _isTieredPricingEnabled,
+                    tier0To1000: tier0,
+                    tier1001To1500: tier1,
+                    tier1501To2000: tier2,
+                    tier2001To2500: tier3,
+                    tier2501To3000: tier4,
                   );
 
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('تم حفظ وتحديث التسعير العام وإعدادات تعدد الوجهات بنجاح'),
+                        content: Text('تم حفظ وتحديث التسعير العام وشرائح المسافة بنجاح'),
                         backgroundColor: AuroraTheme.accentEmerald,
                       ),
                     );

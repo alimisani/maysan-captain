@@ -14,11 +14,18 @@ class AdminProvider extends ChangeNotifier {
   List<CustomRoutePricing> _customRoutePricings = [];
 
   double _baseFare = 3000.0;
-  double _perKmRate = 0.0;
+  double _perKmRate = 1000.0;
   double _deliveryBaseFare = 3000.0;
   bool _isMultiDestinationsEnabled = true;
-  int _maxDestinations = 3;
+  int _maxDestinations = 5;
   String _mapStyle = 'google_roadmap';
+
+  bool _isTieredPricingEnabled = true;
+  double _tier0To1000 = 2000.0;
+  double _tier1001To1500 = 2250.0;
+  double _tier1501To2000 = 2500.0;
+  double _tier2001To2500 = 2750.0;
+  double _tier2501To3000 = 3000.0;
 
   int _freeDriverQuota = 1;
   double _lifetimeFeeAmount = 5000.0;
@@ -57,6 +64,13 @@ class AdminProvider extends ChangeNotifier {
   bool get isMultiDestinationsEnabled => _isMultiDestinationsEnabled;
   int get maxDestinations => _maxDestinations;
   String get mapStyle => _mapStyle;
+
+  bool get isTieredPricingEnabled => _isTieredPricingEnabled;
+  double get tier0To1000 => _tier0To1000;
+  double get tier1001To1500 => _tier1001To1500;
+  double get tier1501To2000 => _tier1501To2000;
+  double get tier2001To2500 => _tier2001To2500;
+  double get tier2501To3000 => _tier2501To3000;
 
   int get freeDriverQuota => _freeDriverQuota;
   double get lifetimeFeeAmount => _lifetimeFeeAmount;
@@ -105,10 +119,16 @@ class AdminProvider extends ChangeNotifier {
 
       final pricing = results[2] as Map<String, dynamic>;
       _baseFare = (pricing['base_fare'] as num?)?.toDouble() ?? 3000.0;
-      _perKmRate = (pricing['per_km_rate'] as num?)?.toDouble() ?? 0.0;
+      _perKmRate = (pricing['per_km_rate'] as num?)?.toDouble() ?? 1000.0;
       _deliveryBaseFare = (pricing['delivery_base_fare'] as num?)?.toDouble() ?? 3000.0;
       _isMultiDestinationsEnabled = pricing['is_multi_destinations_enabled'] as bool? ?? true;
-      _maxDestinations = (pricing['max_destinations'] as num?)?.toInt() ?? 3;
+      _maxDestinations = (pricing['max_destinations'] as num?)?.toInt() ?? 5;
+      _isTieredPricingEnabled = pricing['is_tiered_pricing_enabled'] as bool? ?? true;
+      _tier0To1000 = (pricing['tier_0_1000'] as num?)?.toDouble() ?? 2000.0;
+      _tier1001To1500 = (pricing['tier_1001_1500'] as num?)?.toDouble() ?? 2250.0;
+      _tier1501To2000 = (pricing['tier_1501_2000'] as num?)?.toDouble() ?? 2500.0;
+      _tier2001To2500 = (pricing['tier_2001_2500'] as num?)?.toDouble() ?? 2750.0;
+      _tier2501To3000 = (pricing['tier_2501_3000'] as num?)?.toDouble() ?? 3000.0;
 
       _customRoutePricings = results[3] as List<CustomRoutePricing>;
       _mapStyle = results[4] as String;
@@ -120,10 +140,11 @@ class AdminProvider extends ChangeNotifier {
       _zaincashNumber = feeSettings['zaincash_number'] as String? ?? '07721655570';
       _superqiNumber = feeSettings['superqi_number'] as String? ?? '7117648506';
       _paymentInstructions = feeSettings['payment_instructions'] as String? ??
-          'تحويل الرسوم لمرة واحدة عبر زين كاش أو ماستر كارد لتفعيل الحساب مدى الحياة';
+          'يرجى تحويل مبلغ الاشتراك عبر محفظة زين كاش أو بطاقة سوبر كي ثم إرسال الإشعار لتفعيل الحساب فورياً';
 
       _verificationSettings = results[6] as Map<String, dynamic>;
       _driverVerifications = results[7] as List<Map<String, dynamic>>;
+
       _referralSettings = results[8] as Map<String, dynamic>;
       _topReferrers = results[9] as List<Map<String, dynamic>>;
 
@@ -213,7 +234,13 @@ class AdminProvider extends ChangeNotifier {
     required double perKmRate,
     required double deliveryBaseFare,
     bool isMultiDestinationsEnabled = true,
-    int maxDestinations = 3,
+    int maxDestinations = 5,
+    bool isTieredPricingEnabled = true,
+    double tier0To1000 = 2000.0,
+    double tier1001To1500 = 2250.0,
+    double tier1501To2000 = 2500.0,
+    double tier2001To2500 = 2750.0,
+    double tier2501To3000 = 3000.0,
   }) async {
     _isLoading = true;
     notifyListeners();
@@ -225,12 +252,24 @@ class AdminProvider extends ChangeNotifier {
         deliveryBaseFare: deliveryBaseFare,
         isMultiDestinationsEnabled: isMultiDestinationsEnabled,
         maxDestinations: maxDestinations,
+        isTieredPricingEnabled: isTieredPricingEnabled,
+        tier0To1000: tier0To1000,
+        tier1001To1500: tier1001To1500,
+        tier1501To2000: tier1501To2000,
+        tier2001To2500: tier2001To2500,
+        tier2501To3000: tier2501To3000,
       );
       _baseFare = baseFare;
       _perKmRate = perKmRate;
       _deliveryBaseFare = deliveryBaseFare;
       _isMultiDestinationsEnabled = isMultiDestinationsEnabled;
       _maxDestinations = maxDestinations;
+      _isTieredPricingEnabled = isTieredPricingEnabled;
+      _tier0To1000 = tier0To1000;
+      _tier1001To1500 = tier1001To1500;
+      _tier1501To2000 = tier1501To2000;
+      _tier2001To2500 = tier2001To2500;
+      _tier2501To3000 = tier2501To3000;
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -247,7 +286,13 @@ class AdminProvider extends ChangeNotifier {
     required double perKmRate,
     required double deliveryBaseFare,
     bool isMultiDestinationsEnabled = true,
-    int maxDestinations = 3,
+    int maxDestinations = 5,
+    bool isTieredPricingEnabled = true,
+    double tier0To1000 = 2000.0,
+    double tier1001To1500 = 2250.0,
+    double tier1501To2000 = 2500.0,
+    double tier2001To2500 = 2750.0,
+    double tier2501To3000 = 3000.0,
   }) =>
       updateGeneralPricing(
         baseFare: baseFare,
@@ -255,6 +300,12 @@ class AdminProvider extends ChangeNotifier {
         deliveryBaseFare: deliveryBaseFare,
         isMultiDestinationsEnabled: isMultiDestinationsEnabled,
         maxDestinations: maxDestinations,
+        isTieredPricingEnabled: isTieredPricingEnabled,
+        tier0To1000: tier0To1000,
+        tier1001To1500: tier1001To1500,
+        tier1501To2000: tier1501To2000,
+        tier2001To2500: tier2001To2500,
+        tier2501To3000: tier2501To3000,
       );
 
   Future<void> addCustomRoutePricing({

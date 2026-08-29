@@ -27,11 +27,19 @@ class BookingProvider extends ChangeNotifier {
 
   // Multi-Destination Waypoints (Stop 1, Stop 2, etc.)
   List<Map<String, dynamic>> _extraDestinations = [];
-  int _maxDestinations = 3;
+  int _maxDestinations = 5;
   bool _isMultiDestinationsEnabled = true;
+
+  bool _isTieredPricingEnabled = true;
+  double _tier0To1000 = 2000.0;
+  double _tier1001To1500 = 2250.0;
+  double _tier1501To2000 = 2500.0;
+  double _tier2001To2500 = 2750.0;
+  double _tier2501To3000 = 3000.0;
 
   int get maxDestinations => _maxDestinations;
   bool get isMultiDestinationsEnabled => _isMultiDestinationsEnabled;
+  bool get isTieredPricingEnabled => _isTieredPricingEnabled;
 
   void setMultiDestinationSettings({bool? isEnabled, int? maxDest}) {
     if (isEnabled != null) _isMultiDestinationsEnabled = isEnabled;
@@ -43,10 +51,16 @@ class BookingProvider extends ChangeNotifier {
     try {
       final pricing = await _supabaseService.getPricingSettings();
       _baseFare = (pricing['base_fare'] as num?)?.toDouble() ?? 3000.0;
-      _perKmRate = (pricing['per_km_rate'] as num?)?.toDouble() ?? 0.0;
+      _perKmRate = (pricing['per_km_rate'] as num?)?.toDouble() ?? 1000.0;
       _deliveryBaseFare = (pricing['delivery_base_fare'] as num?)?.toDouble() ?? 3000.0;
       _isMultiDestinationsEnabled = pricing['is_multi_destinations_enabled'] as bool? ?? true;
-      _maxDestinations = (pricing['max_destinations'] as num?)?.toInt() ?? 3;
+      _maxDestinations = (pricing['max_destinations'] as num?)?.toInt() ?? 5;
+      _isTieredPricingEnabled = pricing['is_tiered_pricing_enabled'] as bool? ?? true;
+      _tier0To1000 = (pricing['tier_0_1000'] as num?)?.toDouble() ?? 2000.0;
+      _tier1001To1500 = (pricing['tier_1001_1500'] as num?)?.toDouble() ?? 2250.0;
+      _tier1501To2000 = (pricing['tier_1501_2000'] as num?)?.toDouble() ?? 2500.0;
+      _tier2001To2500 = (pricing['tier_2001_2500'] as num?)?.toDouble() ?? 2750.0;
+      _tier2501To3000 = (pricing['tier_2501_3000'] as num?)?.toDouble() ?? 3000.0;
       _recalculateFareLocal();
     } catch (_) {}
   }
@@ -486,9 +500,24 @@ class BookingProvider extends ChangeNotifier {
 
       double calculated;
       int totalLegs = 1 + _extraDestinations.length;
+      final distanceMeters = (_distanceKm * 1000.0).round();
 
-      if (_perKmRate > 0) {
-        // Ceiling for partial kilometers (e.g. 1.1 km -> 2 km, 16.1 km -> 17 km)
+      if (!isDelivery && _isTieredPricingEnabled && distanceMeters <= 3000 && _extraDestinations.isEmpty) {
+        // Tiered pricing based on exact road meters (0 to 3000m)
+        if (distanceMeters <= 1000) {
+          calculated = _tier0To1000;
+        } else if (distanceMeters <= 1500) {
+          calculated = _tier1001To1500;
+        } else if (distanceMeters <= 2000) {
+          calculated = _tier1501To2000;
+        } else if (distanceMeters <= 2500) {
+          calculated = _tier2001To2500;
+        } else {
+          calculated = _tier2501To3000;
+        }
+        calculated *= vehicleMultiplier;
+      } else if (_perKmRate > 0) {
+        // Above 3000m or multi-destination or delivery
         double billedKm = _distanceKm.ceilToDouble();
         if (billedKm < 1.0) billedKm = 1.0;
         double fareFromKm = billedKm * _perKmRate;

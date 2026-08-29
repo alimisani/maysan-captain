@@ -782,10 +782,16 @@ class SupabaseService {
     } catch (_) {}
     return {
       'base_fare': 3000.0,
-      'per_km_rate': 0.0,
+      'per_km_rate': 1000.0,
       'delivery_base_fare': 3000.0,
       'is_multi_destinations_enabled': true,
-      'max_destinations': 3,
+      'max_destinations': 5,
+      'is_tiered_pricing_enabled': true,
+      'tier_0_1000': 2000.0,
+      'tier_1001_1500': 2250.0,
+      'tier_1501_2000': 2500.0,
+      'tier_2001_2500': 2750.0,
+      'tier_2501_3000': 3000.0,
     };
   }
 
@@ -794,7 +800,13 @@ class SupabaseService {
     required double perKmRate,
     required double deliveryBaseFare,
     bool isMultiDestinationsEnabled = true,
-    int maxDestinations = 3,
+    int maxDestinations = 5,
+    bool isTieredPricingEnabled = true,
+    double tier0To1000 = 2000.0,
+    double tier1001To1500 = 2250.0,
+    double tier1501To2000 = 2500.0,
+    double tier2001To2500 = 2750.0,
+    double tier2501To3000 = 3000.0,
   }) async {
     try {
       await client.from('app_settings').upsert({
@@ -805,6 +817,12 @@ class SupabaseService {
           'delivery_base_fare': deliveryBaseFare,
           'is_multi_destinations_enabled': isMultiDestinationsEnabled,
           'max_destinations': maxDestinations,
+          'is_tiered_pricing_enabled': isTieredPricingEnabled,
+          'tier_0_1000': tier0To1000,
+          'tier_1001_1500': tier1001To1500,
+          'tier_1501_2000': tier1501To2000,
+          'tier_2001_2500': tier2001To2500,
+          'tier_2501_3000': tier2501To3000,
         },
         'updated_at': DateTime.now().toIso8601String(),
       });

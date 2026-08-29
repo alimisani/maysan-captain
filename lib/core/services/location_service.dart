@@ -333,6 +333,7 @@ class LocationService {
             return {
               'points': polylinePoints,
               'distanceKm': distanceKm > 0 ? distanceKm : 1.0,
+              'distanceMeters': distanceMeters,
             };
           }
         }
@@ -347,9 +348,11 @@ class LocationService {
       totalDist += calculateDistance(waypoints[i], waypoints[i + 1]);
     }
 
+    final distKm = totalDist > 0 ? double.parse(totalDist.toStringAsFixed(1)) : 1.0;
     return {
       'points': waypoints,
-      'distanceKm': totalDist > 0 ? double.parse(totalDist.toStringAsFixed(1)) : 1.0,
+      'distanceKm': distKm,
+      'distanceMeters': distKm * 1000.0,
     };
   }
 }

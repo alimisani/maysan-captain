@@ -12,7 +12,7 @@ import '../../core/theme/aurora_theme.dart';
 import '../widgets/aurora_button.dart';
 import '../widgets/glass_card.dart';
 
-class LocationPickerSheet extends StatefulWidget {
+class LocationPickerSheet extends StatelessWidget {
   final String title;
   final LatLng initialLocation;
   final bool isPickup;
@@ -24,341 +24,78 @@ class LocationPickerSheet extends StatefulWidget {
     required this.isPickup,
   });
 
+  /// Opens the interactive fullscreen map directly without showing a bottom modal list first.
   static Future<Map<String, dynamic>?> show(
     BuildContext context, {
     required String title,
     required LatLng initialLocation,
     required bool isPickup,
   }) {
-    return showModalBottomSheet<Map<String, dynamic>>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => LocationPickerSheet(
-        title: title,
-        initialLocation: initialLocation,
-        isPickup: isPickup,
-      ),
-    );
-  }
-
-  @override
-  State<LocationPickerSheet> createState() => _LocationPickerSheetState();
-}
-
-class _LocationPickerSheetState extends State<LocationPickerSheet> {
-  final TextEditingController _searchController = TextEditingController();
-  List<MaysanLocation> _filteredPlaces = [];
-  bool _isLocatingGPS = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _filteredPlaces = AppConstants.maysanLocations;
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  void _onSearch(String query) {
-    setState(() {
-      if (query.trim().isEmpty) {
-        _filteredPlaces = AppConstants.maysanLocations;
-      } else {
-        _filteredPlaces = AppConstants.maysanLocations.where((p) {
-          return p.nameAr.contains(query) ||
-              p.nameEn.toLowerCase().contains(query.toLowerCase()) ||
-              p.districtAr.contains(query);
-        }).toList();
-      }
-    });
-  }
-
-  Future<void> _useCurrentGPSLocation() async {
-    setState(() => _isLocatingGPS = true);
-    final gpsPos = await LocationService.getCurrentLocation();
-    if (!mounted) return;
-
-    if (gpsPos != null) {
-      final loc = AppLocalizations.of(context);
-      final address = await LocationService.getRealAddress(gpsPos, isArabic: loc.isArabic);
-      if (mounted) {
-        setState(() => _isLocatingGPS = false);
-        Navigator.pop(context, {
-          'location': gpsPos,
-          'address': address,
-        });
-      }
-    } else {
-      setState(() => _isLocatingGPS = false);
-    }
-  }
-
-  void _openFullscreenMap() async {
-    final result = await Navigator.push<Map<String, dynamic>>(
+    return Navigator.push<Map<String, dynamic>>(
       context,
       MaterialPageRoute(
-        builder: (_) => _FullscreenMapPicker(
-          title: widget.title,
-          initialLocation: widget.initialLocation,
-          isPickup: widget.isPickup,
+        builder: (_) => FullscreenMapLocationPicker(
+          title: title,
+          initialLocation: initialLocation,
+          isPickup: isPickup,
         ),
       ),
     );
-
-    if (result != null && mounted) {
-      Navigator.pop(context, result);
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final loc = AppLocalizations.of(context);
-    final isDark = context.watch<ThemeProvider>().isDark;
-
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.85,
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFFFFFFF),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x50000000),
-            blurRadius: 24,
-            offset: Offset(0, -6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Drag Handle & Header
-          Center(
-            child: Container(
-              margin: const EdgeInsets.only(top: 12, bottom: 8),
-              width: 44,
-              height: 5,
-              decoration: BoxDecoration(
-                color: isDark ? Colors.white30 : Colors.black26,
-                borderRadius: BorderRadius.circular(3),
-              ),
-            ),
-          ),
-
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            child: Row(
-              children: [
-                Icon(
-                  widget.isPickup ? Icons.my_location_rounded : Icons.location_on_rounded,
-                  color: widget.isPickup ? AuroraTheme.accentEmerald : AuroraTheme.accentRose,
-                  size: 24,
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  widget.title,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            ),
-          ),
-
-          // Search Field
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-            child: TextField(
-              controller: _searchController,
-              onChanged: _onSearch,
-              style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 14),
-              decoration: InputDecoration(
-                hintText: loc.isArabic
-                    ? 'ابحث عن منطقة، حي، قضاء، أو معلم في ميسان...'
-                    : 'Search district, street, or landmark in Maysan...',
-                hintStyle: TextStyle(
-                  color: isDark ? Colors.white38 : const Color(0xFF64748B),
-                  fontSize: 13,
-                ),
-                prefixIcon: const Icon(Icons.search_rounded, color: AuroraTheme.primaryCyan),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear_rounded, size: 18),
-                        onPressed: () {
-                          _searchController.clear();
-                          _onSearch('');
-                        },
-                      )
-                    : null,
-                filled: true,
-                fillColor: isDark ? const Color(0x661E293B) : const Color(0xFFF1F5F9),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          // Action Buttons (GPS Current Location + Fullscreen Map)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AuroraTheme.accentEmerald),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
-                    icon: _isLocatingGPS
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: AuroraTheme.accentEmerald),
-                          )
-                        : const Icon(Icons.gps_fixed_rounded, color: AuroraTheme.accentEmerald, size: 18),
-                    label: Text(
-                      loc.isArabic ? 'موقعي الحالي (GPS)' : 'Current GPS',
-                      style: const TextStyle(
-                        color: AuroraTheme.accentEmerald,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                    onPressed: _isLocatingGPS ? null : _useCurrentGPSLocation,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AuroraTheme.primaryBlue,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
-                    icon: const Icon(Icons.map_rounded, color: Colors.white, size: 18),
-                    label: Text(
-                      loc.isArabic ? 'التحديد من الخريطة' : 'Pick on Map',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                    onPressed: _openFullscreenMap,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 12),
-          const Divider(height: 1),
-
-          // Places List
-          Expanded(
-            child: _filteredPlaces.isEmpty
-                ? Center(
-                    child: Text(
-                      'لا توجد مناطق مطابقة للبحث',
-                      style: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    itemCount: _filteredPlaces.length,
-                    itemBuilder: (context, index) {
-                      final place = _filteredPlaces[index];
-                      final name = loc.isArabic ? place.nameAr : place.nameEn;
-
-                      return ListTile(
-                        leading: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: place.isCenter
-                                ? AuroraTheme.primaryCyan.withValues(alpha: 0.15)
-                                : (isDark ? const Color(0x33334155) : const Color(0xFFF1F5F9)),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            place.isCenter ? Icons.star_rounded : Icons.location_on_outlined,
-                            color: place.isCenter
-                                ? AuroraTheme.primaryCyan
-                                : (isDark ? Colors.white70 : const Color(0xFF475569)),
-                            size: 20,
-                          ),
-                        ),
-                        title: Text(
-                          name,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
-                          ),
-                        ),
-                        subtitle: Text(
-                          place.districtAr,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isDark ? Colors.white60 : const Color(0xFF64748B),
-                          ),
-                        ),
-                        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
-                        onTap: () {
-                          Navigator.pop(context, {
-                            'location': place.coordinates,
-                            'address': name,
-                          });
-                        },
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
+    return FullscreenMapLocationPicker(
+      title: title,
+      initialLocation: initialLocation,
+      isPickup: isPickup,
     );
   }
 }
 
-// Fullscreen Map Picker with Real Dynamic Geocoding & GPS Tracker
-class _FullscreenMapPicker extends StatefulWidget {
+/// Fullscreen Interactive Map Picker with Search Autocomplete, GPS Tracking, Satellite view, and Realtime Address Resolving
+class FullscreenMapLocationPicker extends StatefulWidget {
   final String title;
   final LatLng initialLocation;
   final bool isPickup;
 
-  const _FullscreenMapPicker({
+  const FullscreenMapLocationPicker({
+    super.key,
     required this.title,
     required this.initialLocation,
     required this.isPickup,
   });
 
   @override
-  State<_FullscreenMapPicker> createState() => _FullscreenMapPickerState();
+  State<FullscreenMapLocationPicker> createState() => _FullscreenMapLocationPickerState();
 }
 
-class _FullscreenMapPickerState extends State<_FullscreenMapPicker> {
+class _FullscreenMapLocationPickerState extends State<FullscreenMapLocationPicker> {
   final MapController _mapController = MapController();
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+
   late LatLng _centerLocation;
   String _resolvedAddress = 'جاري تحديد العنوان...';
   bool _useSatellite = false;
+  bool _isSearching = false;
+  bool _isLocatingGPS = false;
   Timer? _debounceTimer;
+  List<MaysanLocation> _searchResults = [];
 
   @override
   void initState() {
     super.initState();
     _centerLocation = widget.initialLocation;
     _resolveAddress(_centerLocation);
+    _searchResults = AppConstants.maysanLocations;
   }
 
   @override
   void dispose() {
     _debounceTimer?.cancel();
+    _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -374,6 +111,10 @@ class _FullscreenMapPickerState extends State<_FullscreenMapPicker> {
   void _onPositionChanged(MapCamera camera, bool hasGesture) {
     if (hasGesture) {
       _centerLocation = camera.center;
+      if (_isSearching) {
+        setState(() => _isSearching = false);
+        _searchFocusNode.unfocus();
+      }
       _debounceTimer?.cancel();
       _debounceTimer = Timer(const Duration(milliseconds: 400), () {
         _resolveAddress(_centerLocation);
@@ -382,18 +123,48 @@ class _FullscreenMapPickerState extends State<_FullscreenMapPicker> {
   }
 
   Future<void> _goToMyGPSLocation() async {
+    setState(() => _isLocatingGPS = true);
     final gps = await LocationService.getCurrentLocation();
-    if (gps != null && mounted) {
-      _mapController.move(gps, 16.0);
+    if (!mounted) return;
+    setState(() => _isLocatingGPS = false);
+
+    if (gps != null) {
+      _mapController.move(gps, 16.5);
       _centerLocation = gps;
       _resolveAddress(gps);
     }
+  }
+
+  void _onSearch(String query) {
+    setState(() {
+      if (query.trim().isEmpty) {
+        _searchResults = AppConstants.maysanLocations;
+      } else {
+        _searchResults = AppConstants.maysanLocations.where((p) {
+          return p.nameAr.contains(query) ||
+              p.nameEn.toLowerCase().contains(query.toLowerCase()) ||
+              p.districtAr.contains(query);
+        }).toList();
+      }
+    });
+  }
+
+  void _selectSearchResult(MaysanLocation place) {
+    _searchFocusNode.unfocus();
+    setState(() {
+      _isSearching = false;
+      _searchController.text = place.nameAr;
+      _centerLocation = place.coordinates;
+    });
+    _mapController.move(place.coordinates, 16.5);
+    _resolveAddress(place.coordinates);
   }
 
   @override
   Widget build(BuildContext context) {
     final booking = context.watch<BookingProvider>();
     final isDark = context.watch<ThemeProvider>().isDark;
+    final loc = AppLocalizations.of(context);
     final pinColor =
         widget.isPickup ? AuroraTheme.accentEmerald : AuroraTheme.accentRose;
 
@@ -404,7 +175,7 @@ class _FullscreenMapPickerState extends State<_FullscreenMapPicker> {
     return Scaffold(
       body: Stack(
         children: [
-          // Dynamic Map Layer with Admin Selected Style & Dark Mode Support
+          // 1. Dynamic Map Layer
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
@@ -432,22 +203,22 @@ class _FullscreenMapPickerState extends State<_FullscreenMapPicker> {
             ],
           ),
 
-          // Center Stationary Pin
+          // 2. Stationary Center Target Pin
           Center(
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 38),
+              padding: const EdgeInsets.only(bottom: 40),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(9),
                     decoration: BoxDecoration(
                       color: pinColor,
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
                           color: pinColor.withValues(alpha: 0.6),
-                          blurRadius: 16,
+                          blurRadius: 18,
                           spreadRadius: 2,
                         ),
                       ],
@@ -457,17 +228,17 @@ class _FullscreenMapPickerState extends State<_FullscreenMapPicker> {
                           ? Icons.my_location_rounded
                           : Icons.location_on_rounded,
                       color: Colors.white,
-                      size: 26,
+                      size: 28,
                     ),
                   ),
                   Container(
-                    width: 3,
-                    height: 12,
+                    width: 3.5,
+                    height: 14,
                     color: pinColor,
                   ),
                   Container(
-                    width: 8,
-                    height: 8,
+                    width: 9,
+                    height: 9,
                     decoration: BoxDecoration(
                       color: pinColor,
                       shape: BoxShape.circle,
@@ -478,71 +249,213 @@ class _FullscreenMapPickerState extends State<_FullscreenMapPicker> {
             ),
           ),
 
-          // Top Header Bar inside SafeArea
+          // 3. Top Search & Controls Overlay Bar
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  CircleAvatar(
-                    backgroundColor: isDark ? const Color(0xDD0F172A) : Colors.white,
-                    child: IconButton(
-                      icon: Icon(Icons.arrow_back_ios_new_rounded,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A), size: 18),
-                      onPressed: () => Navigator.pop(context),
-                    ),
+                  Row(
+                    children: [
+                      // Back Button
+                      CircleAvatar(
+                        backgroundColor: isDark ? const Color(0xEE0F172A) : Colors.white,
+                        radius: 22,
+                        child: IconButton(
+                          icon: Icon(Icons.arrow_back_ios_new_rounded,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A), size: 18),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+
+                      // Search Input Field
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xEE0F172A) : Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: const [
+                              BoxShadow(color: Color(0x22000000), blurRadius: 12, offset: Offset(0, 3)),
+                            ],
+                          ),
+                          child: TextField(
+                            controller: _searchController,
+                            focusNode: _searchFocusNode,
+                            onTap: () => setState(() => _isSearching = true),
+                            onChanged: _onSearch,
+                            style: TextStyle(
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: loc.isArabic
+                                  ? 'ابحث عن منطقة أو معلم في ميسان...'
+                                  : 'Search district or landmark...',
+                              hintStyle: TextStyle(
+                                color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.normal,
+                              ),
+                              prefixIcon: const Icon(Icons.search_rounded, color: AuroraTheme.primaryCyan, size: 20),
+                              suffixIcon: _searchController.text.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear_rounded, size: 18),
+                                      onPressed: () {
+                                        _searchController.clear();
+                                        _onSearch('');
+                                      },
+                                    )
+                                  : null,
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+
+                      // Satellite Map Toggle Button
+                      CircleAvatar(
+                        backgroundColor: isDark ? const Color(0xEE0F172A) : Colors.white,
+                        radius: 22,
+                        child: IconButton(
+                          icon: Icon(
+                            _useSatellite ? Icons.map_rounded : Icons.satellite_alt_rounded,
+                            color: AuroraTheme.primaryCyan,
+                            size: 20,
+                          ),
+                          tooltip: 'تبديل نمط الخريطة',
+                          onPressed: () => setState(() => _useSatellite = !_useSatellite),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+
+                  // Search Results Dropdown List
+                  if (_isSearching)
+                    Container(
+                      margin: const EdgeInsets.only(top: 8),
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.of(context).size.height * 0.4,
+                      ),
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xEE0F172A) : Colors.white,
-                        borderRadius: BorderRadius.circular(16),
+                        color: isDark ? const Color(0xFA0F172A) : Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isDark ? const Color(0x3338BDF8) : const Color(0xFFE2E8F0),
+                        ),
                         boxShadow: const [
-                          BoxShadow(color: Color(0x22000000), blurRadius: 10),
+                          BoxShadow(color: Color(0x33000000), blurRadius: 16, offset: Offset(0, 6)),
                         ],
                       ),
-                      child: Text(
-                        widget.title,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Search Header
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            child: Row(
+                              children: [
+                                const Text(
+                                  'المعالم والمناطق المقترحة',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF64748B)),
+                                ),
+                                const Spacer(),
+                                GestureDetector(
+                                  onTap: () {
+                                    _searchFocusNode.unfocus();
+                                    setState(() => _isSearching = false);
+                                  },
+                                  child: const Icon(Icons.close_rounded, size: 18, color: Color(0xFF64748B)),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Divider(height: 1),
+                          Expanded(
+                            child: _searchResults.isEmpty
+                                ? const Padding(
+                                    padding: EdgeInsets.all(16),
+                                    child: Text('لا توجد نتائج مطابقة للبحث', style: TextStyle(fontSize: 12)),
+                                  )
+                                : ListView.separated(
+                                    padding: const EdgeInsets.symmetric(vertical: 4),
+                                    itemCount: _searchResults.length,
+                                    separatorBuilder: (_, __) => const Divider(height: 1, indent: 48),
+                                    itemBuilder: (context, index) {
+                                      final place = _searchResults[index];
+                                      final name = loc.isArabic ? place.nameAr : place.nameEn;
+
+                                      return ListTile(
+                                        dense: true,
+                                        leading: Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: BoxDecoration(
+                                            color: place.isCenter
+                                                ? AuroraTheme.primaryCyan.withValues(alpha: 0.15)
+                                                : (isDark ? const Color(0x33334155) : const Color(0xFFF1F5F9)),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Icon(
+                                            place.isCenter ? Icons.star_rounded : Icons.location_on_outlined,
+                                            color: place.isCenter
+                                                ? AuroraTheme.primaryCyan
+                                                : (isDark ? Colors.white70 : const Color(0xFF475569)),
+                                            size: 18,
+                                          ),
+                                        ),
+                                        title: Text(
+                                          name,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                          ),
+                                        ),
+                                        subtitle: Text(
+                                          place.districtAr,
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                                          ),
+                                        ),
+                                        onTap: () => _selectSearchResult(place),
+                                      );
+                                    },
+                                  ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  // Satellite Map toggle
-                  CircleAvatar(
-                    backgroundColor: isDark ? const Color(0xDD0F172A) : Colors.white,
-                    child: IconButton(
-                      icon: Icon(
-                        _useSatellite ? Icons.map_rounded : Icons.satellite_alt_rounded,
-                        color: AuroraTheme.primaryCyan,
-                        size: 20,
-                      ),
-                      tooltip: 'تبديل نمط الخريطة',
-                      onPressed: () => setState(() => _useSatellite = !_useSatellite),
-                    ),
-                  ),
                 ],
               ),
             ),
           ),
 
-          // Floating Current GPS Location Button
+          // 4. Floating GPS My Location Button
           Positioned(
             right: 16,
             bottom: 180,
             child: FloatingActionButton(
-              heroTag: 'map_picker_gps',
+              heroTag: 'map_picker_gps_fab',
               backgroundColor: isDark ? const Color(0xEE0F172A) : Colors.white,
               foregroundColor: AuroraTheme.accentEmerald,
-              tooltip: 'تحديد موقعي الحالي',
-              onPressed: _goToMyGPSLocation,
-              child: const Icon(Icons.gps_fixed_rounded, size: 24),
+              tooltip: 'تحديد موقعي الحالي بالـ GPS',
+              onPressed: _isLocatingGPS ? null : _goToMyGPSLocation,
+              child: _isLocatingGPS
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AuroraTheme.accentEmerald),
+                    )
+                  : const Icon(Icons.gps_fixed_rounded, size: 24),
             ),
           ),
 
-          // Bottom Confirmation Card
+          // 5. Bottom Confirmation Card
           Positioned(
             bottom: 24,
             left: 16,
@@ -558,27 +471,41 @@ class _FullscreenMapPickerState extends State<_FullscreenMapPicker> {
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(6),
+                        padding: const EdgeInsets.all(7),
                         decoration: BoxDecoration(
                           color: pinColor.withValues(alpha: 0.2),
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(Icons.place_rounded, color: pinColor, size: 20),
+                        child: Icon(Icons.place_rounded, color: pinColor, size: 22),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: Text(
-                          _resolvedAddress,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.title,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _resolvedAddress,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 14),
                   AuroraButton(
-                    text: 'تأكيد هذا المكان',
+                    text: 'تأكيد هذا المكان (${widget.title})',
                     onPressed: () {
                       Navigator.pop(context, {
                         'location': _centerLocation,
