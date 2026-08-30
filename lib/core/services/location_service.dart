@@ -284,11 +284,13 @@ class LocationService {
       }
     }
 
-    if (nearest != null) {
+    // Only associate landmark if user is within 450 meters (0.45 km)
+    if (nearest != null && minDistance <= 0.45) {
       return _NearestResult(location: nearest, distanceKm: minDistance);
     }
     return null;
   }
+
   // REAL Road Network Routing using OSRM Driving Engine
   static Future<Map<String, dynamic>> fetchRealRoadRoute(LatLng start, LatLng end) async {
     return fetchMultiPointRoadRoute([start, end]);
@@ -301,15 +303,13 @@ class LocationService {
     }
 
     try {
-      final coordString = waypoints
-          .map((p) => '${p.longitude.toStringAsFixed(6)},${p.latitude.toStringAsFixed(6)}')
-          .join(';');
-
+      // Build coordinates string: "lng1,lat1;lng2,lat2;lng3,lat3"
+      final coordsParam = waypoints.map((p) => '${p.longitude},${p.latitude}').join(';');
       final url = Uri.parse(
-        'https://router.project-osrm.org/route/v1/driving/$coordString?overview=full&geometries=geojson',
+        'https://router.project-osrm.org/route/v1/driving/$coordsParam?overview=full&geometries=geojson',
       );
 
-      final response = await http.get(url).timeout(const Duration(seconds: 6));
+      final response = await http.get(url).timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -356,19 +356,53 @@ class LocationService {
     };
   }
 
-  /// Normalize Arabic text (removes harakat, unifies alef, taa marbuta, etc.)
+  /// Advanced Arabic text normalization (unifies letters, strips punctuation, tashkeel, etc.)
   static String normalizeArabic(String text) {
     var t = text.toLowerCase().trim();
+    // Remove Tashkeel/Harakat
+    t = t.replaceAll(RegExp(r'[\u064B-\u065F\u0670]'), '');
+    // Unify Alef
     t = t.replaceAll(RegExp(r'[أإآا]'), 'ا');
+    // Unify Taa Marbuta & Haa
     t = t.replaceAll('ة', 'ه');
+    // Unify Yaa / Alef Maksura
     t = t.replaceAll('ى', 'ي');
     t = t.replaceAll('ئ', 'ي');
     t = t.replaceAll('ؤ', 'و');
-    t = t.replaceAll(RegExp(r'[\u064B-\u065F\u0670]'), ''); // Remove Harakat / Tashkeel
-    return t;
+    // Remove special punctuation
+    t = t.replaceAll(RegExp(r'[\(\)\[\]\{\}\-\_\/\,\.\;\:\!\؟\?]'), ' ');
+    return t.replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 
-  /// Powerful Hybrid Search: Local Landmarks + Online OSM Nominatim with Arabic Normalization
+  /// Extracts root search tokens from query by removing common prefix / stop-words
+  static List<String> extractSearchTokens(String text) {
+    final norm = normalizeArabic(text);
+    final rawTokens = norm.split(' ').where((w) => w.length > 1).toList();
+    final tokens = <String>[];
+
+    const stopWords = {
+      'حي', 'شارع', 'منطقة', 'قضاء', 'ناحية', 'محافظة', 'مدينة', 'مركز',
+      'مستشفى', 'جامعة', 'كلية', 'معهد', 'مجمع', 'سوق', 'فلكة', 'كراج',
+      'ساحة', 'فرع', 'دائرة', 'قرب', 'خلف', 'امام', 'مقابل'
+    };
+
+    for (final token in rawTokens) {
+      if (!stopWords.contains(token)) {
+        tokens.add(token);
+      }
+      if (token.startsWith('ال') && token.length > 3) {
+        final stripped = token.substring(2);
+        if (!stopWords.contains(stripped)) {
+          tokens.add(stripped);
+        }
+      }
+    }
+    return tokens.isNotEmpty ? tokens : rawTokens;
+  }
+
+  /// Powerful Hybrid Search:
+  /// 1. Prioritized match against all offline Maysan locations (exact coords guaranteed)
+  /// 2. Bounded online Photon & Nominatim search strictly inside Maysan (31.10 - 32.75 Lat, 46.40 - 47.95 Lon)
   static Future<List<MaysanLocation>> searchPlaces(String query) async {
     final cleanQuery = query.trim();
     if (cleanQuery.isEmpty) {
@@ -376,56 +410,117 @@ class LocationService {
     }
 
     final normQuery = normalizeArabic(cleanQuery);
+    final tokens = extractSearchTokens(cleanQuery);
     final results = <MaysanLocation>[];
     final seen = <String>{};
 
-    // 1. Instant match in local Maysan landmarks & neighborhoods
-    for (final loc in AppConstants.maysanLocations) {
-      final normAr = normalizeArabic(loc.nameAr);
-      final normEn = loc.nameEn.toLowerCase();
-      final normDist = normalizeArabic(loc.districtAr);
-
-      if (normAr.contains(normQuery) ||
-          normEn.contains(cleanQuery.toLowerCase()) ||
-          normDist.contains(normQuery)) {
-        final key = '${loc.coordinates.latitude.toStringAsFixed(4)},${loc.coordinates.longitude.toStringAsFixed(4)}';
-        if (!seen.contains(key)) {
-          seen.add(key);
-          results.add(loc);
-        }
+    void addResult(MaysanLocation loc) {
+      final key = '${loc.coordinates.latitude.toStringAsFixed(4)},${loc.coordinates.longitude.toStringAsFixed(4)}';
+      if (!seen.contains(key)) {
+        seen.add(key);
+        results.add(loc);
       }
     }
 
-    // 2. Query OpenStreetMap Nominatim for accurate Iraqi / Maysan coordinates
+    // 1. Exact / Direct contains in local Maysan DB
+    for (final loc in AppConstants.maysanLocations) {
+      final normAr = normalizeArabic(loc.nameAr);
+      final normEn = loc.nameEn.toLowerCase();
+      if (normAr.contains(normQuery) || normEn.contains(cleanQuery.toLowerCase())) {
+        addResult(loc);
+      }
+    }
+
+    // 2. Tokenized match in local Maysan DB (e.g. "عواشه" matches "حي العواشة")
+    for (final loc in AppConstants.maysanLocations) {
+      final normAr = normalizeArabic(loc.nameAr);
+      final normDist = normalizeArabic(loc.districtAr);
+      final locTokens = extractSearchTokens('${loc.nameAr} ${loc.districtAr}');
+
+      bool match = false;
+      for (final t in tokens) {
+        if (normAr.contains(t) || normDist.contains(t) || locTokens.any((lt) => lt.contains(t) || t.contains(lt))) {
+          match = true;
+          break;
+        }
+      }
+      if (match) {
+        addResult(loc);
+      }
+    }
+
+    // Maysan Governorate Strict Bounding Box
+    const double minLat = 31.10;
+    const double maxLat = 32.75;
+    const double minLon = 46.40;
+    const double maxLon = 47.95;
+
+    // 3. Photon OSM Search biased to Maysan center
     try {
-      final searchTerms = [
-        '$cleanQuery ميسان العمارة',
-        '$cleanQuery ميسان',
-        cleanQuery,
-      ];
+      final photonUrl = Uri.parse(
+        'https://photon.komoot.io/api/?q=${Uri.encodeComponent(cleanQuery)}&lat=31.8418&lon=47.1465&limit=10',
+      );
+      final response = await http.get(photonUrl).timeout(const Duration(seconds: 3));
+      if (response.statusCode == 200) {
+        final data = json.decode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>?;
+        final features = data?['features'] as List?;
+        if (features != null) {
+          for (final f in features) {
+            final geometry = f['geometry'] as Map<String, dynamic>?;
+            final coordinates = geometry?['coordinates'] as List?;
+            final properties = f['properties'] as Map<String, dynamic>?;
 
-      for (final term in searchTerms) {
-        if (results.length >= 8) break;
+            if (coordinates != null && coordinates.length >= 2 && properties != null) {
+              final lon = (coordinates[0] as num).toDouble();
+              final lat = (coordinates[1] as num).toDouble();
 
-        final url = Uri.parse(
-          'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(term)}&format=json&addressdetails=1&limit=6&accept-language=ar&countrycodes=iq',
+              // Strictly verify the coordinate is within Maysan!
+              if (lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon) {
+                final name = properties['name']?.toString() ??
+                    properties['street']?.toString() ??
+                    properties['district']?.toString() ??
+                    cleanQuery;
+                final district = properties['city']?.toString() ??
+                    properties['district']?.toString() ??
+                    properties['county']?.toString() ??
+                    'قضاء العمارة / ميسان';
+
+                addResult(
+                  MaysanLocation(
+                    nameAr: name,
+                    nameEn: properties['name:en']?.toString() ?? name,
+                    districtAr: district,
+                    coordinates: LatLng(lat, lon),
+                  ),
+                );
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Photon geocoding error: $e');
+    }
+
+    // 4. Nominatim with strict bounded viewbox in Maysan
+    if (results.length < 8) {
+      try {
+        final nomUrl = Uri.parse(
+          'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(cleanQuery)}&viewbox=46.40,32.75,47.95,31.10&bounded=1&format=json&addressdetails=1&limit=8&accept-language=ar',
         );
-
         final response = await http.get(
-          url,
+          nomUrl,
           headers: {'User-Agent': 'MaysanCaptainApp/1.0 (maysan.tech1@gmail.com)'},
         ).timeout(const Duration(seconds: 3));
 
         if (response.statusCode == 200) {
           final data = json.decode(utf8.decode(response.bodyBytes)) as List?;
-          if (data != null && data.isNotEmpty) {
+          if (data != null) {
             for (final item in data) {
               final lat = double.tryParse(item['lat']?.toString() ?? '');
               final lon = double.tryParse(item['lon']?.toString() ?? '');
               if (lat != null && lon != null) {
-                final key = '${lat.toStringAsFixed(4)},${lon.toStringAsFixed(4)}';
-                if (!seen.contains(key)) {
-                  seen.add(key);
+                if (lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon) {
                   final displayName = item['display_name']?.toString() ?? cleanQuery;
                   final parts = displayName.split(',');
                   final shortName = parts.take(2).join('، ').trim();
@@ -433,7 +528,7 @@ class LocationService {
                       ? parts.skip(2).take(2).join('، ').trim()
                       : 'محافظة ميسان';
 
-                  results.add(
+                  addResult(
                     MaysanLocation(
                       nameAr: shortName,
                       nameEn: item['name']?.toString() ?? cleanQuery,
@@ -446,10 +541,9 @@ class LocationService {
             }
           }
         }
-        if (results.isNotEmpty) break;
+      } catch (e) {
+        debugPrint('Nominatim bounded geocoding error: $e');
       }
-    } catch (e) {
-      debugPrint('Online places search error: $e');
     }
 
     return results;

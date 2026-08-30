@@ -184,13 +184,17 @@ class _FullscreenMapLocationPickerState extends State<FullscreenMapLocationPicke
 
   void _selectSearchResult(MaysanLocation place) {
     _searchFocusNode.unfocus();
+    _debounceTimer?.cancel();
+    _searchDebounceTimer?.cancel();
     setState(() {
       _isSearching = false;
       _searchController.text = place.nameAr;
       _centerLocation = place.coordinates;
+      _resolvedAddress = (place.districtAr.isNotEmpty && !place.nameAr.contains(place.districtAr))
+          ? '${place.nameAr} - ${place.districtAr}'
+          : place.nameAr;
     });
-    _mapController.move(place.coordinates, 16.5);
-    _resolveAddress(place.coordinates);
+    _mapController.move(place.coordinates, 17.0);
   }
 
   @override
