@@ -80,7 +80,9 @@ class _FullscreenMapLocationPickerState extends State<FullscreenMapLocationPicke
   bool _useSatellite = false;
   bool _isSearching = false;
   bool _isLocatingGPS = false;
+  bool _isLoadingSearchResults = false;
   Timer? _debounceTimer;
+  Timer? _searchDebounceTimer;
   List<MaysanLocation> _searchResults = [];
 
   @override
@@ -94,6 +96,7 @@ class _FullscreenMapLocationPickerState extends State<FullscreenMapLocationPicke
   @override
   void dispose() {
     _debounceTimer?.cancel();
+    _searchDebounceTimer?.cancel();
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
@@ -136,15 +139,45 @@ class _FullscreenMapLocationPickerState extends State<FullscreenMapLocationPicke
   }
 
   void _onSearch(String query) {
-    setState(() {
-      if (query.trim().isEmpty) {
+    _searchDebounceTimer?.cancel();
+    final clean = query.trim();
+
+    if (clean.isEmpty) {
+      setState(() {
+        _isLoadingSearchResults = false;
         _searchResults = AppConstants.maysanLocations;
-      } else {
-        _searchResults = AppConstants.maysanLocations.where((p) {
-          return p.nameAr.contains(query) ||
-              p.nameEn.toLowerCase().contains(query.toLowerCase()) ||
-              p.districtAr.contains(query);
-        }).toList();
+      });
+      return;
+    }
+
+    // 1. Instant local matching first
+    final normQuery = LocationService.normalizeArabic(clean);
+    final instantLocal = AppConstants.maysanLocations.where((p) {
+      final normAr = LocationService.normalizeArabic(p.nameAr);
+      final normEn = p.nameEn.toLowerCase();
+      final normDist = LocationService.normalizeArabic(p.districtAr);
+      return normAr.contains(normQuery) ||
+          normEn.contains(clean.toLowerCase()) ||
+          normDist.contains(normQuery);
+    }).toList();
+
+    setState(() {
+      _searchResults = instantLocal;
+      _isLoadingSearchResults = true;
+    });
+
+    // 2. Debounced online OSM Nominatim geocoding search
+    _searchDebounceTimer = Timer(const Duration(milliseconds: 350), () async {
+      try {
+        final onlineResults = await LocationService.searchPlaces(clean);
+        if (mounted && _searchController.text.trim() == clean) {
+          setState(() {
+            _searchResults = onlineResults;
+            _isLoadingSearchResults = false;
+          });
+        }
+      } catch (e) {
+        if (mounted) setState(() => _isLoadingSearchResults = false);
       }
     });
   }
@@ -363,6 +396,14 @@ class _FullscreenMapLocationPickerState extends State<FullscreenMapLocationPicke
                                   'المعالم والمناطق المقترحة',
                                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF64748B)),
                                 ),
+                                if (_isLoadingSearchResults) ...[
+                                  const SizedBox(width: 8),
+                                  const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: AuroraTheme.primaryCyan),
+                                  ),
+                                ],
                                 const Spacer(),
                                 GestureDetector(
                                   onTap: () {
@@ -377,9 +418,13 @@ class _FullscreenMapLocationPickerState extends State<FullscreenMapLocationPicke
                           const Divider(height: 1),
                           Expanded(
                             child: _searchResults.isEmpty
-                                ? const Padding(
-                                    padding: EdgeInsets.all(16),
-                                    child: Text('لا توجد نتائج مطابقة للبحث', style: TextStyle(fontSize: 12)),
+                                ? Center(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(16),
+                                      child: _isLoadingSearchResults
+                                          ? const CircularProgressIndicator(strokeWidth: 2.5, color: AuroraTheme.primaryCyan)
+                                          : const Text('لا توجد نتائج مطابقة للبحث', style: TextStyle(fontSize: 12)),
+                                    ),
                                   )
                                 : ListView.separated(
                                     padding: const EdgeInsets.symmetric(vertical: 4),

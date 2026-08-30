@@ -304,23 +304,21 @@ class SettingsScreen extends StatelessWidget {
 
             const SizedBox(height: 14),
 
-            // Delete Account Button (Google Play Requirement)
-            TextButton.icon(
-              style: TextButton.styleFrom(
-                foregroundColor: isDark ? Colors.white38 : Colors.black38,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-              ),
-              icon: const Icon(Icons.delete_forever_rounded, size: 18, color: Color(0xFFEF4444)),
-              label: const Text(
-                'حذف الحساب والبيانات نهائياً',
-                style: TextStyle(
-                  color: Color(0xFFEF4444),
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                  decoration: TextDecoration.underline,
+            // Delete Account Button (Bordered Danger Card)
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFEF4444).withValues(alpha: isDark ? 0.08 : 0.05),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: const Color(0xFFEF4444).withValues(alpha: 0.35),
+                  width: 1.2,
                 ),
               ),
-              onPressed: () async {
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: () async {
                 final confirmed = await showDialog<bool>(
                   context: context,
                   builder: (ctx) => AlertDialog(
@@ -353,8 +351,28 @@ class SettingsScreen extends StatelessWidget {
                   }
                 }
               },
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.delete_forever_rounded, size: 20, color: Color(0xFFEF4444)),
+                    SizedBox(width: 8),
+                    Text(
+                      'حذف الحساب والبيانات نهائياً',
+                      style: TextStyle(
+                        color: Color(0xFFEF4444),
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            const SizedBox(height: 16),
+          ),
+        ),
+        const SizedBox(height: 16),
           ],
         ),
       ),

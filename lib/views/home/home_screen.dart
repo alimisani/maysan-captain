@@ -360,20 +360,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
                           _buildJumpingActionBubble(
                             icon: Icons.chat_rounded,
-                            customIcon: Container(
-                              width: 32,
-                              height: 32,
-                              decoration: const BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.white,
-                              ),
-                              padding: const EdgeInsets.all(3),
-                              child: Image.asset(
-                                'assets/icon/whatsapp.png',
-                                width: 24,
-                                height: 24,
-                                fit: BoxFit.contain,
-                              ),
+                            customIcon: Image.asset(
+                              'assets/icon/whatsapp.png',
+                              width: 28,
+                              height: 28,
+                              fit: BoxFit.contain,
                             ),
                             label: loc.translate('whatsappSupport'),
                             gradient: const LinearGradient(

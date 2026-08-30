@@ -355,6 +355,105 @@ class LocationService {
       'distanceMeters': distKm * 1000.0,
     };
   }
+
+  /// Normalize Arabic text (removes harakat, unifies alef, taa marbuta, etc.)
+  static String normalizeArabic(String text) {
+    var t = text.toLowerCase().trim();
+    t = t.replaceAll(RegExp(r'[أإآا]'), 'ا');
+    t = t.replaceAll('ة', 'ه');
+    t = t.replaceAll('ى', 'ي');
+    t = t.replaceAll('ئ', 'ي');
+    t = t.replaceAll('ؤ', 'و');
+    t = t.replaceAll(RegExp(r'[\u064B-\u065F\u0670]'), ''); // Remove Harakat / Tashkeel
+    return t;
+  }
+
+  /// Powerful Hybrid Search: Local Landmarks + Online OSM Nominatim with Arabic Normalization
+  static Future<List<MaysanLocation>> searchPlaces(String query) async {
+    final cleanQuery = query.trim();
+    if (cleanQuery.isEmpty) {
+      return AppConstants.maysanLocations;
+    }
+
+    final normQuery = normalizeArabic(cleanQuery);
+    final results = <MaysanLocation>[];
+    final seen = <String>{};
+
+    // 1. Instant match in local Maysan landmarks & neighborhoods
+    for (final loc in AppConstants.maysanLocations) {
+      final normAr = normalizeArabic(loc.nameAr);
+      final normEn = loc.nameEn.toLowerCase();
+      final normDist = normalizeArabic(loc.districtAr);
+
+      if (normAr.contains(normQuery) ||
+          normEn.contains(cleanQuery.toLowerCase()) ||
+          normDist.contains(normQuery)) {
+        final key = '${loc.coordinates.latitude.toStringAsFixed(4)},${loc.coordinates.longitude.toStringAsFixed(4)}';
+        if (!seen.contains(key)) {
+          seen.add(key);
+          results.add(loc);
+        }
+      }
+    }
+
+    // 2. Query OpenStreetMap Nominatim for accurate Iraqi / Maysan coordinates
+    try {
+      final searchTerms = [
+        '$cleanQuery ميسان العمارة',
+        '$cleanQuery ميسان',
+        cleanQuery,
+      ];
+
+      for (final term in searchTerms) {
+        if (results.length >= 8) break;
+
+        final url = Uri.parse(
+          'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(term)}&format=json&addressdetails=1&limit=6&accept-language=ar&countrycodes=iq',
+        );
+
+        final response = await http.get(
+          url,
+          headers: {'User-Agent': 'MaysanCaptainApp/1.0 (maysan.tech1@gmail.com)'},
+        ).timeout(const Duration(seconds: 3));
+
+        if (response.statusCode == 200) {
+          final data = json.decode(utf8.decode(response.bodyBytes)) as List?;
+          if (data != null && data.isNotEmpty) {
+            for (final item in data) {
+              final lat = double.tryParse(item['lat']?.toString() ?? '');
+              final lon = double.tryParse(item['lon']?.toString() ?? '');
+              if (lat != null && lon != null) {
+                final key = '${lat.toStringAsFixed(4)},${lon.toStringAsFixed(4)}';
+                if (!seen.contains(key)) {
+                  seen.add(key);
+                  final displayName = item['display_name']?.toString() ?? cleanQuery;
+                  final parts = displayName.split(',');
+                  final shortName = parts.take(2).join('، ').trim();
+                  final district = parts.length > 2
+                      ? parts.skip(2).take(2).join('، ').trim()
+                      : 'محافظة ميسان';
+
+                  results.add(
+                    MaysanLocation(
+                      nameAr: shortName,
+                      nameEn: item['name']?.toString() ?? cleanQuery,
+                      districtAr: district,
+                      coordinates: LatLng(lat, lon),
+                    ),
+                  );
+                }
+              }
+            }
+          }
+        }
+        if (results.isNotEmpty) break;
+      }
+    } catch (e) {
+      debugPrint('Online places search error: $e');
+    }
+
+    return results;
+  }
 }
 
 class _NearestResult {

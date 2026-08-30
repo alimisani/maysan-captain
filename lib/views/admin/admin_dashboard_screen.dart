@@ -235,10 +235,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ),
 
               // Modern Spacious Tabs Segmented Bar
-              // Modern Circular Icon Tabs Segmented Bar
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
                 decoration: BoxDecoration(
                   color: isDark ? const Color(0xFF0F172A).withValues(alpha: 0.9) : Colors.white.withValues(alpha: 0.9),
                   borderRadius: BorderRadius.circular(24),
@@ -249,56 +248,61 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     BoxShadow(color: Color(0x12000000), blurRadius: 12, offset: Offset(0, 3)),
                   ],
                 ),
-                child: Row(
-                  children: [
-                    _buildCircularAdminTab(
-                      index: 0,
-                      icon: Icons.people_alt_rounded,
-                      title: 'المستخدمين',
-                      isSelected: _selectedTabIndex == 0,
-                      isDark: isDark,
-                    ),
-                    const SizedBox(width: 6),
-                    _buildCircularAdminTab(
-                      index: 1,
-                      icon: Icons.receipt_long_rounded,
-                      title: 'الطلبات',
-                      isSelected: _selectedTabIndex == 1,
-                      isDark: isDark,
-                    ),
-                    const SizedBox(width: 6),
-                    _buildCircularAdminTab(
-                      index: 2,
-                      icon: Icons.payments_rounded,
-                      title: 'التسعيرات',
-                      isSelected: _selectedTabIndex == 2,
-                      isDark: isDark,
-                    ),
-                    const SizedBox(width: 6),
-                    _buildCircularAdminTab(
-                      index: 3,
-                      icon: Icons.layers_rounded,
-                      title: 'نوع الخريطة',
-                      isSelected: _selectedTabIndex == 3,
-                      isDark: isDark,
-                    ),
-                    const SizedBox(width: 6),
-                    _buildCircularAdminTab(
-                      index: 4,
-                      icon: Icons.badge_rounded,
-                      title: 'توثيق الكباتن',
-                      isSelected: _selectedTabIndex == 4,
-                      isDark: isDark,
-                    ),
-                    const SizedBox(width: 6),
-                    _buildCircularAdminTab(
-                      index: 5,
-                      icon: Icons.card_giftcard_rounded,
-                      title: 'المكافآت والإحالة',
-                      isSelected: _selectedTabIndex == 5,
-                      isDark: isDark,
-                    ),
-                  ],
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildCircularAdminTab(
+                        index: 0,
+                        icon: Icons.people_alt_rounded,
+                        title: 'المستخدمين',
+                        isSelected: _selectedTabIndex == 0,
+                        isDark: isDark,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildCircularAdminTab(
+                        index: 1,
+                        icon: Icons.receipt_long_rounded,
+                        title: 'الطلبات',
+                        isSelected: _selectedTabIndex == 1,
+                        isDark: isDark,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildCircularAdminTab(
+                        index: 2,
+                        icon: Icons.payments_rounded,
+                        title: 'التسعيرات',
+                        isSelected: _selectedTabIndex == 2,
+                        isDark: isDark,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildCircularAdminTab(
+                        index: 3,
+                        icon: Icons.layers_rounded,
+                        title: 'نوع الخريطة',
+                        isSelected: _selectedTabIndex == 3,
+                        isDark: isDark,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildCircularAdminTab(
+                        index: 4,
+                        icon: Icons.badge_rounded,
+                        title: 'توثيق الكباتن',
+                        isSelected: _selectedTabIndex == 4,
+                        isDark: isDark,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildCircularAdminTab(
+                        index: 5,
+                        icon: Icons.card_giftcard_rounded,
+                        title: 'المكافآت والإحالة',
+                        isSelected: _selectedTabIndex == 5,
+                        isDark: isDark,
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
@@ -332,59 +336,55 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     required bool isSelected,
     required bool isDark,
   }) {
-    return Expanded(
-      child: InkWell(
-        onTap: () => setState(() => _selectedTabIndex = index),
-        borderRadius: BorderRadius.circular(20),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            gradient: isSelected ? AuroraTheme.primaryGradient : null,
-            color: isSelected ? null : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: AuroraTheme.primaryCyan.withValues(alpha: 0.4),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isSelected
-                      ? Colors.white.withValues(alpha: 0.25)
-                      : (isDark ? const Color(0xFF334155) : Colors.white),
-                ),
-                child: Icon(
-                  icon,
-                  size: 19,
-                  color: isSelected
-                      ? Colors.white
-                      : (isDark ? AuroraTheme.primaryCyan : AuroraTheme.primaryBlue),
-                ),
+    return InkWell(
+      onTap: () => setState(() => _selectedTabIndex = index),
+      borderRadius: BorderRadius.circular(18),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          gradient: isSelected ? AuroraTheme.primaryGradient : null,
+          color: isSelected ? null : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: AuroraTheme.primaryCyan.withValues(alpha: 0.4),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isSelected
+                    ? Colors.white.withValues(alpha: 0.25)
+                    : (isDark ? const Color(0xFF334155) : Colors.white),
               ),
-              const SizedBox(height: 4),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                  color: isSelected ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF334155)),
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              child: Icon(
+                icon,
+                size: 16,
+                color: isSelected
+                    ? Colors.white
+                    : (isDark ? AuroraTheme.primaryCyan : AuroraTheme.primaryBlue),
               ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                color: isSelected ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF334155)),
+              ),
+            ),
+          ],
         ),
       ),
     );

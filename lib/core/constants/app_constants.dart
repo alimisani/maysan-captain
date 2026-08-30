@@ -112,6 +112,72 @@ class AppConstants {
 
     // Neighborhoods & Residential Areas
     MaysanLocation(
+      nameAr: 'حي العواشة (العواشة)',
+      nameEn: 'Al-Awasha District',
+      districtAr: 'قضاء العمارة',
+      coordinates: const LatLng(31.8385, 47.1495),
+    ),
+    MaysanLocation(
+      nameAr: 'حي الدبيسات',
+      nameEn: 'Al-Dubaisat District',
+      districtAr: 'قضاء العمارة',
+      coordinates: const LatLng(31.8465, 47.1420),
+    ),
+    MaysanLocation(
+      nameAr: 'قطاع 28',
+      nameEn: 'Sector 28 (Al-Qitaa)',
+      districtAr: 'قضاء العمارة',
+      coordinates: const LatLng(31.8540, 47.1680),
+    ),
+    MaysanLocation(
+      nameAr: 'قطاع 30',
+      nameEn: 'Sector 30 (Al-Qitaa)',
+      districtAr: 'قضاء العمارة',
+      coordinates: const LatLng(31.8560, 47.1710),
+    ),
+    MaysanLocation(
+      nameAr: 'حي الغدير',
+      nameEn: 'Al-Ghadir District',
+      districtAr: 'قضاء العمارة',
+      coordinates: const LatLng(31.8310, 47.1520),
+    ),
+    MaysanLocation(
+      nameAr: 'حي النداء',
+      nameEn: 'Al-Nidaa District',
+      districtAr: 'قضاء العمارة',
+      coordinates: const LatLng(31.8430, 47.1610),
+    ),
+    MaysanLocation(
+      nameAr: 'حي الجامعة',
+      nameEn: 'Al-Jamea District',
+      districtAr: 'قضاء العمارة',
+      coordinates: const LatLng(31.8620, 47.1280),
+    ),
+    MaysanLocation(
+      nameAr: 'حي الخضراء',
+      nameEn: 'Al-Khadraa District',
+      districtAr: 'قضاء العمارة',
+      coordinates: const LatLng(31.8440, 47.1510),
+    ),
+    MaysanLocation(
+      nameAr: 'حي الكرامة',
+      nameEn: 'Al-Karama District',
+      districtAr: 'قضاء العمارة',
+      coordinates: const LatLng(31.8490, 47.1560),
+    ),
+    MaysanLocation(
+      nameAr: 'كورنيش العمارة (شارع دجلة)',
+      nameEn: 'Al-Amarah Corniche (Tigris St)',
+      districtAr: 'قضاء العمارة',
+      coordinates: const LatLng(31.8390, 47.1450),
+    ),
+    MaysanLocation(
+      nameAr: 'مجمع ميسان التجاري (ميسان مول)',
+      nameEn: 'Maysan Mall',
+      districtAr: 'قضاء العمارة',
+      coordinates: const LatLng(31.8430, 47.1460),
+    ),
+    MaysanLocation(
       nameAr: 'حي المعلمين الجديد',
       nameEn: 'New Al-Muallimeen District',
       districtAr: 'قضاء العمارة',
