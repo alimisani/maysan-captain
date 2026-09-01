@@ -10,9 +10,7 @@ import '../location_picker_sheet.dart';
 import '../maysan_map_widget.dart';
 import '../ride_booking_sheet.dart';
 import '../widgets/ad_banner_carousel_widget.dart';
-import '../widgets/favorite_places_row_widget.dart';
 import '../widgets/home_bottom_nav_bar.dart';
-import '../widgets/saved_routes_widget.dart';
 
 class LayoutUberHub extends StatelessWidget {
   final bool isDark;
@@ -47,12 +45,12 @@ class LayoutUberHub extends StatelessWidget {
         children: [
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.only(top: 80, bottom: 20),
+              padding: const EdgeInsets.only(top: 75, bottom: 16),
               physics: const BouncingScrollPhysics(),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // 1. Welcome Greeting Card
+                  // 1. Super App Greeting & Trust Header
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Container(
@@ -262,29 +260,7 @@ class LayoutUberHub extends StatelessWidget {
                     const SizedBox(height: 8),
                   ],
 
-                  // 5. Favorite Places Row
-                  FavoritePlacesRowWidget(
-                    isDark: isDark,
-                    onPlaceSelected: (place) {
-                      booking.setDropoffLocation(
-                        place.coordinates,
-                        customAddress: place.title,
-                        isArabic: loc.isArabic,
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 8),
-
-                  // 6. Saved Routes (خطوط السير المحفوظة)
-                  SavedRoutesWidget(
-                    isDark: isDark,
-                    onRouteSelected: (route) {
-                      booking.applySavedRoute(route, isArabic: loc.isArabic);
-                    },
-                  ),
-                  const SizedBox(height: 8),
-
-                  // 7. Embedded Live Ride Booking Panel
+                  // 5. Embedded Live Ride Booking Panel
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16),
                     child: RideBookingSheet(isEmbedded: true),

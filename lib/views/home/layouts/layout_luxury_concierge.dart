@@ -10,9 +10,7 @@ import '../location_picker_sheet.dart';
 import '../maysan_map_widget.dart';
 import '../ride_booking_sheet.dart';
 import '../widgets/ad_banner_carousel_widget.dart';
-import '../widgets/favorite_places_row_widget.dart';
 import '../widgets/home_bottom_nav_bar.dart';
-import '../widgets/saved_routes_widget.dart';
 
 class LayoutLuxuryConcierge extends StatelessWidget {
   final bool isDark;
@@ -50,7 +48,7 @@ class LayoutLuxuryConcierge extends StatelessWidget {
         children: [
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.only(top: 80, bottom: 20),
+              padding: const EdgeInsets.only(top: 75, bottom: 16),
               physics: const BouncingScrollPhysics(),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -262,29 +260,7 @@ class LayoutLuxuryConcierge extends StatelessWidget {
                     const SizedBox(height: 8),
                   ],
 
-                  // 5. Favorite Places Row
-                  FavoritePlacesRowWidget(
-                    isDark: isDark,
-                    onPlaceSelected: (place) {
-                      booking.setDropoffLocation(
-                        place.coordinates,
-                        customAddress: place.title,
-                        isArabic: loc.isArabic,
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 8),
-
-                  // 6. Saved Routes (خطوط السير المحفوظة)
-                  SavedRoutesWidget(
-                    isDark: isDark,
-                    onRouteSelected: (route) {
-                      booking.applySavedRoute(route, isArabic: loc.isArabic);
-                    },
-                  ),
-                  const SizedBox(height: 8),
-
-                  // 7. Direct Concierge Support Action
+                  // 5. Direct Concierge Support Action
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: InkWell(
@@ -320,7 +296,7 @@ class LayoutLuxuryConcierge extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
 
-                  // 8. Embedded Live Ride Booking Panel
+                  // 6. Embedded Live Ride Booking Panel
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16),
                     child: RideBookingSheet(isEmbedded: true),

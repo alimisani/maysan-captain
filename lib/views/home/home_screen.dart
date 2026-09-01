@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/localization/app_localizations.dart';
@@ -36,7 +35,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  bool _isQuickMenuOpen = false;
   Timer? _activeOrderTimer;
 
   @override
@@ -79,11 +77,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<bool> _onWillPop() async {
-    if (_isQuickMenuOpen) {
-      setState(() => _isQuickMenuOpen = false);
-      return false;
-    }
-
     final shouldPop = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -129,10 +122,6 @@ class _HomeScreenState extends State<HomeScreen> {
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
-        if (_isQuickMenuOpen) {
-          setState(() => _isQuickMenuOpen = false);
-          return;
-        }
         final shouldExit = await _onWillPop();
         if (shouldExit == true) {
           SystemNavigator.pop();
@@ -146,7 +135,7 @@ class _HomeScreenState extends State<HomeScreen> {
             // Dynamic Active UI Layout (Classic Glass, Uber Hub, Dynamic Cards, VIP Concierge)
             _buildActiveLayout(booking, isDark, loc),
 
-            // Top Bar with App Branding & Profile / Menu Trigger
+            // Top Bar with App Branding & Profile / Theme / Language
             Positioned(
               top: 0,
               left: 0,
@@ -155,28 +144,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: GlassCard(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     borderRadius: 22,
                     child: Row(
                       children: [
-                        // Animated Menu / Drawer Toggle Button
-                        IconButton(
-                          icon: AnimatedRotation(
-                            turns: _isQuickMenuOpen ? 0.25 : 0.0,
-                            duration: const Duration(milliseconds: 250),
-                            child: Icon(
-                              _isQuickMenuOpen ? Icons.close_rounded : Icons.menu_rounded,
-                              size: 24,
-                              color: _isQuickMenuOpen
-                                  ? AuroraTheme.accentRose
-                                  : (isDark ? Colors.white : const Color(0xFF0F172A)),
-                            ),
-                          ),
-                          onPressed: () {
-                            setState(() => _isQuickMenuOpen = !_isQuickMenuOpen);
-                          },
-                        ),
-
                         // Official App or User Avatar
                         UserAvatarWidget(
                           avatarUrl: user?.avatarUrl,
@@ -206,19 +177,20 @@ class _HomeScreenState extends State<HomeScreen> {
                                   loc.translate('appName'),
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    fontSize: 14,
+                                    fontSize: 14.5,
                                     color: isDark ? Colors.white : const Color(0xFF0F172A),
                                   ),
                                 ),
                                 Text(
                                   user != null
-                                      ? '${loc.translate("hello")}${user.name}'
+                                      ? user.ambassadorBadge
                                       : loc.translate('maysanSpecialized'),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     fontSize: 11,
-                                    color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                                    color: AuroraTheme.primaryCyan,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ],
@@ -253,185 +225,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-            if (_isQuickMenuOpen)
-              Positioned(
-                top: 75,
-                left: 16,
-                right: 16,
-                child: SafeArea(
-                  child: Container(
-                    height: 96,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF0F172A).withValues(alpha: 0.96) : Colors.white.withValues(alpha: 0.96),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: isDark ? const Color(0x6638BDF8) : const Color(0xFFCBD5E1),
-                        width: 1.5,
-                      ),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x35000000),
-                          blurRadius: 20,
-                          offset: Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      physics: const BouncingScrollPhysics(),
-                      child: Row(
-                        children: [
-                          if (user?.isAdmin ?? false)
-                            _buildJumpingActionBubble(
-                              icon: Icons.admin_panel_settings_rounded,
-                              label: loc.translate('adminDashboard'),
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
-                              ),
-                              delayMs: 50,
-                              onTap: () {
-                                setState(() => _isQuickMenuOpen = false);
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
-                                );
-                              },
-                            ),
-
-                          if (user?.isDriver ?? false) ...[
-                            _buildJumpingActionBubble(
-                              icon: Icons.speed_rounded,
-                              label: loc.translate('driverDashboard'),
-                              gradient: AuroraTheme.primaryGradient,
-                              delayMs: 80,
-                              onTap: () {
-                                setState(() => _isQuickMenuOpen = false);
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => const DriverDashboardScreen()),
-                                );
-                              },
-                            ),
-                            _buildJumpingActionBubble(
-                              icon: Icons.directions_car_filled_rounded,
-                              label: loc.translate('myVehicle'),
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
-                              ),
-                              delayMs: 110,
-                              onTap: () {
-                                setState(() => _isQuickMenuOpen = false);
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (_) => const VehicleRegistrationScreen()),
-                                );
-                              },
-                            ),
-                          ],
-
-                          _buildJumpingActionBubble(
-                            icon: Icons.person_rounded,
-                            label: loc.translate('editProfile'),
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF0EA5E9), Color(0xFF0284C7)],
-                            ),
-                            delayMs: 140,
-                            onTap: () {
-                              setState(() => _isQuickMenuOpen = false);
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-                              );
-                            },
-                          ),
-
-                          _buildJumpingActionBubble(
-                            icon: Icons.history_rounded,
-                            label: loc.translate('orders'),
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
-                            ),
-                            delayMs: 170,
-                            onTap: () {
-                              setState(() => _isQuickMenuOpen = false);
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => const OrderHistoryScreen()),
-                              );
-                            },
-                          ),
-
-                          _buildJumpingActionBubble(
-                            icon: Icons.chat_rounded,
-                            customIcon: Image.asset(
-                              'assets/icon/whatsapp.png',
-                              width: 28,
-                              height: 28,
-                              fit: BoxFit.contain,
-                            ),
-                            label: loc.translate('whatsappSupport'),
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF25D366), Color(0xFF128C7E)],
-                            ),
-                            delayMs: 200,
-                            onTap: () {
-                              setState(() => _isQuickMenuOpen = false);
-                              WhatsAppService.openWhatsApp(
-                                phone: AppConstants.adminPhone,
-                                message: loc.isArabic
-                                    ? 'مرحباً، أحتاج إلى مساعدة في تطبيق كابتن ميسان'
-                                    : 'Hello, I need help with Maysan Captain app',
-                              );
-                            },
-                          ),
-
-                          _buildJumpingActionBubble(
-                            icon: Icons.settings_rounded,
-                            label: loc.translate('settings'),
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF64748B), Color(0xFF334155)],
-                            ),
-                            delayMs: 230,
-                            onTap: () {
-                              setState(() => _isQuickMenuOpen = false);
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                              );
-                            },
-                          ),
-
-                          _buildJumpingActionBubble(
-                            icon: Icons.logout_rounded,
-                            label: loc.translate('logout'),
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFF43F5E), Color(0xFFE11D48)],
-                            ),
-                            delayMs: 260,
-                            onTap: () async {
-                              setState(() => _isQuickMenuOpen = false);
-                              await auth.logout();
-                              if (context.mounted) {
-                                Navigator.pushAndRemoveUntil(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                                  (route) => false,
-                                );
-                              }
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
             if (booking.activeOrder != null)
               Positioned(
-                top: _isQuickMenuOpen ? 180 : 80,
+                top: 75,
                 left: 16,
                 right: 16,
                 child: SafeArea(
@@ -540,63 +336,6 @@ class _HomeScreenState extends State<HomeScreen> {
       default:
         return LayoutClassicGlass(isDark: isDark, loc: loc);
     }
-  }
-
-  Widget _buildJumpingActionBubble({
-    required IconData icon,
-    Widget? customIcon,
-    required String label,
-    required Gradient gradient,
-    required int delayMs,
-    required VoidCallback onTap,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: gradient,
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x25000000),
-                    blurRadius: 10,
-                    offset: Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Center(
-                child: customIcon ?? Icon(icon, color: Colors.white, size: 22),
-              ),
-            )
-                .animate()
-                .scale(
-                  begin: const Offset(0.4, 0.4),
-                  end: const Offset(1, 1),
-                  delay: delayMs.ms,
-                  duration: 350.ms,
-                  curve: Curves.easeOutBack,
-                )
-                .slideY(begin: -0.4, end: 0, delay: delayMs.ms, duration: 350.ms),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Widget _buildDrawer(

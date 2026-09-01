@@ -152,17 +152,54 @@ class _FullscreenMapLocationPickerState extends State<FullscreenMapLocationPicke
   void _onSearch(String query) {
     _searchDebounceTimer?.cancel();
     final clean = query.trim();
+    final booking = context.read<BookingProvider>();
+
+    // Prioritized favorite places & saved routes at the very top of results
+    final normQuery = LocationService.normalizeArabic(clean);
+    final prioritizedFavs = <MaysanLocation>[];
+
+    for (final f in booking.favoritePlaces) {
+      final normTitle = LocationService.normalizeArabic(f.title);
+      final normAddr = LocationService.normalizeArabic(f.address);
+      if (clean.isEmpty || normTitle.contains(normQuery) || normAddr.contains(normQuery)) {
+        prioritizedFavs.add(
+          MaysanLocation(
+            nameAr: '⭐ ${f.title}',
+            nameEn: f.title,
+            districtAr: 'مكان مفضل • ${f.address.split("،").first}',
+            coordinates: f.coordinates,
+            isCenter: true,
+          ),
+        );
+      }
+    }
+
+    for (final r in booking.savedRoutes) {
+      final normTitle = LocationService.normalizeArabic(r.title);
+      if (clean.isEmpty || normTitle.contains(normQuery)) {
+        prioritizedFavs.add(
+          MaysanLocation(
+            nameAr: '🛣️ ${r.title}',
+            nameEn: r.title,
+            districtAr: widget.isPickup
+                ? 'انطلاق: ${r.pickupAddress.split("،").first}'
+                : 'وصول: ${r.dropoffAddress.split("،").first}',
+            coordinates: widget.isPickup ? r.pickupCoordinates : r.dropoffCoordinates,
+            isCenter: true,
+          ),
+        );
+      }
+    }
 
     if (clean.isEmpty) {
       setState(() {
         _isLoadingSearchResults = false;
-        _searchResults = AppConstants.maysanLocations;
+        _searchResults = [...prioritizedFavs, ...AppConstants.maysanLocations];
       });
       return;
     }
 
-    // 1. Instant local matching first
-    final normQuery = LocationService.normalizeArabic(clean);
+    // 1. Instant local matching
     final instantLocal = AppConstants.maysanLocations.where((p) {
       final normAr = LocationService.normalizeArabic(p.nameAr);
       final normEn = p.nameEn.toLowerCase();
@@ -173,7 +210,7 @@ class _FullscreenMapLocationPickerState extends State<FullscreenMapLocationPicke
     }).toList();
 
     setState(() {
-      _searchResults = instantLocal;
+      _searchResults = [...prioritizedFavs, ...instantLocal];
       _isLoadingSearchResults = true;
     });
 
@@ -183,7 +220,7 @@ class _FullscreenMapLocationPickerState extends State<FullscreenMapLocationPicke
         final onlineResults = await LocationService.searchPlaces(clean);
         if (mounted && _searchController.text.trim() == clean) {
           setState(() {
-            _searchResults = onlineResults;
+            _searchResults = [...prioritizedFavs, ...onlineResults];
             _isLoadingSearchResults = false;
           });
         }
