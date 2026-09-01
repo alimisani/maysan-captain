@@ -10,6 +10,7 @@ import '../services/supabase_service.dart';
 import '../../models/ride_order.dart';
 import '../../models/ad_banner.dart';
 import '../../models/favorite_place.dart';
+import '../../models/saved_route.dart';
 
 class BookingProvider extends ChangeNotifier {
   final SupabaseService _supabaseService = SupabaseService();
@@ -162,11 +163,13 @@ class BookingProvider extends ChangeNotifier {
   String _uiLayoutTheme = 'classic_glass';
   List<AdBanner> _banners = [];
   List<FavoritePlace> _favoritePlaces = [];
+  List<SavedRoute> _savedRoutes = [];
 
   String get uiLayoutTheme => _uiLayoutTheme;
   List<AdBanner> get banners => _banners;
   List<AdBanner> get activeBanners => _banners.where((b) => b.isActive).toList();
   List<FavoritePlace> get favoritePlaces => _favoritePlaces;
+  List<SavedRoute> get savedRoutes => _savedRoutes;
 
   StreamSubscription? _ridesSubscription;
   LatLng? _lastKnownDriverPos;
@@ -237,6 +240,68 @@ class BookingProvider extends ChangeNotifier {
       debugPrint('Delete favorite place error: $e');
       rethrow;
     }
+  }
+
+  // Saved Routes (خطوط السير المحفوظة)
+  Future<void> loadSavedRoutes(String userId) async {
+    if (userId.isEmpty) return;
+    try {
+      final list = await _supabaseService.getSavedRoutes(userId);
+      _savedRoutes = list;
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> addSavedRoute(SavedRoute route) async {
+    try {
+      await _supabaseService.addSavedRoute(route);
+      final idx = _savedRoutes.indexWhere((r) => r.id == route.id);
+      if (idx >= 0) {
+        _savedRoutes[idx] = route;
+      } else {
+        _savedRoutes.insert(0, route);
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Add saved route error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteSavedRoute(String userId, String routeId) async {
+    try {
+      await _supabaseService.deleteSavedRoute(userId, routeId);
+      _savedRoutes.removeWhere((r) => r.id == routeId);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Delete saved route error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> applySavedRoute(SavedRoute route, {bool isArabic = true}) async {
+    _pickupLocation = route.pickupCoordinates;
+    _pickupAddress = route.pickupAddress;
+    _dropoffLocation = route.dropoffCoordinates;
+    _dropoffAddress = route.dropoffAddress;
+    _serviceType = route.serviceType;
+    _selectedVehicleType = route.vehicleType;
+    _extraDestinations.clear();
+    await _recalculateRouteAndFare();
+    notifyListeners();
+  }
+
+  Future<void> triggerInstantRideFlow({String vehicleType = 'salon', bool isArabic = true}) async {
+    _serviceType = 'ride';
+    _selectedVehicleType = vehicleType;
+    final gps = await LocationService.getCurrentLocation();
+    if (gps != null) {
+      _pickupLocation = gps;
+      final addr = await LocationService.getRealAddress(gps, isArabic: isArabic);
+      _pickupAddress = addr;
+    }
+    _recalculateFareLocal();
+    notifyListeners();
   }
 
   void _initRealtimeOrders() {

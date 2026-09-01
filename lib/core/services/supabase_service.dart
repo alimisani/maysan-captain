@@ -8,6 +8,7 @@ import '../../models/ride_order.dart';
 import '../../models/custom_route_pricing.dart';
 import '../../models/ad_banner.dart';
 import '../../models/favorite_place.dart';
+import '../../models/saved_route.dart';
 
 class SupabaseService {
   static final SupabaseService _instance = SupabaseService._internal();
@@ -1861,6 +1862,72 @@ class SupabaseService {
       await saveAllFavoritePlaces(userId, list);
     } catch (e) {
       debugPrint('Delete favorite place error: $e');
+      rethrow;
+    }
+  }
+
+  // ==========================================
+  // PASSENGER PRE-SAVED ROUTES (خطوط السير المحفوظة)
+  // ==========================================
+
+  Future<List<SavedRoute>> getSavedRoutes(String userId) async {
+    try {
+      final res = await client
+          .from('app_settings')
+          .select('value')
+          .eq('key', 'user_routes_$userId')
+          .maybeSingle();
+
+      if (res != null && res['value'] != null) {
+        final rawList = res['value'] as List?;
+        if (rawList != null) {
+          return rawList
+              .map((item) => SavedRoute.fromJson(Map<String, dynamic>.from(item as Map)))
+              .toList();
+        }
+      }
+    } catch (e) {
+      debugPrint('Get saved routes error: $e');
+    }
+    return [];
+  }
+
+  Future<void> saveAllSavedRoutes(String userId, List<SavedRoute> routes) async {
+    try {
+      final data = routes.map((r) => r.toJson()).toList();
+      await client.from('app_settings').upsert({
+        'key': 'user_routes_$userId',
+        'value': data,
+      });
+    } catch (e) {
+      debugPrint('Save all saved routes error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> addSavedRoute(SavedRoute route) async {
+    try {
+      final list = await getSavedRoutes(route.userId);
+      final index = list.indexWhere((r) => r.id == route.id);
+      if (index >= 0) {
+        list[index] = route;
+      } else {
+        list.insert(0, route);
+      }
+      await saveAllSavedRoutes(route.userId, list);
+    } catch (e) {
+      debugPrint('Add saved route error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteSavedRoute(String userId, String routeId) async {
+    try {
+      final list = await getSavedRoutes(userId);
+      list.removeWhere((r) => r.id == routeId);
+      await saveAllSavedRoutes(userId, list);
+    } catch (e) {
+      debugPrint('Delete saved route error: $e');
       rethrow;
     }
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import '../../../core/localization/app_localizations.dart';
+import '../../../core/services/whatsapp_service.dart';
 import '../../../core/state/auth_provider.dart';
 import '../../../core/state/booking_provider.dart';
 import '../driver_quick_sheet.dart';
@@ -10,7 +11,8 @@ import '../maysan_map_widget.dart';
 import '../ride_booking_sheet.dart';
 import '../widgets/ad_banner_carousel_widget.dart';
 import '../widgets/favorite_places_row_widget.dart';
-import '../../widgets/glass_card.dart';
+import '../widgets/home_bottom_nav_bar.dart';
+import '../widgets/saved_routes_widget.dart';
 
 class LayoutLuxuryConcierge extends StatelessWidget {
   final bool isDark;
@@ -42,222 +44,300 @@ class LayoutLuxuryConcierge extends StatelessWidget {
       );
     }
 
-    return Stack(
-      children: [
-        // 1. Live Background Map
-        const MaysanMapWidget(),
-
-        // 2. VIP Concierge Luxury Scroll View
-        SingleChildScrollView(
-          padding: const EdgeInsets.only(top: 80, bottom: 24),
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // VIP Crown Luxury Header
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF0A0F1D) : const Color(0xFF1E293B),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: goldColor.withValues(alpha: 0.6),
-                      width: 1.5,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: goldColor.withValues(alpha: 0.2),
-                        blurRadius: 18,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: const LinearGradient(
-                            colors: [goldColor, darkGold],
+    return Container(
+      color: isDark ? const Color(0xFF060911) : const Color(0xFFF8FAFC),
+      child: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(top: 80, bottom: 20),
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // 1. VIP Crown Luxury Header
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Container(
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: isDark
+                              ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
+                              : [const Color(0xFF0F172A), const Color(0xFF1E293B)],
+                        ),
+                        borderRadius: BorderRadius.circular(26),
+                        border: Border.all(
+                          color: goldColor.withValues(alpha: 0.7),
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: goldColor.withValues(alpha: 0.25),
+                            blurRadius: 20,
+                            offset: const Offset(0, 4),
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: goldColor.withValues(alpha: 0.5),
-                              blurRadius: 10,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 24),
+                        ],
                       ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              user != null ? 'خدمة VIP • ${user.name}' : 'خدمة كابتن ميسان VIP',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                                color: Colors.white,
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: const LinearGradient(
+                                colors: [goldColor, darkGold],
                               ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: goldColor.withValues(alpha: 0.5),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              user?.ambassadorBadge ?? 'الراحة والفخامة والموثوقية المطلقة',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: goldColor,
-                                fontWeight: FontWeight.w600,
-                              ),
+                            child: const Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 26),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  user != null ? 'خدمة VIP الملكية • ${user.name}' : 'خدمة كابتن ميسان VIP',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  user?.ambassadorBadge ?? 'فخامة، خصوصية، وكباتن منتقاة بأعلى تقييم',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: goldColor,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 12),
+                  const SizedBox(height: 14),
 
-              // Glowing Luxury Destination Bar
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: GlassCard(
-                  padding: const EdgeInsets.all(16),
-                  borderRadius: 22,
-                  glow: true,
-                  onTap: () async {
-                    final result = await LocationPickerSheet.show(
-                      context,
-                      title: 'حدد وجهتك الفاخرة',
-                      initialLocation: booking.dropoffLocation,
-                      isPickup: false,
-                    );
-                    if (result != null) {
+                  // 2. Glowing Luxury Destination Bar
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () async {
+                          final result = await LocationPickerSheet.show(
+                            context,
+                            title: 'حدد وجهتك الفاخرة VIP',
+                            initialLocation: booking.dropoffLocation,
+                            isPickup: false,
+                          );
+                          if (result != null) {
+                            booking.setDropoffLocation(
+                              result['location'] as LatLng,
+                              customAddress: result['address'] as String,
+                              isArabic: loc.isArabic,
+                            );
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(22),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF131B2E) : Colors.white,
+                            borderRadius: BorderRadius.circular(22),
+                            border: Border.all(
+                              color: goldColor.withValues(alpha: 0.6),
+                              width: 1.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: goldColor.withValues(alpha: 0.15),
+                                blurRadius: 14,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: goldColor.withValues(alpha: 0.18),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.auto_awesome_rounded, color: goldColor, size: 22),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'احجز رحلتك الخاصة الآن',
+                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      booking.dropoffAddress.isNotEmpty && booking.dropoffAddress != 'تحديد الوجهة والمقصد'
+                                          ? booking.dropoffAddress
+                                          : 'انقر لتحديد وجهتك بكل راحة وخصوصية...',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: goldColor),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // 3. VIP Fleet Selection Row
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        _buildFleetCard(
+                          context: context,
+                          title: 'أسطول VIP',
+                          subtitle: 'فخامة وراحة',
+                          type: 'vip',
+                          icon: Icons.diamond_rounded,
+                          color: goldColor,
+                          booking: booking,
+                        ),
+                        const SizedBox(width: 8),
+                        _buildFleetCard(
+                          context: context,
+                          title: 'صالون متميز',
+                          subtitle: 'مشاوير راقية',
+                          type: 'salon',
+                          icon: Icons.directions_car_filled_rounded,
+                          color: const Color(0xFF10B981),
+                          booking: booking,
+                        ),
+                        const SizedBox(width: 8),
+                        _buildFleetCard(
+                          context: context,
+                          title: 'توصيل خاص',
+                          subtitle: 'عناية فائقة',
+                          type: 'delivery',
+                          icon: Icons.all_inclusive_rounded,
+                          color: const Color(0xFF3B82F6),
+                          booking: booking,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 4. Commercial VIP Banners Carousel
+                  if (activeBanners.isNotEmpty) ...[
+                    AdBannerCarouselWidget(
+                      banners: activeBanners,
+                      height: 140,
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+
+                  // 5. Favorite Places Row
+                  FavoritePlacesRowWidget(
+                    isDark: isDark,
+                    onPlaceSelected: (place) {
                       booking.setDropoffLocation(
-                        result['location'] as LatLng,
-                        customAddress: result['address'] as String,
+                        place.coordinates,
+                        customAddress: place.title,
                         isArabic: loc.isArabic,
                       );
-                    }
-                  },
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
+                    },
+                  ),
+                  const SizedBox(height: 8),
+
+                  // 6. Saved Routes (خطوط السير المحفوظة)
+                  SavedRoutesWidget(
+                    isDark: isDark,
+                    onRouteSelected: (route) {
+                      booking.applySavedRoute(route, isArabic: loc.isArabic);
+                    },
+                  ),
+                  const SizedBox(height: 8),
+
+                  // 7. Direct Concierge Support Action
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: InkWell(
+                      onTap: () {
+                        WhatsAppService.openWhatsApp(
+                          phone: '7117648506',
+                          message: 'مرحباً، أود التنسيق مع خدمة عملاء كابتن ميسان VIP',
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(18),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: goldColor.withValues(alpha: 0.18),
-                          shape: BoxShape.circle,
+                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: goldColor.withValues(alpha: 0.4)),
                         ),
-                        child: const Icon(Icons.auto_awesome_rounded, color: goldColor, size: 22),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: const Row(
                           children: [
-                            const Text(
-                              'احجز رحلتك الخاصة الآن',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              booking.dropoffAddress.isNotEmpty
-                                  ? booking.dropoffAddress
-                                  : 'انقر لتحديد وجهتك بكل راحة وخصوصية...',
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                            Icon(Icons.headset_mic_rounded, color: goldColor, size: 20),
+                            SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'مساعد VIP المباشر عبر واتساب لتنسيق الرحلات الخاصة',
+                                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                             ),
+                            Icon(Icons.arrow_forward_ios_rounded, size: 14, color: goldColor),
                           ],
                         ),
                       ),
-                      const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: goldColor),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 10),
+                  const SizedBox(height: 10),
 
-              // VIP Fleet Selection Row
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    _buildFleetCard(
-                      context: context,
-                      title: 'أسطول VIP',
-                      subtitle: 'فخامة وراحة',
-                      type: 'vip',
-                      icon: Icons.diamond_rounded,
-                      color: goldColor,
-                      booking: booking,
-                    ),
-                    const SizedBox(width: 8),
-                    _buildFleetCard(
-                      context: context,
-                      title: 'صالون متميز',
-                      subtitle: 'مشاوير راقية',
-                      type: 'salon',
-                      icon: Icons.directions_car_filled_rounded,
-                      color: const Color(0xFF10B981),
-                      booking: booking,
-                    ),
-                    const SizedBox(width: 8),
-                    _buildFleetCard(
-                      context: context,
-                      title: 'توصيل خاص',
-                      subtitle: 'عناية فائقة',
-                      type: 'delivery',
-                      icon: Icons.all_inclusive_rounded,
-                      color: const Color(0xFF3B82F6),
-                      booking: booking,
-                    ),
-                  ],
-                ),
+                  // 8. Embedded Live Ride Booking Panel
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: RideBookingSheet(isEmbedded: true),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-
-              // Favorite Places Row
-              FavoritePlacesRowWidget(
-                isDark: isDark,
-                onPlaceSelected: (place) {
-                  booking.setDropoffLocation(
-                    place.coordinates,
-                    customAddress: place.title,
-                    isArabic: loc.isArabic,
-                  );
-                },
-              ),
-              const SizedBox(height: 8),
-
-              // Commercial Ad Banners Carousel
-              if (activeBanners.isNotEmpty) ...[
-                AdBannerCarouselWidget(
-                  banners: activeBanners,
-                  height: 140,
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                ),
-                const SizedBox(height: 8),
-              ],
-
-              // Embedded Ride Booking Panel
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                child: RideBookingSheet(isEmbedded: true),
-              ),
-            ],
+            ),
           ),
-        ),
-      ],
+
+          // Bottom Navigation Bar with Gold Accent
+          HomeBottomNavBar(
+            selectedIndex: 0,
+            isDark: isDark,
+            accentColor: goldColor,
+          ),
+        ],
+      ),
     );
   }
 
@@ -287,11 +367,11 @@ class LayoutLuxuryConcierge extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF0F172A) : Colors.white,
+            color: isDark ? const Color(0xFF131B2E) : Colors.white,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: isSelected ? color : (isDark ? const Color(0x3338BDF8) : const Color(0xFFE2E8F0)),
-              width: isSelected ? 2.0 : 1.0,
+              width: isSelected ? 2.2 : 1.0,
             ),
             boxShadow: [
               BoxShadow(

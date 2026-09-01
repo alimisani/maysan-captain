@@ -8,6 +8,7 @@ import '../maysan_map_widget.dart';
 import '../ride_booking_sheet.dart';
 import '../widgets/ad_banner_carousel_widget.dart';
 import '../widgets/favorite_places_row_widget.dart';
+import '../widgets/saved_routes_widget.dart';
 
 class LayoutClassicGlass extends StatelessWidget {
   final bool isDark;
@@ -58,6 +59,15 @@ class LayoutClassicGlass extends StatelessWidget {
                       customAddress: place.title,
                       isArabic: loc.isArabic,
                     );
+                  },
+                ),
+
+              // Saved Routes Row
+              if (!isDriver && booking.savedRoutes.isNotEmpty)
+                SavedRoutesWidget(
+                  isDark: isDark,
+                  onRouteSelected: (route) {
+                    booking.applySavedRoute(route, isArabic: loc.isArabic);
                   },
                 ),
             ],

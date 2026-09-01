@@ -382,6 +382,41 @@ class _FullscreenMapLocationPickerState extends State<FullscreenMapLocationPicke
                     ],
                   ),
 
+                  // Quick Favorite Places Chips (if any exist)
+                  if (!_isSearching)
+                    Consumer<BookingProvider>(
+                      builder: (context, booking, _) {
+                        final favs = booking.favoritePlaces;
+                        if (favs.isEmpty) return const SizedBox.shrink();
+                        return Container(
+                          margin: const EdgeInsets.only(top: 8),
+                          height: 36,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            physics: const BouncingScrollPhysics(),
+                            itemCount: favs.length,
+                            separatorBuilder: (_, __) => const SizedBox(width: 6),
+                            itemBuilder: (context, idx) {
+                              final f = favs[idx];
+                              return ActionChip(
+                                avatar: const Icon(Icons.bookmark_rounded, size: 14, color: AuroraTheme.primaryCyan),
+                                label: Text(f.title, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                backgroundColor: isDark ? const Color(0xFF0F172A).withValues(alpha: 0.9) : Colors.white.withValues(alpha: 0.9),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                onPressed: () {
+                                  _mapController.move(f.coordinates, 17.0);
+                                  setState(() {
+                                    _centerLocation = f.coordinates;
+                                  });
+                                  _resolveAddress(f.coordinates);
+                                },
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    ),
+
                   // Search Results Dropdown List
                   if (_isSearching)
                     Container(

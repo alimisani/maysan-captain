@@ -54,6 +54,7 @@ class _HomeScreenState extends State<HomeScreen> {
         booking.updateUserContext(auth.currentUser!.id, auth.currentUser!.isDriver);
         booking.checkActiveOrder(auth.currentUser!.id, auth.currentUser!.isDriver);
         booking.loadFavoritePlaces(auth.currentUser!.id);
+        booking.loadSavedRoutes(auth.currentUser!.id);
       }
       booking.loadUiLayoutTheme();
       booking.loadBanners();
