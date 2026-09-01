@@ -63,23 +63,35 @@ class AuroraTheme {
   }) {
     return BoxDecoration(
       color: customBg ??
-          (isDark ? const Color(0xB311192E) : const Color(0xEEFFFFFF)),
+          (isDark ? const Color(0xEE0E172A) : const Color(0xF2FFFFFF)),
+      gradient: customBg != null
+          ? null
+          : (isDark
+              ? const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xF0131F37), Color(0xF00B1322)],
+                )
+              : const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFFFFFFFF), Color(0xFFF8FAFC)],
+                )),
       borderRadius: BorderRadius.circular(borderRadius),
       border: Border.all(
         color: borderColor ??
             (isDark
-                ? (glow ? const Color(0x8038BDF8) : const Color(0x2238BDF8))
-                : (glow ? const Color(0x660EA5E9) : const Color(0x1A0EA5E9))),
+                ? const Color(0x4438BDF8)
+                : const Color(0xFFE2E8F0)),
         width: 1.2,
       ),
       boxShadow: [
         BoxShadow(
           color: isDark
-              ? (glow ? const Color(0x330EA5E9) : const Color(0x40000000))
-              : (glow ? const Color(0x250EA5E9) : const Color(0x12000000)),
-          blurRadius: glow ? 24 : 16,
-          spreadRadius: glow ? 2 : 0,
-          offset: const Offset(0, 6),
+              ? const Color(0x2A38BDF8)
+              : const Color(0x0E000000),
+          blurRadius: 18,
+          offset: const Offset(0, 4),
         ),
       ],
     );

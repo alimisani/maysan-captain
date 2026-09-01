@@ -7,7 +7,6 @@ import '../../core/localization/app_localizations.dart';
 import '../../core/services/whatsapp_service.dart';
 import '../../core/state/auth_provider.dart';
 import '../../core/state/booking_provider.dart';
-import '../../core/state/locale_provider.dart';
 import '../../core/state/theme_provider.dart';
 import '../../core/theme/aurora_theme.dart';
 import '../admin/admin_dashboard_screen.dart';
@@ -114,7 +113,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
     final themeProvider = context.watch<ThemeProvider>();
-    final localeProvider = context.watch<LocaleProvider>();
     final auth = context.watch<AuthProvider>();
     final booking = context.watch<BookingProvider>();
     final isDark = themeProvider.isDark;
@@ -137,7 +135,7 @@ class _HomeScreenState extends State<HomeScreen> {
             // Dynamic Active UI Layout (Classic Glass, Uber Hub, Dynamic Cards, VIP Concierge)
             _buildActiveLayout(auth, booking, isDark, loc),
 
-            // Top Bar with App Branding & Profile / Theme / Language
+            // Top Bar with App Branding & Profile / Theme
             Positioned(
               top: 0,
               left: 0,
@@ -150,7 +148,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     borderRadius: 22,
                     child: Row(
                       children: [
-                        // 1. Official User Avatar
+                        // 1. Official User Avatar (Far Right in RTL - clicking opens Profile)
                         UserAvatarWidget(
                           avatarUrl: user?.avatarUrl,
                           radius: 18,
@@ -161,51 +159,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             );
                           },
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 4),
 
-                        // 2. Greeting & Name (أهلاً، [الاسم])
-                        Expanded(
-                          child: InkWell(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-                              );
-                            },
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  user != null
-                                      ? 'أهلاً، ${user.name}'
-                                      : loc.translate('appName'),
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13.5,
-                                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                Text(
-                                  user != null
-                                      ? user.ambassadorBadge
-                                      : loc.translate('maysanSpecialized'),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 10.5,
-                                    color: AuroraTheme.primaryCyan,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        // 3. Grid / Menu Button (Right next to user profile in top bar)
+                        // 2. Menu / Grid Button (Right next to user avatar on the far right)
                         IconButton(
                           style: IconButton.styleFrom(
                             backgroundColor: _isQuickMenuOpen
@@ -225,8 +181,52 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           onPressed: () => setState(() => _isQuickMenuOpen = !_isQuickMenuOpen),
                         ),
+                        const SizedBox(width: 6),
 
-                        // 4. Dark/Light Mode Switcher
+                        // 3. App Name + Greeting + User Type + Rating (Clicking empty space does nothing)
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'كابتن ميسان',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13.5,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                  letterSpacing: 0.2,
+                                ),
+                              ),
+                              const SizedBox(height: 1),
+                              Text(
+                                user != null ? 'أهلاً، ${user.name}' : 'أهلاً بك في ميسان',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 11.5,
+                                  color: isDark ? const Color(0xFF38BDF8) : AuroraTheme.primaryBlue,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 1),
+                              Text(
+                                user != null
+                                    ? '${user.isAdmin ? "المدير العام 👑" : (user.isDriver ? "كابتن ميسان 🚖" : "زبون ميسان 👤")} • ⭐ ${user.rating.toStringAsFixed(1)}'
+                                    : 'خدمة النقل الموثوقة • ⭐ 5.0',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // 4. Dark/Light Mode Switcher (Far Left)
                         IconButton(
                           style: IconButton.styleFrom(
                             padding: const EdgeInsets.all(6),
@@ -234,27 +234,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           icon: Icon(
                             isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                            size: 19,
+                            size: 20,
                             color: isDark ? AuroraTheme.accentAmber : AuroraTheme.primaryBlue,
                           ),
                           onPressed: () => themeProvider.toggleTheme(),
-                        ),
-
-                        // 5. Language Toggle
-                        TextButton(
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            minimumSize: const Size(36, 36),
-                          ),
-                          onPressed: () => localeProvider.toggleLanguage(),
-                          child: Text(
-                            loc.isArabic ? 'EN' : 'عربي',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                              color: AuroraTheme.primaryCyan,
-                            ),
-                          ),
                         ),
                       ],
                     ),
