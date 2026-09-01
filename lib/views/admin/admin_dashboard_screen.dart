@@ -5492,15 +5492,41 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   // --- COMMERCIAL ADS & BANNERS TAB ---
   // ==========================================
 
+  String _adStatusFilter = 'all';
+  String _adSlotFilter = 'all';
+
   Widget _buildAdBannersTab(AdminProvider admin, AppLocalizations loc, bool isDark) {
     final banners = admin.banners;
-    final activeCount = banners.where((b) => b.isActive).length;
+    final activeCount = banners.where((b) => b.isCurrentlyActive).length;
+    final totalViews = banners.fold<int>(0, (sum, b) => sum + b.viewsCount);
+    final totalClicks = banners.fold<int>(0, (sum, b) => sum + b.clicksCount);
+    final overallCtr = totalViews > 0 ? (totalClicks / totalViews) * 100 : 0.0;
+
+    final filteredBanners = banners.where((b) {
+      if (_adStatusFilter != 'all') {
+        if (_adStatusFilter == 'active' && !b.isCurrentlyActive) return false;
+        if (_adStatusFilter == 'paused' && b.status != 'paused') return false;
+        if (_adStatusFilter == 'draft' && b.status != 'draft') return false;
+        if (_adStatusFilter == 'expired') {
+          final now = DateTime.now();
+          if (b.endDate == null || !now.isAfter(b.endDate!)) return false;
+        }
+        if (_adStatusFilter == 'scheduled') {
+          final now = DateTime.now();
+          if (b.startDate == null || !now.isBefore(b.startDate!)) return false;
+        }
+      }
+      if (_adSlotFilter != 'all') {
+        if (b.slot != _adSlotFilter) return false;
+      }
+      return true;
+    }).toList();
 
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       physics: const BouncingScrollPhysics(),
       children: [
-        // Header & Quick Action Card
+        // 1. Header & Summary Statistics Card
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -5532,12 +5558,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'الإعلانات والبنرات التجارية',
+                          'نظام الإعلانات والبنرات التجارية',
                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '$activeCount إعلان نشط من إجمالي ${banners.length} بنر تجاري',
+                          '$activeCount إعلان نشط من إجمالي ${banners.length} حملة إعلانية',
                           style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
                         ),
                       ],
@@ -5546,25 +5572,124 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ],
               ),
               const SizedBox(height: 14),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AuroraTheme.primaryCyan,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                icon: const Icon(Icons.add_photo_alternate_rounded, color: Colors.white, size: 20),
-                label: const Text(
-                  '+ إضافة بنر إعلاني تجاري جديد',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white),
-                ),
-                onPressed: () => _showAddEditBannerDialog(context, admin),
+
+              // KPI Row (Views, Clicks, CTR)
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildAdKpiBox(
+                      title: 'المشاهدات',
+                      value: '$totalViews',
+                      icon: Icons.visibility_outlined,
+                      color: AuroraTheme.primaryBlue,
+                      isDark: isDark,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildAdKpiBox(
+                      title: 'النقرات',
+                      value: '$totalClicks',
+                      icon: Icons.touch_app_outlined,
+                      color: AuroraTheme.accentEmerald,
+                      isDark: isDark,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildAdKpiBox(
+                      title: 'نسبة CTR',
+                      value: '${overallCtr.toStringAsFixed(1)}%',
+                      icon: Icons.trending_up_rounded,
+                      color: const Color(0xFFF59E0B),
+                      isDark: isDark,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // Action Buttons Row
+              Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AuroraTheme.primaryCyan,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      icon: const Icon(Icons.add_photo_alternate_rounded, color: Colors.white, size: 18),
+                      label: const Text(
+                        '+ إضافة إعلان جديد',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: Colors.white),
+                      ),
+                      onPressed: () => _showAddEditBannerDialog(context, admin),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 2,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFFF59E0B)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      icon: const Icon(Icons.price_change_outlined, color: Color(0xFFF59E0B), size: 18),
+                      label: const Text(
+                        'أسعار الباقات',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFFF59E0B)),
+                      ),
+                      onPressed: () => _showAdPackagesPricingDialog(context, admin),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
 
-        if (banners.isEmpty)
+        // 2. Filter Chips: Status & Slots
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          child: Row(
+            children: [
+              _buildAdFilterChip('الكل', 'all', _adStatusFilter, (v) => setState(() => _adStatusFilter = v), isDark),
+              const SizedBox(width: 6),
+              _buildAdFilterChip('النشطة 🟢', 'active', _adStatusFilter, (v) => setState(() => _adStatusFilter = v), isDark),
+              const SizedBox(width: 6),
+              _buildAdFilterChip('المجدولة ⏳', 'scheduled', _adStatusFilter, (v) => setState(() => _adStatusFilter = v), isDark),
+              const SizedBox(width: 6),
+              _buildAdFilterChip('المتوقفة ⏸️', 'paused', _adStatusFilter, (v) => setState(() => _adStatusFilter = v), isDark),
+              const SizedBox(width: 6),
+              _buildAdFilterChip('المنتهية 🛑', 'expired', _adStatusFilter, (v) => setState(() => _adStatusFilter = v), isDark),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          child: Row(
+            children: [
+              _buildAdFilterChip('جميع المساحات', 'all', _adSlotFilter, (v) => setState(() => _adSlotFilter = v), isDark, color: AuroraTheme.primaryBlue),
+              const SizedBox(width: 6),
+              _buildAdFilterChip('الرئيسي (بارز)', 'main', _adSlotFilter, (v) => setState(() => _adSlotFilter = v), isDark, color: AuroraTheme.primaryBlue),
+              const SizedBox(width: 6),
+              _buildAdFilterChip('المتوسط', 'medium', _adSlotFilter, (v) => setState(() => _adSlotFilter = v), isDark, color: AuroraTheme.primaryBlue),
+              const SizedBox(width: 6),
+              _buildAdFilterChip('السفلي', 'bottom', _adSlotFilter, (v) => setState(() => _adSlotFilter = v), isDark, color: AuroraTheme.primaryBlue),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // 3. Ad Cards List
+        if (filteredBanners.isEmpty)
           Container(
             padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
@@ -5577,12 +5702,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 Icon(Icons.photo_library_outlined, size: 56, color: isDark ? Colors.white30 : Colors.black26),
                 const SizedBox(height: 12),
                 const Text(
-                  'لا توجد إعلانات تجارية مضافة حتى الآن',
+                  'لا توجد إعلانات مطابقة للفرز الحالي',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                 ),
                 const SizedBox(height: 4),
                 const Text(
-                  'اضغط على زر الإضافة أعلاه لإضافة إعلانات غير محدودة تظهر في الواجهة الرئيسية فورياً',
+                  'اضغط على زر الإضافة أعلاه لإطلاق حملة إعلانية جديدة',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
                 ),
@@ -5590,10 +5715,89 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ),
           )
         else
-          ...banners.map((banner) => _buildBannerCard(context, banner, admin, isDark)),
+          ...filteredBanners.map((banner) => _buildBannerCard(context, banner, admin, isDark)),
 
         const SizedBox(height: 30),
       ],
+    );
+  }
+
+  Widget _buildAdKpiBox({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+    required bool isDark,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: isDark ? 0.15 : 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 14, color: color),
+              const SizedBox(width: 4),
+              Text(
+                title,
+                style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: color),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdFilterChip(
+    String label,
+    String value,
+    String currentVal,
+    ValueChanged<String> onSelected,
+    bool isDark, {
+    Color? color,
+  }) {
+    final isSelected = value == currentVal;
+    final themeColor = color ?? AuroraTheme.primaryCyan;
+
+    return InkWell(
+      onTap: () => onSelected(value),
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? themeColor
+              : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? themeColor : (isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1)),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+            color: isSelected ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF334155)),
+          ),
+        ),
+      ),
     );
   }
 
@@ -5609,10 +5813,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: banner.isActive
+          color: banner.isCurrentlyActive
               ? AuroraTheme.accentEmerald.withValues(alpha: 0.5)
               : (isDark ? const Color(0x3338BDF8) : const Color(0xFFE2E8F0)),
-          width: banner.isActive ? 1.5 : 1.0,
+          width: banner.isCurrentlyActive ? 1.5 : 1.0,
         ),
         boxShadow: [
           BoxShadow(
@@ -5625,30 +5829,90 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Banner Image Preview
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(21)),
-            child: AspectRatio(
-              aspectRatio: 16 / 7,
-              child: Image.network(
-                banner.imageUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-                  child: const Center(
-                    child: Icon(Icons.broken_image_rounded, size: 40, color: Color(0xFF94A3B8)),
+          // Banner Image Preview with Slot & Status Badges
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(21)),
+                child: AspectRatio(
+                  aspectRatio: 16 / 7,
+                  child: Image.network(
+                    banner.imageUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                      child: const Center(
+                        child: Icon(Icons.broken_image_rounded, size: 40, color: Color(0xFF94A3B8)),
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
+
+              // Badges overlay
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.75),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.layers_rounded, size: 12, color: AuroraTheme.primaryCyan),
+                      const SizedBox(width: 4),
+                      Text(
+                        banner.slotTitle,
+                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 8,
+                left: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: banner.isCurrentlyActive ? const Color(0xFF059669) : const Color(0xFFEF4444),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    banner.statusBadgeText,
+                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
           ),
 
-          // Banner Info
+          // Banner Details & Statistics
           Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Advertiser & Package
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      banner.advertiserName.isNotEmpty ? banner.advertiserName : 'معلن غير محدد',
+                      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: AuroraTheme.primaryCyan),
+                    ),
+                    Text(
+                      banner.packageTitle,
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFFF59E0B)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+
+                // Title & Active Switch
                 Row(
                   children: [
                     Expanded(
@@ -5657,23 +5921,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                       ),
                     ),
-                    // Active Status Switch
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          banner.isActive ? 'مفعل' : 'معطل',
+                          banner.status == 'active' ? 'مفعل' : 'متوقف',
                           style: TextStyle(
                             fontSize: 11.5,
                             fontWeight: FontWeight.bold,
-                            color: banner.isActive ? AuroraTheme.accentEmerald : const Color(0xFF94A3B8),
+                            color: banner.status == 'active' ? AuroraTheme.accentEmerald : const Color(0xFF94A3B8),
                           ),
                         ),
                         Switch(
-                          value: banner.isActive,
+                          value: banner.status == 'active',
                           activeThumbColor: AuroraTheme.accentEmerald,
                           onChanged: (val) async {
-                            await admin.toggleBannerActive(banner.id, val);
+                            final updated = banner.copyWith(status: val ? 'active' : 'paused');
+                            await admin.addOrUpdateBanner(updated);
                           },
                         ),
                       ],
@@ -5681,15 +5945,39 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   ],
                 ),
                 if (banner.subtitle.isNotEmpty) ...[
-                  const SizedBox(height: 2),
                   Text(
                     banner.subtitle,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 11.5,
                       color: isDark ? Colors.white60 : const Color(0xFF64748B),
                     ),
                   ),
                 ],
+
+                // Discount / Offer badge if present
+                if (banner.adType == 'discount' && banner.discountText.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.local_offer_rounded, size: 13, color: Color(0xFFF59E0B)),
+                        const SizedBox(width: 4),
+                        Text(
+                          'العرض: ${banner.discountText}',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFF59E0B)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
                 if (banner.targetUrl.isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Row(
@@ -5707,7 +5995,43 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     ],
                   ),
                 ],
-                const Divider(height: 18),
+
+                // Campaign Dates & Duration
+                if (banner.startDate != null || banner.endDate != null) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(Icons.calendar_today_rounded, size: 13, color: Color(0xFF64748B)),
+                      const SizedBox(width: 4),
+                      Text(
+                        'من ${banner.startDate?.toString().substring(0, 10) ?? "البداية"} إلى ${banner.endDate?.toString().substring(0, 10) ?? "مستمر"} (${banner.remainingDays} يوم متبقي)',
+                        style: TextStyle(fontSize: 10.5, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                      ),
+                    ],
+                  ),
+                ],
+
+                const Divider(height: 16),
+
+                // Statistics Metrics Row
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildMetricItem('المشاهدات', '${banner.viewsCount}', Icons.visibility_outlined, isDark),
+                      Container(width: 1, height: 20, color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                      _buildMetricItem('النقرات', '${banner.clicksCount}', Icons.touch_app_outlined, isDark),
+                      Container(width: 1, height: 20, color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                      _buildMetricItem('نسبة CTR', '${banner.ctr.toStringAsFixed(1)}%', Icons.insights_rounded, isDark),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
 
                 // Edit & Delete Actions
                 Row(
@@ -5715,7 +6039,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   children: [
                     TextButton.icon(
                       icon: const Icon(Icons.edit_rounded, size: 16, color: Color(0xFF3B82F6)),
-                      label: const Text('تعديل', style: TextStyle(fontSize: 12, color: Color(0xFF3B82F6))),
+                      label: const Text('تعديل الحملة', style: TextStyle(fontSize: 12, color: Color(0xFF3B82F6))),
                       onPressed: () => _showAddEditBannerDialog(context, admin, existing: banner),
                     ),
                     const SizedBox(width: 8),
@@ -5754,17 +6078,48 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
+  Widget _buildMetricItem(String title, String value, IconData icon, bool isDark) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: AuroraTheme.primaryCyan),
+        const SizedBox(width: 4),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(title, style: TextStyle(fontSize: 9.5, color: isDark ? Colors.white60 : const Color(0xFF64748B))),
+            Text(value, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // ==========================================
+  // --- ADD / EDIT AD BANNER DIALOG ---
+  // ==========================================
+
   void _showAddEditBannerDialog(
     BuildContext context,
     AdminProvider admin, {
     AdBanner? existing,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final advertiserCtrl = TextEditingController(text: existing?.advertiserName ?? '');
     final titleCtrl = TextEditingController(text: existing?.title ?? '');
     final subtitleCtrl = TextEditingController(text: existing?.subtitle ?? '');
     final imageCtrl = TextEditingController(text: existing?.imageUrl ?? '');
     final urlCtrl = TextEditingController(text: existing?.targetUrl ?? '');
-    bool isActive = existing?.isActive ?? true;
+    final discountCtrl = TextEditingController(text: existing?.discountText ?? '');
+
+    String slot = existing?.slot ?? 'main';
+    String packageType = existing?.packageType ?? 'gold';
+    String adType = existing?.adType ?? 'regular';
+    String status = existing?.status ?? 'active';
+    DateTime? startDate = existing?.startDate;
+    DateTime? endDate = existing?.endDate;
+    DateTime? discountExpiryDate = existing?.discountExpiryDate;
     int priority = existing?.priority ?? 0;
     bool isUploading = false;
 
@@ -5792,14 +6147,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     ),
                     const SizedBox(width: 12),
                     Text(
-                      existing != null ? 'تعديل البنر الإعلاني' : 'إضافة بنر إعلاني تجاري',
+                      existing != null ? 'تعديل الحملة الإعلانية' : 'إضافة حملة إعلانية تجارية',
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
 
-                // Image Upload Button or URL field
+                // Image Preview
                 if (imageCtrl.text.isNotEmpty)
                   Container(
                     height: 120,
@@ -5818,6 +6173,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     ),
                   ),
 
+                // Upload via R2
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF3B82F6),
@@ -5838,9 +6194,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           final r2Url = await ImageService.pickAndUploadBannerImage();
                           setDialogState(() => isUploading = false);
                           if (r2Url != null) {
-                            setDialogState(() {
-                              imageCtrl.text = r2Url;
-                            });
+                            setDialogState(() => imageCtrl.text = r2Url);
                           }
                         },
                 ),
@@ -5849,7 +6203,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 TextField(
                   controller: imageCtrl,
                   decoration: InputDecoration(
-                    labelText: 'رابط صورة البنر (أو تم الرفع تلقائياً أعلاه)',
+                    labelText: 'رابط صورة البنر (أو تم الرفع تلقائياً)',
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                     prefixIcon: const Icon(Icons.image_outlined),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -5858,6 +6212,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
                 const SizedBox(height: 12),
 
+                // Advertiser Name
+                TextField(
+                  controller: advertiserCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'اسم المعلن / النشاط التجاري',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                    prefixIcon: const Icon(Icons.storefront_rounded),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Title & Subtitle
                 TextField(
                   controller: titleCtrl,
                   decoration: InputDecoration(
@@ -5872,7 +6239,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 TextField(
                   controller: subtitleCtrl,
                   decoration: InputDecoration(
-                    labelText: 'الوصف أو العرض الترويجي (اختياري)',
+                    labelText: 'الوصف أو العبارة الترويجية (اختياري)',
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                     prefixIcon: const Icon(Icons.subtitles_rounded),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -5880,11 +6247,120 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
                 const SizedBox(height: 12),
 
+                // Slot selection (رئيسي / متوسط / سفلي)
+                const Text('المساحة الإعلانية:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+                const SizedBox(height: 6),
+                DropdownButtonFormField<String>(
+                  initialValue: slot,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    prefixIcon: const Icon(Icons.layers_rounded),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'main', child: Text('الإعلان الرئيسي (كبير بارز)')),
+                    DropdownMenuItem(value: 'medium', child: Text('الإعلان المتوسط (منتصف الصفحة)')),
+                    DropdownMenuItem(value: 'bottom', child: Text('الإعلان السفلي (أسفل الواجهة)')),
+                  ],
+                  onChanged: (val) => setDialogState(() => slot = val ?? 'main'),
+                ),
+                const SizedBox(height: 12),
+
+                // Package Type
+                const Text('نوع الباقة الإعلانية:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+                const SizedBox(height: 6),
+                DropdownButtonFormField<String>(
+                  initialValue: packageType,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    prefixIcon: const Icon(Icons.workspace_premium_rounded),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'bronze', child: Text('الباقة البرونزية (سفلي)')),
+                    DropdownMenuItem(value: 'silver', child: Text('الباقة الفضية (متوسط)')),
+                    DropdownMenuItem(value: 'gold', child: Text('الباقة الذهبية (رئيسي)')),
+                    DropdownMenuItem(value: 'exclusive', child: Text('الباقة الحصرية (احتكار رئيسي)')),
+                  ],
+                  onChanged: (val) => setDialogState(() => packageType = val ?? 'gold'),
+                ),
+                const SizedBox(height: 12),
+
+                // Ad Type (عادي / خصم وعرض)
+                Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => setDialogState(() => adType = 'regular'),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            color: adType == 'regular' ? AuroraTheme.primaryBlue.withValues(alpha: 0.15) : Colors.transparent,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: adType == 'regular' ? AuroraTheme.primaryBlue : (isDark ? Colors.white24 : const Color(0xFFCBD5E1))),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'إعلان عادي',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: adType == 'regular' ? FontWeight.bold : FontWeight.normal,
+                                color: adType == 'regular' ? AuroraTheme.primaryBlue : (isDark ? Colors.white70 : const Color(0xFF64748B)),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => setDialogState(() => adType = 'discount'),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            color: adType == 'discount' ? const Color(0xFFF59E0B).withValues(alpha: 0.15) : Colors.transparent,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: adType == 'discount' ? const Color(0xFFF59E0B) : (isDark ? Colors.white24 : const Color(0xFFCBD5E1))),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'عرض / خصم 🏷️',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: adType == 'discount' ? FontWeight.bold : FontWeight.normal,
+                                color: adType == 'discount' ? const Color(0xFFF59E0B) : (isDark ? Colors.white70 : const Color(0xFF64748B)),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                if (adType == 'discount') ...[
+                  TextField(
+                    controller: discountCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'نص العرض أو الخصم',
+                      hintText: 'مثال: خصم 20% أو 10,000 ← 7,500 د.ع',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                      prefixIcon: const Icon(Icons.local_offer_rounded),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
+                // Target URL
                 TextField(
                   controller: urlCtrl,
                   decoration: InputDecoration(
-                    labelText: 'رابط الإعلان (موقع، واتساب، أو رقم هاتف)',
-                    hintText: 'https://... أو 077... أو whatsapp:...',
+                    labelText: 'رابط الإعلان (موقع، واتساب، أو هاتف)',
+                    hintText: 'https://... أو 077... أو whatsapp:077...',
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                     prefixIcon: const Icon(Icons.link_rounded),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -5892,18 +6368,101 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
                 const SizedBox(height: 12),
 
-                // Active toggle
-                SwitchListTile(
-                  title: const Text('تفعيل الإعلان فورياً', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                  subtitle: const Text('يظهر في الواجهة الرئيسية لجميع المستخدمين', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                  value: isActive,
-                  activeThumbColor: AuroraTheme.accentEmerald,
-                  contentPadding: EdgeInsets.zero,
-                  onChanged: (val) => setDialogState(() => isActive = val),
+                // Scheduling (Start & End Date)
+                const Text('جدولة الحملة الإعلانية:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                        ),
+                        icon: const Icon(Icons.calendar_today_rounded, size: 14),
+                        label: Text(
+                          startDate == null ? 'تاريخ البدء' : startDate!.toString().substring(0, 10),
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                        onPressed: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: startDate ?? DateTime.now(),
+                            firstDate: DateTime(2025),
+                            lastDate: DateTime(2030),
+                          );
+                          if (picked != null) {
+                            setDialogState(() => startDate = picked);
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                        ),
+                        icon: const Icon(Icons.event_available_rounded, size: 14),
+                        label: Text(
+                          endDate == null ? 'تاريخ الانتهاء' : endDate!.toString().substring(0, 10),
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                        onPressed: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: endDate ?? DateTime.now().add(const Duration(days: 7)),
+                            firstDate: DateTime(2025),
+                            lastDate: DateTime(2030),
+                          );
+                          if (picked != null) {
+                            setDialogState(() => endDate = picked);
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Priority Slider
+                Row(
+                  children: [
+                    const Text('الأولوية: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    Text('$priority', style: const TextStyle(fontWeight: FontWeight.bold, color: AuroraTheme.primaryCyan)),
+                    Expanded(
+                      child: Slider(
+                        value: priority.toDouble(),
+                        min: 0,
+                        max: 10,
+                        divisions: 10,
+                        label: '$priority',
+                        onChanged: (val) => setDialogState(() => priority = val.toInt()),
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Status dropdown
+                DropdownButtonFormField<String>(
+                  initialValue: status,
+                  decoration: InputDecoration(
+                    labelText: 'حالة الإعلان',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'active', child: Text('فعال 🟢')),
+                    DropdownMenuItem(value: 'scheduled', child: Text('مجدول ⏳')),
+                    DropdownMenuItem(value: 'paused', child: Text('متوقف ⏸️')),
+                    DropdownMenuItem(value: 'draft', child: Text('مسودة 📝')),
+                  ],
+                  onChanged: (val) => setDialogState(() => status = val ?? 'active'),
                 ),
                 const SizedBox(height: 16),
 
-                // Action buttons
+                // Actions
                 Row(
                   children: [
                     Expanded(
@@ -5936,8 +6495,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             subtitle: subtitleCtrl.text.trim(),
                             imageUrl: imgUrl,
                             targetUrl: urlCtrl.text.trim(),
-                            isActive: isActive,
+                            advertiserName: advertiserCtrl.text.trim(),
+                            slot: slot,
+                            packageType: packageType,
+                            adType: adType,
+                            discountText: discountCtrl.text.trim(),
+                            discountExpiryDate: discountExpiryDate,
+                            startDate: startDate,
+                            endDate: endDate,
+                            status: status,
                             priority: priority,
+                            viewsCount: existing?.viewsCount ?? 0,
+                            clicksCount: existing?.clicksCount ?? 0,
                             createdAt: existing?.createdAt ?? DateTime.now(),
                           );
 
@@ -5946,14 +6515,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             Navigator.pop(ctx);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text(existing != null ? 'تم تحديث البنر بنجاح' : 'تمت إضافة البنر الإعلاني بنجاح 🚀'),
+                                content: Text(existing != null ? 'تم تحديث الحملة بنجاح' : 'تمت إضافة الحملة الإعلانية بنجاح 🚀'),
                                 backgroundColor: AuroraTheme.accentEmerald,
                               ),
                             );
                           }
                         },
                         child: Text(
-                          existing != null ? 'حفظ التعديلات' : 'إضافة البنر',
+                          existing != null ? 'حفظ التعديلات' : 'إطلاق الحملة الإعلانية',
                           style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
                         ),
                       ),
@@ -5964,6 +6533,231 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  // ==========================================
+  // --- AD PACKAGES PRICING DIALOG ---
+  // ==========================================
+
+  void _showAdPackagesPricingDialog(BuildContext context, AdminProvider admin) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final current = admin.adPackagesConfig;
+
+    final bronze7Ctrl = TextEditingController(text: current.bronze7DaysPrice.toString());
+    final bronze30Ctrl = TextEditingController(text: current.bronze30DaysPrice.toString());
+    final silver7Ctrl = TextEditingController(text: current.silver7DaysPrice.toString());
+    final silver30Ctrl = TextEditingController(text: current.silver30DaysPrice.toString());
+    final gold7Ctrl = TextEditingController(text: current.gold7DaysPrice.toString());
+    final gold30Ctrl = TextEditingController(text: current.gold30DaysPrice.toString());
+    final exclusive7Ctrl = TextEditingController(text: current.exclusive7DaysPrice.toString());
+    final phoneCtrl = TextEditingController(text: current.contactWhatsApp);
+    final termsCtrl = TextEditingController(text: current.termsText);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFD97706)]),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.price_change_rounded, color: Colors.white, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'إعداد أسعار وباقات الإعلانات',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // 1. Bronze Package
+              _buildPackagePricingSection(
+                title: 'الباقة البرونزية 🥉 (الإعلان السفلي)',
+                ctrl7: bronze7Ctrl,
+                ctrl30: bronze30Ctrl,
+                color: const Color(0xFFCD7F32),
+              ),
+              const SizedBox(height: 12),
+
+              // 2. Silver Package
+              _buildPackagePricingSection(
+                title: 'الباقة الفضية 🥈 (الإعلان المتوسط)',
+                ctrl7: silver7Ctrl,
+                ctrl30: silver30Ctrl,
+                color: const Color(0xFF94A3B8),
+              ),
+              const SizedBox(height: 12),
+
+              // 3. Gold Package
+              _buildPackagePricingSection(
+                title: 'الباقة الذهبية ⭐ (الإعلان الرئيسي)',
+                ctrl7: gold7Ctrl,
+                ctrl30: gold30Ctrl,
+                color: const Color(0xFFF59E0B),
+              ),
+              const SizedBox(height: 12),
+
+              // 4. Exclusive Package
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('الباقة الحصرية 👑 (احتكار الإعلان الرئيسي)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF8B5CF6))),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: exclusive7Ctrl,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'السعر لمدة 7 أيام (د.ع)',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // WhatsApp Phone
+              TextField(
+                controller: phoneCtrl,
+                keyboardType: TextInputType.phone,
+                decoration: InputDecoration(
+                  labelText: 'رقم واتساب الإعلانات واستقبال الطلبات',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                  prefixIcon: const Icon(Icons.chat_rounded, color: Color(0xFF10B981)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Terms
+              TextField(
+                controller: termsCtrl,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  labelText: 'الشروط والأحكام الإعلانية (تظهر للمعلنين)',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Save
+              Row(
+                children: [
+                  Expanded(child: TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء'))),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFF59E0B),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: () async {
+                        final newConfig = AdPackageConfig(
+                          bronze7DaysPrice: int.tryParse(bronze7Ctrl.text.trim()) ?? 15000,
+                          bronze30DaysPrice: int.tryParse(bronze30Ctrl.text.trim()) ?? 40000,
+                          silver7DaysPrice: int.tryParse(silver7Ctrl.text.trim()) ?? 25000,
+                          silver30DaysPrice: int.tryParse(silver30Ctrl.text.trim()) ?? 70000,
+                          gold7DaysPrice: int.tryParse(gold7Ctrl.text.trim()) ?? 50000,
+                          gold30DaysPrice: int.tryParse(gold30Ctrl.text.trim()) ?? 120000,
+                          exclusive7DaysPrice: int.tryParse(exclusive7Ctrl.text.trim()) ?? 75000,
+                          contactWhatsApp: phoneCtrl.text.trim(),
+                          termsText: termsCtrl.text.trim(),
+                        );
+                        await admin.updateAdPackagesConfig(newConfig);
+                        if (context.mounted) {
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('تم حفظ وتحديث باقات وأسعار الإعلانات بنجاح ✨'),
+                              backgroundColor: AuroraTheme.accentEmerald,
+                            ),
+                          );
+                        }
+                      },
+                      child: const Text('حفظ أسعار الباقات', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPackagePricingSection({
+    required String title,
+    required TextEditingController ctrl7,
+    required TextEditingController ctrl30,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: color)),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: ctrl7,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'سعر 7 أيام (د.ع)',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: ctrl30,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'سعر 30 يوم (د.ع)',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -9,7 +9,7 @@ import '../driver_quick_sheet.dart';
 import '../location_picker_sheet.dart';
 import '../maysan_map_widget.dart';
 import '../ride_booking_sheet.dart';
-import '../widgets/ad_banner_carousel_widget.dart';
+import '../widgets/ad_slot_banner_widget.dart';
 
 class LayoutClassicGlass extends StatelessWidget {
   final bool isDark;
@@ -27,7 +27,6 @@ class LayoutClassicGlass extends StatelessWidget {
     final booking = context.watch<BookingProvider>();
     final user = auth.currentUser;
     final isDriver = user?.isDriver ?? false;
-    final activeBanners = booking.activeBanners;
 
     if (isDriver) {
       return Stack(
@@ -46,7 +45,10 @@ class LayoutClassicGlass extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 1. Direct Destination Search Bar
+            // 1. Main Ad Slot (كبير بارز)
+            const AdSlotBannerWidget(slot: 'main'),
+
+            // 2. Direct Destination Search Bar
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Material(
@@ -128,7 +130,7 @@ class LayoutClassicGlass extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            // 3. Quick 4-Vehicle Grid [تاكسي صالون] [كابتن VIP] [توصيل طلبات] [تكتك ميسان]
+            // 3. Quick 4-Vehicle Grid [تاكسي صالون] [كابتن VIP] [تكتك ميسان] [توصيل طلبات]
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
@@ -169,21 +171,17 @@ class LayoutClassicGlass extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            // 4. Commercial Ad Banners Carousel
-            if (activeBanners.isNotEmpty) ...[
-              AdBannerCarouselWidget(
-                banners: activeBanners,
-                height: 130,
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              ),
-              const SizedBox(height: 8),
-            ],
+            // 4. Medium Ad Slot (متوسط)
+            const AdSlotBannerWidget(slot: 'medium'),
 
             // 5. Embedded Live Ride Booking Panel
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16),
               child: RideBookingSheet(isEmbedded: true),
             ),
+
+            // 6. Bottom Ad Slot (سفلي)
+            const AdSlotBannerWidget(slot: 'bottom'),
           ],
         ),
       ),

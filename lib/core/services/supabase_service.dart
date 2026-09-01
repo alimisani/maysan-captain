@@ -1812,6 +1812,34 @@ class SupabaseService {
     }
   }
 
+  Future<void> incrementBannerView(String bannerId) async {
+    try {
+      final list = await getAllBanners();
+      final index = list.indexWhere((b) => b.id == bannerId);
+      if (index >= 0) {
+        final current = list[index];
+        list[index] = current.copyWith(viewsCount: current.viewsCount + 1);
+        await saveAllBanners(list);
+      }
+    } catch (e) {
+      debugPrint('Increment banner view error: $e');
+    }
+  }
+
+  Future<void> incrementBannerClick(String bannerId) async {
+    try {
+      final list = await getAllBanners();
+      final index = list.indexWhere((b) => b.id == bannerId);
+      if (index >= 0) {
+        final current = list[index];
+        list[index] = current.copyWith(clicksCount: current.clicksCount + 1);
+        await saveAllBanners(list);
+      }
+    } catch (e) {
+      debugPrint('Increment banner click error: $e');
+    }
+  }
+
   Future<void> deleteBanner(String bannerId) async {
     try {
       final list = await getAllBanners();
@@ -1819,6 +1847,40 @@ class SupabaseService {
       await saveAllBanners(list);
     } catch (e) {
       debugPrint('Delete banner error: $e');
+      rethrow;
+    }
+  }
+
+  // ==========================================
+  // ADVERTISING PACKAGES PRICING SETTINGS
+  // ==========================================
+
+  Future<AdPackageConfig> getAdPackagesPricing() async {
+    try {
+      final res = await client
+          .from('app_settings')
+          .select('value')
+          .eq('key', 'ad_packages_pricing')
+          .maybeSingle();
+
+      if (res != null && res['value'] != null) {
+        return AdPackageConfig.fromJson(Map<String, dynamic>.from(res['value'] as Map));
+      }
+    } catch (e) {
+      debugPrint('Get ad packages pricing error: $e');
+    }
+    return const AdPackageConfig();
+  }
+
+  Future<void> updateAdPackagesPricing(AdPackageConfig config) async {
+    try {
+      await client.from('app_settings').upsert({
+        'key': 'ad_packages_pricing',
+        'value': config.toJson(),
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      debugPrint('Update ad packages pricing error: $e');
       rethrow;
     }
   }

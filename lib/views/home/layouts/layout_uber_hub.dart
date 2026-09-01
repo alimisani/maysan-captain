@@ -8,7 +8,7 @@ import '../driver_quick_sheet.dart';
 import '../location_picker_sheet.dart';
 import '../maysan_map_widget.dart';
 import '../ride_booking_sheet.dart';
-import '../widgets/ad_banner_carousel_widget.dart';
+import '../widgets/ad_slot_banner_widget.dart';
 import '../widgets/home_bottom_nav_bar.dart';
 
 class LayoutUberHub extends StatelessWidget {
@@ -27,7 +27,6 @@ class LayoutUberHub extends StatelessWidget {
     final booking = context.watch<BookingProvider>();
     final user = auth.currentUser;
     final isDriver = user?.isDriver ?? false;
-    final activeBanners = booking.activeBanners;
 
     if (isDriver) {
       return Stack(
@@ -49,7 +48,10 @@ class LayoutUberHub extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // 1. Hero Destination & Car Banner (Matching Mockup 1)
+                  // 1. Main Ad Slot (كبير بارز)
+                  const AdSlotBannerWidget(slot: 'main'),
+
+                  // 2. Hero Destination & Car Banner (Matching Mockup 1)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Material(
@@ -206,21 +208,17 @@ class LayoutUberHub extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
 
-                  // 3. Commercial Ad Banners Carousel
-                  if (activeBanners.isNotEmpty) ...[
-                    AdBannerCarouselWidget(
-                      banners: activeBanners,
-                      height: 135,
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
+                  // 3. Medium Ad Slot (متوسط)
+                  const AdSlotBannerWidget(slot: 'medium'),
 
                   // 4. Embedded Live Ride Booking Panel (Matching Mockup 1)
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16),
                     child: RideBookingSheet(isEmbedded: true),
                   ),
+
+                  // 5. Bottom Ad Slot (سفلي)
+                  const AdSlotBannerWidget(slot: 'bottom'),
                 ],
               ),
             ),

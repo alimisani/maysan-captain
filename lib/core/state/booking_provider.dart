@@ -167,7 +167,21 @@ class BookingProvider extends ChangeNotifier {
 
   String get uiLayoutTheme => _uiLayoutTheme;
   List<AdBanner> get banners => _banners;
-  List<AdBanner> get activeBanners => _banners.where((b) => b.isActive).toList();
+  List<AdBanner> get activeBanners => _banners.where((b) => b.isCurrentlyActive).toList();
+
+  // 3 Distinct Advertising Slots
+  List<AdBanner> get mainSlotBanners =>
+      activeBanners.where((b) => b.slot == 'main').toList()
+        ..sort((a, b) => b.priority.compareTo(a.priority));
+
+  List<AdBanner> get mediumSlotBanners =>
+      activeBanners.where((b) => b.slot == 'medium').toList()
+        ..sort((a, b) => b.priority.compareTo(a.priority));
+
+  List<AdBanner> get bottomSlotBanners =>
+      activeBanners.where((b) => b.slot == 'bottom').toList()
+        ..sort((a, b) => b.priority.compareTo(a.priority));
+
   List<FavoritePlace> get favoritePlaces => _favoritePlaces;
   List<SavedRoute> get savedRoutes => _savedRoutes;
 
@@ -204,6 +218,14 @@ class BookingProvider extends ChangeNotifier {
       _banners = list;
       notifyListeners();
     } catch (_) {}
+  }
+
+  Future<void> recordBannerView(String bannerId) async {
+    await _supabaseService.incrementBannerView(bannerId);
+  }
+
+  Future<void> recordBannerClick(String bannerId) async {
+    await _supabaseService.incrementBannerClick(bannerId);
   }
 
   Future<void> loadFavoritePlaces(String userId) async {

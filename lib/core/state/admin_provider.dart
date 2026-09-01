@@ -54,6 +54,7 @@ class AdminProvider extends ChangeNotifier {
   List<AdBanner> _banners = [];
 
   int _orderTimeoutMinutes = 3;
+  AdPackageConfig _adPackagesConfig = const AdPackageConfig();
 
   bool _isLoading = false;
   String? _errorMessage;
@@ -72,6 +73,7 @@ class AdminProvider extends ChangeNotifier {
   String get uiLayoutTheme => _uiLayoutTheme;
   List<AdBanner> get banners => _banners;
   int get orderTimeoutMinutes => _orderTimeoutMinutes;
+  AdPackageConfig get adPackagesConfig => _adPackagesConfig;
 
   bool get isTieredPricingEnabled => _isTieredPricingEnabled;
   double get tier0To1000 => _tier0To1000;
@@ -123,6 +125,7 @@ class AdminProvider extends ChangeNotifier {
         _supabaseService.getUiLayoutTheme(),
         _supabaseService.getAllBanners(),
         _supabaseService.getOrderTimeoutMinutes(),
+        _supabaseService.getAdPackagesPricing(),
       ]);
 
       final rawUsers = results[0] as List<UserProfile>;
@@ -141,7 +144,6 @@ class AdminProvider extends ChangeNotifier {
           if (seenIds.contains(u.id)) continue;
         }
 
-        seenIds.add(u.id);
         seenIds.add(u.id);
         uniqueUsers.add(u);
       }
@@ -183,6 +185,7 @@ class AdminProvider extends ChangeNotifier {
       _uiLayoutTheme = results[10] as String;
       _banners = results[11] as List<AdBanner>;
       _orderTimeoutMinutes = results[12] as int;
+      _adPackagesConfig = results[13] as AdPackageConfig;
 
       _isLoading = false;
       notifyListeners();
@@ -221,6 +224,18 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> updateAdPackagesConfig(AdPackageConfig config) async {
+    try {
+      await _supabaseService.updateAdPackagesPricing(config);
+      _adPackagesConfig = config;
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      rethrow;
+    }
+  }
+
   // ==========================================
   // --- COMMERCIAL ADVERTISEMENTS & BANNERS ---
   // ==========================================
@@ -249,7 +264,7 @@ class AdminProvider extends ChangeNotifier {
     try {
       final index = _banners.indexWhere((b) => b.id == bannerId);
       if (index != -1) {
-        final updated = _banners[index].copyWith(isActive: isActive);
+        final updated = _banners[index].copyWith(status: isActive ? 'active' : 'paused');
         await _supabaseService.upsertBanner(updated);
         _banners[index] = updated;
         notifyListeners();
