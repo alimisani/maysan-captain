@@ -56,7 +56,7 @@ class _DriverHomeViewState extends State<DriverHomeView> {
     });
 
     _radarTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      if (mounted && _isOnline) {
+      if (mounted) {
         context.read<BookingProvider>().fetchPendingOrders();
       }
     });
@@ -76,6 +76,7 @@ class _DriverHomeViewState extends State<DriverHomeView> {
     final isDark = widget.isDark;
     final loc = widget.loc;
     final vehicle = auth.currentVehicle;
+    final topPadding = MediaQuery.of(context).padding.top + 76;
 
     return Container(
       color: isDark ? const Color(0xFF090E17) : const Color(0xFFF4F6F9),
@@ -83,7 +84,7 @@ class _DriverHomeViewState extends State<DriverHomeView> {
         children: [
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.only(top: 75, bottom: 20),
+              padding: EdgeInsets.only(top: topPadding, bottom: 20),
               physics: const BouncingScrollPhysics(),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -393,8 +394,45 @@ class _DriverHomeViewState extends State<DriverHomeView> {
                           ),
                           const SizedBox(height: 14),
 
-                          // If Captain is Offline
-                          if (!_isOnline) ...[
+                          // If there are Pending Orders -> ALWAYS SHOW THEM (even during break mode!)
+                          if (booking.pendingOrders.isNotEmpty) ...[
+                            if (!_isOnline)
+                              Container(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
+                                ),
+                                child: const Row(
+                                  children: [
+                                    Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFFF59E0B)),
+                                    SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'أنت في وضع الاستراحة حالياً • قبول أي طلب سيحولك إلى متصل تلقائياً',
+                                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFF59E0B)),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ...booking.pendingOrders.map(
+                              (order) => _buildRadarOrderCard(
+                                order: order,
+                                vehicleInfo: vehicle != null
+                                    ? '${vehicle.getLocalizedType(loc.isArabic)} (${vehicle.model ?? ""})'
+                                    : (loc.isArabic ? 'صالون (تكسي)' : 'Sedan (Taxi)'),
+                                isDark: isDark,
+                                loc: loc,
+                                auth: auth,
+                                booking: booking,
+                              ),
+                            ),
+                          ]
+                          // If Captain is in Break Mode & No Pending Orders
+                          else if (!_isOnline) ...[
                             Container(
                               padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
                               decoration: BoxDecoration(
@@ -409,12 +447,12 @@ class _DriverHomeViewState extends State<DriverHomeView> {
                                   Icon(Icons.power_settings_new_rounded, size: 36, color: Colors.grey),
                                   SizedBox(height: 10),
                                   Text(
-                                    'أنت غير متصل حالياً',
+                                    'أنت في وضع الاستراحة حالياً',
                                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                                   ),
                                   SizedBox(height: 4),
                                   Text(
-                                    'قم بتفعيل زر الاتصال أعلاه لبدء استلام الطلبات',
+                                    'الرادار يراقب الطلبات في الخلفية، وستظهر أي طلبات جديدة هنا مباشرة ويمكنك قبولها في أي وقت',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                                   ),
@@ -422,8 +460,8 @@ class _DriverHomeViewState extends State<DriverHomeView> {
                               ),
                             ),
                           ]
-                          // If Captain is Online but No Pending Orders
-                          else if (booking.pendingOrders.isEmpty) ...[
+                          // If Captain is Online & No Pending Orders
+                          else ...[
                             Container(
                               padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
                               decoration: BoxDecoration(
@@ -448,21 +486,6 @@ class _DriverHomeViewState extends State<DriverHomeView> {
                                     style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                                   ),
                                 ],
-                              ),
-                            ),
-                          ]
-                          // If Captain is Online & Pending Orders Available -> RENDER DIRECTLY IN RADAR!
-                          else ...[
-                            ...booking.pendingOrders.map(
-                              (order) => _buildRadarOrderCard(
-                                order: order,
-                                vehicleInfo: vehicle != null
-                                    ? '${vehicle.getLocalizedType(loc.isArabic)} (${vehicle.model ?? ""})'
-                                    : (loc.isArabic ? 'صالون (تكسي)' : 'Sedan (Taxi)'),
-                                isDark: isDark,
-                                loc: loc,
-                                auth: auth,
-                                booking: booking,
                               ),
                             ),
                           ],
@@ -708,6 +731,18 @@ class _DriverHomeViewState extends State<DriverHomeView> {
             ),
             onPressed: () async {
               try {
+                // If driver was in break mode, auto-switch to online
+                if (!_isOnline) {
+                  setState(() => _isOnline = true);
+                  if (auth.currentUser != null) {
+                    booking.startDriverLocationBroadcast(
+                      driverId: auth.currentUser!.id,
+                      driverName: auth.currentUser!.name,
+                      vehicleType: auth.currentVehicle?.vehicleType ?? 'salon',
+                    );
+                  }
+                }
+
                 final success = await booking.driverAcceptOrder(
                   orderId: order.id,
                   driverId: auth.currentUser!.id,

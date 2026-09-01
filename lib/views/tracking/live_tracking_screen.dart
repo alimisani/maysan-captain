@@ -1288,6 +1288,30 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 10),
+
+                    // Driver Trip Cancellation Option (Incompatibility with Customer)
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: const Color(0xFFEF4444).withValues(alpha: 0.5), width: 1.2),
+                          backgroundColor: const Color(0xFFEF4444).withValues(alpha: isDark ? 0.12 : 0.06),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                        icon: const Icon(Icons.cancel_outlined, color: Color(0xFFEF4444), size: 18),
+                        label: Text(
+                          loc.isArabic ? 'إلغاء الرحلة (عدم التوافق مع الزبون)' : 'Cancel Trip (Incompatibility)',
+                          style: const TextStyle(
+                            color: Color(0xFFEF4444),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                        onPressed: () => _showDriverCancelConfirmation(context, order, booking, isDark, loc),
+                      ),
+                    ),
                   ],
                 ],
               ),
@@ -1296,6 +1320,78 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _showDriverCancelConfirmation(
+    BuildContext context,
+    RideOrder order,
+    BookingProvider booking,
+    bool isDark,
+    AppLocalizations loc,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444), size: 24),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                loc.isArabic ? 'إلغاء الرحلة' : 'Cancel Trip',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          loc.isArabic
+              ? 'هل أنت متأكد من رغبتك في إلغاء هذه الرحلة بسبب عدم التوافق مع الزبون؟\n\nسيتم إشعار الزبون وإعادتك مباشرة إلى رادار الطلبات.'
+              : 'Are you sure you want to cancel this trip due to customer incompatibility?\n\nThe customer will be notified and you will return to the radar.',
+          style: TextStyle(
+            fontSize: 12.5,
+            color: isDark ? Colors.white70 : const Color(0xFF475569),
+            height: 1.4,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              loc.isArabic ? 'تراجع واستمرار' : 'Back',
+              style: const TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.bold),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              loc.isArabic ? 'تأكيد الإلغاء' : 'Confirm Cancel',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      _trackingTimer?.cancel();
+      await booking.driverCancelOrder(order.id, reason: 'عدم التوافق مع الزبون');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(loc.isArabic ? 'تم إلغاء الرحلة لعدم التوافق مع الزبون' : 'Trip cancelled due to incompatibility'),
+            backgroundColor: const Color(0xFFEF4444),
+          ),
+        );
+        Navigator.pop(context);
+      }
+    }
   }
 
   Widget _buildStatusProgress(String status, AppLocalizations loc) {

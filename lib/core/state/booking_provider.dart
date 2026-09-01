@@ -845,6 +845,23 @@ class BookingProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> driverCancelOrder(String orderId, {String reason = 'عدم التوافق مع الزبون'}) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      await _supabaseService.updateOrderStatus(orderId: orderId, status: 'cancelled');
+      _activeOrder = null;
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   // Driver: fetch available pending requests with push notification for new ones
   Future<void> fetchPendingOrders({bool notifyNew = true}) async {
     final rawOrders = await _supabaseService.getPendingOrders();
