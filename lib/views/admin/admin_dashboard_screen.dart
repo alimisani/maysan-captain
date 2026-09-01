@@ -659,6 +659,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                 color: isDark ? Colors.white70 : const Color(0xFF334155),
                               ),
                             ),
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                Icon(Icons.calendar_today_rounded, size: 11, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'تاريخ التسجيل: ${u.createdAt.year}/${u.createdAt.month.toString().padLeft(2, "0")}/${u.createdAt.day.toString().padLeft(2, "0")} - ${u.createdAt.hour.toString().padLeft(2, "0")}:${u.createdAt.minute.toString().padLeft(2, "0")}',
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
                             if (u.role == 'user') ...[
                               const SizedBox(height: 3),
                               Container(
@@ -2725,6 +2740,27 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                     color: AuroraTheme.primaryCyan,
                                   ),
                                   onPressed: () => setModalState(() => isPassRevealed = !isPassRevealed),
+                                ),
+                              ],
+                            ),
+                            const Divider(height: 14),
+                            Row(
+                              children: [
+                                const Icon(Icons.calendar_month_rounded, size: 16, color: AuroraTheme.primaryBlue),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'تاريخ التسجيل: ',
+                                  style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    '${u.createdAt.year}/${u.createdAt.month.toString().padLeft(2, "0")}/${u.createdAt.day.toString().padLeft(2, "0")}  -  ${u.createdAt.hour.toString().padLeft(2, "0")}:${u.createdAt.minute.toString().padLeft(2, "0")}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
