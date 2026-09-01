@@ -226,22 +226,22 @@ class LayoutLuxuryConcierge extends StatelessWidget {
                                 ),
                               ),
                               _buildOrbitBubble(
-                                title: 'توصيل طلبات',
-                                icon: Icons.two_wheeler_rounded,
-                                color: const Color(0xFF3B82F6),
-                                type: 'delivery',
+                                title: 'تكتك ميسان',
+                                icon: Icons.electric_rickshaw_rounded,
+                                color: const Color(0xFF8B5CF6),
+                                type: 'tuk_tuk',
                                 booking: booking,
                               ),
                             ],
                           ),
                           const SizedBox(height: 10),
 
-                          // Bottom Orbit (TukTuk)
+                          // Bottom Orbit (Delivery)
                           _buildOrbitBubble(
-                            title: 'تكتك ميسان',
-                            icon: Icons.electric_rickshaw_rounded,
-                            color: const Color(0xFF8B5CF6),
-                            type: 'tuk_tuk',
+                            title: 'توصيل طلبات',
+                            icon: Icons.two_wheeler_rounded,
+                            color: const Color(0xFF3B82F6),
+                            type: 'delivery',
                             booking: booking,
                           ),
                         ],
