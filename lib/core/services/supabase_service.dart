@@ -6,6 +6,8 @@ import '../../models/user_profile.dart';
 import '../../models/vehicle.dart';
 import '../../models/ride_order.dart';
 import '../../models/custom_route_pricing.dart';
+import '../../models/ad_banner.dart';
+import '../../models/favorite_place.dart';
 
 class SupabaseService {
   static final SupabaseService _instance = SupabaseService._internal();
@@ -1692,6 +1694,173 @@ class SupabaseService {
       }
     } catch (e) {
       debugPrint('Passenger reject driver error: $e');
+      rethrow;
+    }
+  }
+
+  // ==========================================
+  // UI LAYOUT THEMES & STRUCTURE
+  // ==========================================
+
+  Future<String> getUiLayoutTheme() async {
+    try {
+      final res = await client
+          .from('app_settings')
+          .select('value')
+          .eq('key', 'ui_layout_theme')
+          .maybeSingle();
+      if (res != null && res['value'] != null) {
+        final val = res['value'].toString();
+        if (val.isNotEmpty) return val;
+      }
+    } catch (e) {
+      debugPrint('Get UI layout theme error: $e');
+    }
+    return 'classic_glass'; // Default current theme
+  }
+
+  Future<void> updateUiLayoutTheme(String layoutKey) async {
+    try {
+      await client.from('app_settings').upsert({
+        'key': 'ui_layout_theme',
+        'value': layoutKey,
+      });
+    } catch (e) {
+      debugPrint('Update UI layout theme error: $e');
+      rethrow;
+    }
+  }
+
+  // ==========================================
+  // COMMERCIAL ADVERTISEMENTS & BANNERS
+  // ==========================================
+
+  Future<List<AdBanner>> getAllBanners() async {
+    try {
+      final res = await client
+          .from('app_settings')
+          .select('value')
+          .eq('key', 'commercial_ad_banners')
+          .maybeSingle();
+
+      if (res != null && res['value'] != null) {
+        final rawList = res['value'] as List?;
+        if (rawList != null) {
+          final list = rawList
+              .map((item) => AdBanner.fromJson(Map<String, dynamic>.from(item as Map)))
+              .toList();
+          list.sort((a, b) => a.priority.compareTo(b.priority));
+          return list;
+        }
+      }
+    } catch (e) {
+      debugPrint('Get all ad banners error: $e');
+    }
+    return [];
+  }
+
+  Future<void> saveAllBanners(List<AdBanner> banners) async {
+    try {
+      final data = banners.map((b) => b.toJson()).toList();
+      await client.from('app_settings').upsert({
+        'key': 'commercial_ad_banners',
+        'value': data,
+      });
+    } catch (e) {
+      debugPrint('Save all ad banners error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> upsertBanner(AdBanner banner) async {
+    try {
+      final list = await getAllBanners();
+      final index = list.indexWhere((b) => b.id == banner.id);
+      if (index >= 0) {
+        list[index] = banner;
+      } else {
+        list.add(banner);
+      }
+      await saveAllBanners(list);
+    } catch (e) {
+      debugPrint('Upsert banner error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteBanner(String bannerId) async {
+    try {
+      final list = await getAllBanners();
+      list.removeWhere((b) => b.id == bannerId);
+      await saveAllBanners(list);
+    } catch (e) {
+      debugPrint('Delete banner error: $e');
+      rethrow;
+    }
+  }
+
+  // ==========================================
+  // PASSENGER FAVORITE PLACES
+  // ==========================================
+
+  Future<List<FavoritePlace>> getFavoritePlaces(String userId) async {
+    try {
+      final res = await client
+          .from('app_settings')
+          .select('value')
+          .eq('key', 'user_favorites_$userId')
+          .maybeSingle();
+
+      if (res != null && res['value'] != null) {
+        final rawList = res['value'] as List?;
+        if (rawList != null) {
+          return rawList
+              .map((item) => FavoritePlace.fromJson(Map<String, dynamic>.from(item as Map)))
+              .toList();
+        }
+      }
+    } catch (e) {
+      debugPrint('Get favorite places error: $e');
+    }
+    return [];
+  }
+
+  Future<void> saveAllFavoritePlaces(String userId, List<FavoritePlace> places) async {
+    try {
+      final data = places.map((p) => p.toJson()).toList();
+      await client.from('app_settings').upsert({
+        'key': 'user_favorites_$userId',
+        'value': data,
+      });
+    } catch (e) {
+      debugPrint('Save favorite places error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> addFavoritePlace(FavoritePlace place) async {
+    try {
+      final list = await getFavoritePlaces(place.userId);
+      final index = list.indexWhere((p) => p.id == place.id);
+      if (index >= 0) {
+        list[index] = place;
+      } else {
+        list.insert(0, place);
+      }
+      await saveAllFavoritePlaces(place.userId, list);
+    } catch (e) {
+      debugPrint('Add favorite place error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteFavoritePlace(String userId, String placeId) async {
+    try {
+      final list = await getFavoritePlaces(userId);
+      list.removeWhere((p) => p.id == placeId);
+      await saveAllFavoritePlaces(userId, list);
+    } catch (e) {
+      debugPrint('Delete favorite place error: $e');
       rethrow;
     }
   }

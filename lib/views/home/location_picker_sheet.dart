@@ -91,6 +91,13 @@ class _FullscreenMapLocationPickerState extends State<FullscreenMapLocationPicke
     _centerLocation = widget.initialLocation;
     _resolveAddress(_centerLocation);
     _searchResults = AppConstants.maysanLocations;
+
+    // Automatically locate live GPS if selecting pickup location
+    if (widget.isPickup) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _goToMyGPSLocation();
+      });
+    }
   }
 
   @override
@@ -133,7 +140,11 @@ class _FullscreenMapLocationPickerState extends State<FullscreenMapLocationPicke
 
     if (gps != null) {
       _mapController.move(gps, 16.5);
-      _centerLocation = gps;
+      if (mounted) {
+        setState(() {
+          _centerLocation = gps;
+        });
+      }
       _resolveAddress(gps);
     }
   }

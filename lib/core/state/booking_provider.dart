@@ -8,6 +8,8 @@ import '../services/location_service.dart';
 import '../services/notification_service.dart';
 import '../services/supabase_service.dart';
 import '../../models/ride_order.dart';
+import '../../models/ad_banner.dart';
+import '../../models/favorite_place.dart';
 
 class BookingProvider extends ChangeNotifier {
   final SupabaseService _supabaseService = SupabaseService();
@@ -94,6 +96,8 @@ class BookingProvider extends ChangeNotifier {
   String _selectedVehicleType = 'salon';
   String get selectedVehicleType => _selectedVehicleType;
 
+  void setSelectedVehicleType(String type) => setVehicleType(type);
+
   // Pricing & Distance
   double _distanceKm = 2.5;
   double _estimatedFare = 3500.0;
@@ -155,15 +159,84 @@ class BookingProvider extends ChangeNotifier {
 
   Timer? _driverBroadcastTimer;
   Timer? _nearbyDriversTimer;
+  String _uiLayoutTheme = 'classic_glass';
+  List<AdBanner> _banners = [];
+  List<FavoritePlace> _favoritePlaces = [];
+
+  String get uiLayoutTheme => _uiLayoutTheme;
+  List<AdBanner> get banners => _banners;
+  List<AdBanner> get activeBanners => _banners.where((b) => b.isActive).toList();
+  List<FavoritePlace> get favoritePlaces => _favoritePlaces;
+
   StreamSubscription? _ridesSubscription;
   LatLng? _lastKnownDriverPos;
 
   BookingProvider() {
     _initPricing();
     _initMapStyle();
+    _initUiLayoutThemeAndBanners();
     _initUserCurrentLocation();
     _initRealtimeOrders();
     _startNearbyDriversPolling();
+  }
+
+  Future<void> _initUiLayoutThemeAndBanners() async {
+    await loadUiLayoutTheme();
+    await loadBanners();
+  }
+
+  Future<void> loadUiLayoutTheme() async {
+    try {
+      final theme = await _supabaseService.getUiLayoutTheme();
+      if (_uiLayoutTheme != theme) {
+        _uiLayoutTheme = theme;
+        notifyListeners();
+      }
+    } catch (_) {}
+  }
+
+  Future<void> loadBanners() async {
+    try {
+      final list = await _supabaseService.getAllBanners();
+      _banners = list;
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> loadFavoritePlaces(String userId) async {
+    if (userId.isEmpty) return;
+    try {
+      final list = await _supabaseService.getFavoritePlaces(userId);
+      _favoritePlaces = list;
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> addFavoritePlace(FavoritePlace place) async {
+    try {
+      await _supabaseService.addFavoritePlace(place);
+      final idx = _favoritePlaces.indexWhere((p) => p.id == place.id);
+      if (idx >= 0) {
+        _favoritePlaces[idx] = place;
+      } else {
+        _favoritePlaces.insert(0, place);
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Add favorite place error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteFavoritePlace(String userId, String placeId) async {
+    try {
+      await _supabaseService.deleteFavoritePlace(userId, placeId);
+      _favoritePlaces.removeWhere((p) => p.id == placeId);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Delete favorite place error: $e');
+      rethrow;
+    }
   }
 
   void _initRealtimeOrders() {
@@ -649,6 +722,10 @@ class BookingProvider extends ChangeNotifier {
     }
 
     _activeOrder = order;
+    // Periodic light sync for UI layout theme and ad banners
+    loadUiLayoutTheme();
+    loadBanners();
+    
     // If driver has an active order, load the route for the map
     if (order != null && isDriver) {
       final pickup = LatLng(order.pickupLat, order.pickupLng);

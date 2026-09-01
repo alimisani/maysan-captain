@@ -4,6 +4,7 @@ import '../../models/user_profile.dart';
 import '../../models/vehicle.dart';
 import '../../models/ride_order.dart';
 import '../../models/custom_route_pricing.dart';
+import '../../models/ad_banner.dart';
 
 class AdminProvider extends ChangeNotifier {
   final SupabaseService _supabaseService = SupabaseService();
@@ -49,6 +50,8 @@ class AdminProvider extends ChangeNotifier {
     'gold_ambassador_target': 10,
   };
   List<Map<String, dynamic>> _topReferrers = [];
+  String _uiLayoutTheme = 'classic_glass';
+  List<AdBanner> _banners = [];
 
   bool _isLoading = false;
   String? _errorMessage;
@@ -64,6 +67,8 @@ class AdminProvider extends ChangeNotifier {
   bool get isMultiDestinationsEnabled => _isMultiDestinationsEnabled;
   int get maxDestinations => _maxDestinations;
   String get mapStyle => _mapStyle;
+  String get uiLayoutTheme => _uiLayoutTheme;
+  List<AdBanner> get banners => _banners;
 
   bool get isTieredPricingEnabled => _isTieredPricingEnabled;
   double get tier0To1000 => _tier0To1000;
@@ -112,6 +117,8 @@ class AdminProvider extends ChangeNotifier {
         _supabaseService.getAllDriverVerifications(),
         _supabaseService.getReferralSettings(),
         _supabaseService.getTopReferrers(),
+        _supabaseService.getUiLayoutTheme(),
+        _supabaseService.getAllBanners(),
       ]);
 
       final rawUsers = results[0] as List<UserProfile>;
@@ -168,12 +175,83 @@ class AdminProvider extends ChangeNotifier {
       _referralSettings = results[8] as Map<String, dynamic>;
       _topReferrers = results[9] as List<Map<String, dynamic>>;
 
+      _uiLayoutTheme = results[10] as String;
+      _banners = results[11] as List<AdBanner>;
+
       _isLoading = false;
       notifyListeners();
     } catch (e) {
       _errorMessage = e.toString();
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  // ==========================================
+  // --- UI LAYOUT THEME (REALTIME DYNAMIC) ---
+  // ==========================================
+
+  Future<void> updateUiLayoutTheme(String newLayout) async {
+    try {
+      await _supabaseService.updateUiLayoutTheme(newLayout);
+      _uiLayoutTheme = newLayout;
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  // ==========================================
+  // --- COMMERCIAL ADVERTISEMENTS & BANNERS ---
+  // ==========================================
+
+  Future<void> fetchBanners() async {
+    try {
+      _banners = await _supabaseService.getAllBanners();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Fetch banners error: $e');
+    }
+  }
+
+  Future<void> addOrUpdateBanner(AdBanner banner) async {
+    try {
+      await _supabaseService.upsertBanner(banner);
+      await fetchBanners();
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> toggleBannerActive(String bannerId, bool isActive) async {
+    try {
+      final index = _banners.indexWhere((b) => b.id == bannerId);
+      if (index != -1) {
+        final updated = _banners[index].copyWith(isActive: isActive);
+        await _supabaseService.upsertBanner(updated);
+        _banners[index] = updated;
+        notifyListeners();
+      }
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> deleteBanner(String bannerId) async {
+    try {
+      await _supabaseService.deleteBanner(bannerId);
+      _banners.removeWhere((b) => b.id == bannerId);
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      rethrow;
     }
   }
 

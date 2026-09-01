@@ -12,7 +12,8 @@ import '../widgets/aurora_button.dart';
 import 'location_picker_sheet.dart';
 
 class RideBookingSheet extends StatefulWidget {
-  const RideBookingSheet({super.key});
+  final bool isEmbedded;
+  const RideBookingSheet({super.key, this.isEmbedded = false});
 
   @override
   State<RideBookingSheet> createState() => _RideBookingSheetState();

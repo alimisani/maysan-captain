@@ -60,4 +60,51 @@ class ImageService {
       return null;
     }
   }
+
+  /// Pick an image, optimize for commercial banner, and upload to Cloudflare R2
+  static Future<String?> pickAndUploadBannerImage({
+    ImageSource source = ImageSource.gallery,
+  }) async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: source,
+        maxWidth: 1600,
+        maxHeight: 900,
+        imageQuality: 85,
+      );
+
+      if (pickedFile == null) return null;
+
+      final bytes = await pickedFile.readAsBytes();
+      final original = img.decodeImage(bytes);
+      if (original == null) return null;
+
+      // Resize to banner dimensions max 1200 width
+      final width = original.width > 1200 ? 1200 : original.width;
+      final height = (width * (original.height / original.width)).round();
+
+      final resized = img.copyResize(
+        original,
+        width: width,
+        height: height,
+        interpolation: img.Interpolation.linear,
+      );
+
+      final compressedBytes = Uint8List.fromList(img.encodeJpg(resized, quality: 80));
+
+      final id = const Uuid().v4().substring(0, 8);
+      final fileName = 'banner_${id}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final r2Url = await R2StorageService.uploadFile(
+        rawBytes: compressedBytes,
+        folder: 'banners',
+        customFileName: fileName,
+        mimeType: 'image/jpeg',
+        autoCompress: false,
+      );
+      return r2Url;
+    } catch (e) {
+      debugPrint('Error uploading banner image: $e');
+      return null;
+    }
+  }
 }

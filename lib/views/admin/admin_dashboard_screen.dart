@@ -8,12 +8,14 @@ import '../../core/localization/app_localizations.dart';
 import '../../core/services/pdf_service.dart';
 import '../../core/services/supabase_service.dart';
 import '../../core/services/whatsapp_service.dart';
+import '../../core/services/image_service.dart';
 import '../../core/state/admin_provider.dart';
 import '../../core/state/booking_provider.dart';
 import '../../core/state/theme_provider.dart';
 import '../../core/theme/aurora_theme.dart';
 import '../../models/custom_route_pricing.dart';
 import '../../models/user_profile.dart';
+import '../../models/ad_banner.dart';
 import '../widgets/aurora_background.dart';
 import '../widgets/aurora_button.dart';
 import '../widgets/custom_text_field.dart';
@@ -301,6 +303,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         isSelected: _selectedTabIndex == 5,
                         isDark: isDark,
                       ),
+                      const SizedBox(width: 8),
+                      _buildCircularAdminTab(
+                        index: 6,
+                        icon: Icons.dashboard_customize_rounded,
+                        title: 'هيكلية الواجهة',
+                        isSelected: _selectedTabIndex == 6,
+                        isDark: isDark,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildCircularAdminTab(
+                        index: 7,
+                        icon: Icons.campaign_rounded,
+                        title: 'الإعلانات والبنرات',
+                        isSelected: _selectedTabIndex == 7,
+                        isDark: isDark,
+                      ),
                     ],
                   ),
                 ),
@@ -319,6 +337,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           _buildMapSettingsTab(admin, loc, isDark),
                           _buildDriverVerificationTab(admin, loc, isDark),
                           _buildReferralRewardsTab(admin, loc, isDark),
+                          _buildUiLayoutTab(admin, loc, isDark),
+                          _buildAdBannersTab(admin, loc, isDark),
                         ],
                       ),
               ),
@@ -5022,6 +5042,792 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           }),
         const SizedBox(height: 30),
       ],
+    );
+  }
+
+  // ==========================================
+  // --- UI LAYOUT & STRUCTURE MANAGEMENT TAB ---
+  // ==========================================
+
+  Widget _buildUiLayoutTab(AdminProvider admin, AppLocalizations loc, bool isDark) {
+    final currentTheme = admin.uiLayoutTheme;
+
+    final layouts = [
+      {
+        'key': 'classic_glass',
+        'title': 'الواجهة الكلاسيكية (الزجاجية العائمة)',
+        'subtitle': 'الواجهة الافتراضية • خريطة تفاعلية كاملة مع بطاقة حجز زجاجية سفلية وأزرار وصول سريعة',
+        'icon': Icons.layers_rounded,
+        'color': const Color(0xFF06B6D4),
+        'gradient': const LinearGradient(colors: [Color(0xFF06B6D4), Color(0xFF3B82F6)]),
+        'badge': 'الافتراضية',
+        'features': [
+          'خريطة ميسان الحية كخلفية تفاعلية شاملة',
+          'شريط علوي زجاجي مع هوية كابتن ميسان وشارات السفراء',
+          'فقاعات أزرار القفز السريعة (واتساب، الطلبات، البروفايل)',
+          'بطاقة حجز قابلة للسحب والتصغير بنظام زجاجي ناعم',
+        ],
+      },
+      {
+        'key': 'uber_hub',
+        'title': 'واجهة الركوب السريعة والمباشرة (Modern Hub)',
+        'subtitle': 'شريط وجهة بارز "إلى أين؟"، تصنيفات خدمات فورية، وبنرات إعلانات متناسقة',
+        'icon': Icons.hub_rounded,
+        'color': const Color(0xFF10B981),
+        'gradient': const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF059669)]),
+        'badge': 'الأكثر طلباً',
+        'features': [
+          'شريط بحث فوري للوجهة "إلى أين تريد الذهاب؟" بلمسة واحدة',
+          'أزرار الخدمات السريعة (صالون، دليفري، VIP)',
+          'سلايدر وجهات مفضلة للزبائن (المنزل، العمل، الجامعة)',
+          'سلايدر إعلانات تجارية ديناميكي متناسق في منتصف الشاشة',
+        ],
+      },
+      {
+        'key': 'dynamic_cards',
+        'title': 'واجهة البطاقات العصرية التفاعلية (Dynamic Cards)',
+        'subtitle': 'طابع نيوبروتالزم حديث ببطاقات تفاعلية نابضة بالحياة وإحصائيات رحلات حية',
+        'icon': Icons.dashboard_rounded,
+        'color': const Color(0xFF8B5CF6),
+        'gradient': const LinearGradient(colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)]),
+        'badge': 'عصرية وتفاعلية',
+        'features': [
+          'بطاقات تفاعلية 2x2 للخدمات الميسانية السريعة',
+          'بطاقة ترحيب عائمة مع شارة السفير ومزايا الولاء',
+          'وصول فوري لحاسبة الأجرة الذكية وتتبع الكباتن',
+          'دعم متكامل لسلايدر البنرات التجارية والأماكن المفضلة',
+        ],
+      },
+      {
+        'key': 'luxury_concierge',
+        'title': 'الواجهة الفاخرة VIP والكونسيرج (VIP Luxury Concierge)',
+        'subtitle': 'طابع فندقي فاخر بالألوان الداكنة والذهبية، أسطول سيارات راقٍ، وخدمة عملاء خاصة',
+        'icon': Icons.diamond_rounded,
+        'color': const Color(0xFFEAB308),
+        'gradient': const LinearGradient(colors: [Color(0xFFEAB308), Color(0xFFCA8A04)]),
+        'badge': 'VIP النخبة',
+        'features': [
+          'تصميم كونسيرج فاخر بإطارات ذهبية متوهجة وتأثيرات ليلية',
+          'معرض أسطول سيارات كابتن VIP الفاخرة',
+          'شريط وجهة مضيء وتجربة حجز كونسيرج متقدمة',
+          'تكامل الإعلانات الراقية والوجهات المفضلة المخصصة',
+        ],
+      },
+    ];
+
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      physics: const BouncingScrollPhysics(),
+      children: [
+        // Informative Header Card
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F172A) : Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: AuroraTheme.primaryCyan.withValues(alpha: 0.35),
+            ),
+            boxShadow: const [
+              BoxShadow(color: Color(0x12000000), blurRadius: 14, offset: Offset(0, 3)),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: AuroraTheme.primaryGradient,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.palette_rounded, color: Colors.white, size: 24),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'التحكم بهيكلية وواجهة التطبيق',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'تغيير فوري ولحظي لجميع مستخدمي كابتن ميسان دون الحاجة للخروج من التطبيق',
+                      style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Layout Cards List
+        ...layouts.map((layout) {
+          final key = layout['key'] as String;
+          final isActive = currentTheme == key;
+          final color = layout['color'] as Color;
+          final gradient = layout['gradient'] as LinearGradient;
+          final features = layout['features'] as List<String>;
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: isActive ? color : (isDark ? const Color(0x3338BDF8) : const Color(0xFFE2E8F0)),
+                width: isActive ? 2.5 : 1.0,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: isActive ? color.withValues(alpha: 0.25) : const Color(0x0E000000),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Card Header
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          gradient: gradient,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Icon(layout['icon'] as IconData, color: Colors.white, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    layout['title'] as String,
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: color.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    layout['badge'] as String,
+                                    style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 10.5),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              layout['subtitle'] as String,
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const Divider(height: 1),
+
+                // Features bullet points
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Column(
+                    children: features
+                        .map((f) => Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 3),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(Icons.check_circle_rounded, size: 16, color: color),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      f,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: isDark ? Colors.white70 : const Color(0xFF334155),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ))
+                        .toList(),
+                  ),
+                ),
+
+                // Bottom Action / Status
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                    borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+                  ),
+                  child: Row(
+                    children: [
+                      if (isActive) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: color, width: 1.2),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.verified_rounded, size: 16, color: color),
+                              const SizedBox(width: 6),
+                              Text(
+                                'الواجهة المفعلة حالياً للجميع',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: color),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ] else ...[
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: color,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            icon: const Icon(Icons.touch_app_rounded, size: 18, color: Colors.white),
+                            label: const Text(
+                              'تفعيل هذه الواجهة فورياً لجميع المستخدمين',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: Colors.white),
+                            ),
+                            onPressed: () async {
+                              try {
+                                await admin.updateUiLayoutTheme(key);
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('تم تفعيل "${layout['title']}" فورياً لجميع المستخدمين ✨'),
+                                      backgroundColor: AuroraTheme.accentEmerald,
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('حدث خطأ: $e'), backgroundColor: Colors.red),
+                                  );
+                                }
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+        const SizedBox(height: 30),
+      ],
+    );
+  }
+
+  // ==========================================
+  // --- COMMERCIAL ADS & BANNERS TAB ---
+  // ==========================================
+
+  Widget _buildAdBannersTab(AdminProvider admin, AppLocalizations loc, bool isDark) {
+    final banners = admin.banners;
+    final activeCount = banners.where((b) => b.isActive).length;
+
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      physics: const BouncingScrollPhysics(),
+      children: [
+        // Header & Quick Action Card
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F172A) : Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: AuroraTheme.primaryCyan.withValues(alpha: 0.35),
+            ),
+            boxShadow: const [
+              BoxShadow(color: Color(0x12000000), blurRadius: 14, offset: Offset(0, 3)),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFD97706)]),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.campaign_rounded, color: Colors.white, size: 24),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'الإعلانات والبنرات التجارية',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '$activeCount إعلان نشط من إجمالي ${banners.length} بنر تجاري',
+                          style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AuroraTheme.primaryCyan,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                icon: const Icon(Icons.add_photo_alternate_rounded, color: Colors.white, size: 20),
+                label: const Text(
+                  '+ إضافة بنر إعلاني تجاري جديد',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white),
+                ),
+                onPressed: () => _showAddEditBannerDialog(context, admin),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        if (banners.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: isDark ? const Color(0x3338BDF8) : const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              children: [
+                Icon(Icons.photo_library_outlined, size: 56, color: isDark ? Colors.white30 : Colors.black26),
+                const SizedBox(height: 12),
+                const Text(
+                  'لا توجد إعلانات تجارية مضافة حتى الآن',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'اضغط على زر الإضافة أعلاه لإضافة إعلانات غير محدودة تظهر في الواجهة الرئيسية فورياً',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                ),
+              ],
+            ),
+          )
+        else
+          ...banners.map((banner) => _buildBannerCard(context, banner, admin, isDark)),
+
+        const SizedBox(height: 30),
+      ],
+    );
+  }
+
+  Widget _buildBannerCard(
+    BuildContext context,
+    AdBanner banner,
+    AdminProvider admin,
+    bool isDark,
+  ) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: banner.isActive
+              ? AuroraTheme.accentEmerald.withValues(alpha: 0.5)
+              : (isDark ? const Color(0x3338BDF8) : const Color(0xFFE2E8F0)),
+          width: banner.isActive ? 1.5 : 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isDark ? const Color(0x30000000) : const Color(0x0C000000),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Banner Image Preview
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(21)),
+            child: AspectRatio(
+              aspectRatio: 16 / 7,
+              child: Image.network(
+                banner.imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                  child: const Center(
+                    child: Icon(Icons.broken_image_rounded, size: 40, color: Color(0xFF94A3B8)),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Banner Info
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        banner.title.isNotEmpty ? banner.title : 'إعلان بدون عنوان',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                    ),
+                    // Active Status Switch
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          banner.isActive ? 'مفعل' : 'معطل',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
+                            color: banner.isActive ? AuroraTheme.accentEmerald : const Color(0xFF94A3B8),
+                          ),
+                        ),
+                        Switch(
+                          value: banner.isActive,
+                          activeThumbColor: AuroraTheme.accentEmerald,
+                          onChanged: (val) async {
+                            await admin.toggleBannerActive(banner.id, val);
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                if (banner.subtitle.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    banner.subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                    ),
+                  ),
+                ],
+                if (banner.targetUrl.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(Icons.link_rounded, size: 14, color: AuroraTheme.primaryCyan),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          banner.targetUrl,
+                          style: const TextStyle(fontSize: 11, color: AuroraTheme.primaryCyan),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                const Divider(height: 18),
+
+                // Edit & Delete Actions
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton.icon(
+                      icon: const Icon(Icons.edit_rounded, size: 16, color: Color(0xFF3B82F6)),
+                      label: const Text('تعديل', style: TextStyle(fontSize: 12, color: Color(0xFF3B82F6))),
+                      onPressed: () => _showAddEditBannerDialog(context, admin, existing: banner),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton.icon(
+                      icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFFEF4444)),
+                      label: const Text('حذف', style: TextStyle(fontSize: 12, color: Color(0xFFEF4444))),
+                      onPressed: () async {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                            title: const Text('تأكيد حذف الإعلان', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            content: const Text('هل أنت متأكد من رغبتك في حذف هذا البنر الإعلاني نهائياً؟'),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text('حذف', style: TextStyle(color: Colors.white)),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirm == true) {
+                          await admin.deleteBanner(banner.id);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddEditBannerDialog(
+    BuildContext context,
+    AdminProvider admin, {
+    AdBanner? existing,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final titleCtrl = TextEditingController(text: existing?.title ?? '');
+    final subtitleCtrl = TextEditingController(text: existing?.subtitle ?? '');
+    final imageCtrl = TextEditingController(text: existing?.imageUrl ?? '');
+    final urlCtrl = TextEditingController(text: existing?.targetUrl ?? '');
+    bool isActive = existing?.isActive ?? true;
+    int priority = existing?.priority ?? 0;
+    bool isUploading = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => Dialog(
+          backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFD97706)]),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.campaign_rounded, color: Colors.white, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      existing != null ? 'تعديل البنر الإعلاني' : 'إضافة بنر إعلاني تجاري',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Image Upload Button or URL field
+                if (imageCtrl.text.isNotEmpty)
+                  Container(
+                    height: 120,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AuroraTheme.primaryCyan.withValues(alpha: 0.5)),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Image.network(
+                        imageCtrl.text,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image_rounded)),
+                      ),
+                    ),
+                  ),
+
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF3B82F6),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                  icon: isUploading
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.cloud_upload_rounded, color: Colors.white, size: 18),
+                  label: Text(
+                    isUploading ? 'جاري الرفع إلى Cloudflare R2...' : 'رفع صورة البنر من المعرض (Cloudflare R2)',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.white),
+                  ),
+                  onPressed: isUploading
+                      ? null
+                      : () async {
+                          setDialogState(() => isUploading = true);
+                          final r2Url = await ImageService.pickAndUploadBannerImage();
+                          setDialogState(() => isUploading = false);
+                          if (r2Url != null) {
+                            setDialogState(() {
+                              imageCtrl.text = r2Url;
+                            });
+                          }
+                        },
+                ),
+                const SizedBox(height: 10),
+
+                TextField(
+                  controller: imageCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'رابط صورة البنر (أو تم الرفع تلقائياً أعلاه)',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                    prefixIcon: const Icon(Icons.image_outlined),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                  onChanged: (_) => setDialogState(() {}),
+                ),
+                const SizedBox(height: 12),
+
+                TextField(
+                  controller: titleCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'عنوان الإعلان الرئيسي',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                    prefixIcon: const Icon(Icons.title_rounded),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                TextField(
+                  controller: subtitleCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'الوصف أو العرض الترويجي (اختياري)',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                    prefixIcon: const Icon(Icons.subtitles_rounded),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                TextField(
+                  controller: urlCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'رابط الإعلان (موقع، واتساب، أو رقم هاتف)',
+                    hintText: 'https://... أو 077... أو whatsapp:...',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                    prefixIcon: const Icon(Icons.link_rounded),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Active toggle
+                SwitchListTile(
+                  title: const Text('تفعيل الإعلان فورياً', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  subtitle: const Text('يظهر في الواجهة الرئيسية لجميع المستخدمين', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                  value: isActive,
+                  activeThumbColor: AuroraTheme.accentEmerald,
+                  contentPadding: EdgeInsets.zero,
+                  onChanged: (val) => setDialogState(() => isActive = val),
+                ),
+                const SizedBox(height: 16),
+
+                // Action buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('إلغاء'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AuroraTheme.primaryCyan,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        onPressed: () async {
+                          final imgUrl = imageCtrl.text.trim();
+                          if (imgUrl.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('يرجى رفع صورة أو وضع رابط صورة البنر')),
+                            );
+                            return;
+                          }
+
+                          final banner = AdBanner(
+                            id: existing?.id ?? const Uuid().v4(),
+                            title: titleCtrl.text.trim(),
+                            subtitle: subtitleCtrl.text.trim(),
+                            imageUrl: imgUrl,
+                            targetUrl: urlCtrl.text.trim(),
+                            isActive: isActive,
+                            priority: priority,
+                            createdAt: existing?.createdAt ?? DateTime.now(),
+                          );
+
+                          await admin.addOrUpdateBanner(banner);
+                          if (context.mounted) {
+                            Navigator.pop(ctx);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(existing != null ? 'تم تحديث البنر بنجاح' : 'تمت إضافة البنر الإعلاني بنجاح 🚀'),
+                                backgroundColor: AuroraTheme.accentEmerald,
+                              ),
+                            );
+                          }
+                        },
+                        child: Text(
+                          existing != null ? 'حفظ التعديلات' : 'إضافة البنر',
+                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

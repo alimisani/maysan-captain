@@ -22,9 +22,10 @@ import '../settings/settings_screen.dart';
 import '../tracking/live_tracking_screen.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/user_avatar_widget.dart';
-import 'driver_quick_sheet.dart';
-import 'maysan_map_widget.dart';
-import 'ride_booking_sheet.dart';
+import 'layouts/layout_classic_glass.dart';
+import 'layouts/layout_uber_hub.dart';
+import 'layouts/layout_dynamic_cards.dart';
+import 'layouts/layout_luxury_concierge.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -52,7 +53,10 @@ class _HomeScreenState extends State<HomeScreen> {
         auth.refreshCurrentUser();
         booking.updateUserContext(auth.currentUser!.id, auth.currentUser!.isDriver);
         booking.checkActiveOrder(auth.currentUser!.id, auth.currentUser!.isDriver);
+        booking.loadFavoritePlaces(auth.currentUser!.id);
       }
+      booking.loadUiLayoutTheme();
+      booking.loadBanners();
     });
 
     _activeOrderTimer = Timer.periodic(const Duration(seconds: 3), (_) {
@@ -138,8 +142,8 @@ class _HomeScreenState extends State<HomeScreen> {
         drawer: _buildDrawer(context, auth, loc, isDark),
         body: Stack(
           children: [
-            // Interactive Real Roads Map with GPS
-            const MaysanMapWidget(),
+            // Dynamic Active UI Layout (Classic Glass, Uber Hub, Dynamic Cards, VIP Concierge)
+            _buildActiveLayout(booking, isDark, loc),
 
             // Top Bar with App Branding & Profile / Menu Trigger
             Positioned(
@@ -517,19 +521,24 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-
-            Positioned(
-              bottom: 16,
-              left: 16,
-              right: 16,
-              child: (user?.isDriver ?? false)
-                  ? const DriverQuickSheet()
-                  : const RideBookingSheet(),
-            ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildActiveLayout(BookingProvider booking, bool isDark, AppLocalizations loc) {
+    switch (booking.uiLayoutTheme) {
+      case 'uber_hub':
+        return LayoutUberHub(isDark: isDark, loc: loc);
+      case 'dynamic_cards':
+        return LayoutDynamicCards(isDark: isDark, loc: loc);
+      case 'luxury_concierge':
+        return LayoutLuxuryConcierge(isDark: isDark, loc: loc);
+      case 'classic_glass':
+      default:
+        return LayoutClassicGlass(isDark: isDark, loc: loc);
+    }
   }
 
   Widget _buildJumpingActionBubble({
