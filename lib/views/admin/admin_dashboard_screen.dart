@@ -1831,6 +1831,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
         const SizedBox(height: 22),
 
+        // Section: Stop-on-the-Way & Waiting Duration Fees (رسوم فترات التوقف في الطريق)
+        _buildStopOptionFeesSection(context, isDark),
+
+        const SizedBox(height: 22),
+
         // Section 2: Driver Activation & Lifetime Subscription Fees
         Container(
           padding: const EdgeInsets.all(20),
@@ -7178,6 +7183,181 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               side: BorderSide(color: isDark ? const Color(0x4438BDF8) : const Color(0xFFCBD5E1)),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStopOptionFeesSection(BuildContext context, bool isDark) {
+    final booking = context.watch<BookingProvider>();
+    final fees = booking.stopOptionFees;
+
+    final stop0To5Ctrl = TextEditingController(text: (fees['0_5'] ?? 500.0).toInt().toString());
+    final stop5To10Ctrl = TextEditingController(text: (fees['5_10'] ?? 1000.0).toInt().toString());
+    final stop10To15Ctrl = TextEditingController(text: (fees['10_15'] ?? 1500.0).toInt().toString());
+    final stop15To20Ctrl = TextEditingController(text: (fees['15_20'] ?? 2000.0).toInt().toString());
+    final stop20To25Ctrl = TextEditingController(text: (fees['20_25'] ?? 2500.0).toInt().toString());
+    final stop25To30Ctrl = TextEditingController(text: (fees['25_30'] ?? 3000.0).toInt().toString());
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1),
+        ),
+        boxShadow: const [
+          BoxShadow(color: Color(0x15000000), blurRadius: 16, offset: Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                  ),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.timer_outlined, color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'رسوم فترات التوقف في الطريق (الانتظار)',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                    ),
+                    Text(
+                      'تحديد مبالغ الانتظار والتوقف لكل مدة زمنية بالدينار العراقي (د.ع)',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          Row(
+            children: [
+              Expanded(
+                child: CustomTextField(
+                  controller: stop0To5Ctrl,
+                  label: 'توقف ٠ إلى ٥ دقائق (د.ع)',
+                  hint: '500',
+                  keyboardType: TextInputType.number,
+                  prefixIcon: Icons.timer_outlined,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: CustomTextField(
+                  controller: stop5To10Ctrl,
+                  label: 'توقف ٥ إلى ١٠ دقائق (د.ع)',
+                  hint: '1000',
+                  keyboardType: TextInputType.number,
+                  prefixIcon: Icons.timer_outlined,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          Row(
+            children: [
+              Expanded(
+                child: CustomTextField(
+                  controller: stop10To15Ctrl,
+                  label: 'توقف ١٠ إلى ١٥ دقيقة (د.ع)',
+                  hint: '1500',
+                  keyboardType: TextInputType.number,
+                  prefixIcon: Icons.timer_outlined,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: CustomTextField(
+                  controller: stop15To20Ctrl,
+                  label: 'توقف ١٥ إلى ٢٠ دقيقة (د.ع)',
+                  hint: '2000',
+                  keyboardType: TextInputType.number,
+                  prefixIcon: Icons.timer_outlined,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          Row(
+            children: [
+              Expanded(
+                child: CustomTextField(
+                  controller: stop20To25Ctrl,
+                  label: 'توقف ٢٠ إلى ٢٥ دقيقة (د.ع)',
+                  hint: '2500',
+                  keyboardType: TextInputType.number,
+                  prefixIcon: Icons.timer_outlined,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: CustomTextField(
+                  controller: stop25To30Ctrl,
+                  label: 'توقف ٢٥ إلى ٣٠ دقيقة (د.ع)',
+                  hint: '3000',
+                  keyboardType: TextInputType.number,
+                  prefixIcon: Icons.timer_outlined,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          AuroraButton(
+            text: 'حفظ وتحديث رسوم التوقف والانتظار',
+            icon: Icons.save_rounded,
+            onPressed: () async {
+              final f0 = double.tryParse(stop0To5Ctrl.text.trim()) ?? 500.0;
+              final f1 = double.tryParse(stop5To10Ctrl.text.trim()) ?? 1000.0;
+              final f2 = double.tryParse(stop10To15Ctrl.text.trim()) ?? 1500.0;
+              final f3 = double.tryParse(stop15To20Ctrl.text.trim()) ?? 2000.0;
+              final f4 = double.tryParse(stop20To25Ctrl.text.trim()) ?? 2500.0;
+              final f5 = double.tryParse(stop25To30Ctrl.text.trim()) ?? 3000.0;
+
+              await booking.updateStopOptionFees({
+                '0_5': f0,
+                '5_10': f1,
+                '10_15': f2,
+                '15_20': f3,
+                '20_25': f4,
+                '25_30': f5,
+              });
+
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('تم حفظ وتحديث رسوم فترات التوقف في الطريق بنجاح'),
+                    backgroundColor: AuroraTheme.accentEmerald,
+                  ),
+                );
+              }
+            },
           ),
         ],
       ),

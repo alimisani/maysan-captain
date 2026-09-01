@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
@@ -25,11 +26,32 @@ class BookingProvider extends ChangeNotifier {
   bool _isRoundTrip = false;
   String _selectedStopId = 'none';
 
+  Map<String, double> _stopOptionFees = {
+    '0_5': 500.0,
+    '5_10': 1000.0,
+    '10_15': 1500.0,
+    '15_20': 2000.0,
+    '20_25': 2500.0,
+    '25_30': 3000.0,
+  };
+
+  Map<String, double> get stopOptionFees => _stopOptionFees;
+
+  List<WaypointStopOption> get allStopOptions => [
+        const WaypointStopOption(id: 'none', labelAr: 'بدون توقف في الطريق', labelEn: 'No Stops', minutes: 0, fee: 0.0),
+        WaypointStopOption(id: '0_5', labelAr: 'توقف من ٠ إلى ٥ دقائق', labelEn: '0 to 5 Minutes', minutes: 5, fee: _stopOptionFees['0_5'] ?? 500.0),
+        WaypointStopOption(id: '5_10', labelAr: 'توقف من ٥ إلى ١٠ دقائق', labelEn: '5 to 10 Minutes', minutes: 10, fee: _stopOptionFees['5_10'] ?? 1000.0),
+        WaypointStopOption(id: '10_15', labelAr: 'توقف من ١٠ إلى ١٥ دقيقة', labelEn: '10 to 15 Minutes', minutes: 15, fee: _stopOptionFees['10_15'] ?? 1500.0),
+        WaypointStopOption(id: '15_20', labelAr: 'توقف من ١٥ إلى ٢٠ دقيقة', labelEn: '15 to 20 Minutes', minutes: 20, fee: _stopOptionFees['15_20'] ?? 2000.0),
+        WaypointStopOption(id: '20_25', labelAr: 'توقف من ٢٠ إلى ٢٥ دقيقة', labelEn: '20 to 25 Minutes', minutes: 25, fee: _stopOptionFees['20_25'] ?? 2500.0),
+        WaypointStopOption(id: '25_30', labelAr: 'توقف من ٢٥ إلى ٣٠ دقيقة', labelEn: '25 to 30 Minutes', minutes: 30, fee: _stopOptionFees['25_30'] ?? 3000.0),
+      ];
+
   bool get isRoundTrip => _isRoundTrip;
   String get selectedStopId => _selectedStopId;
-  WaypointStopOption get selectedStopOption => WaypointStopOption.defaultOptions.firstWhere(
+  WaypointStopOption get selectedStopOption => allStopOptions.firstWhere(
         (o) => o.id == _selectedStopId,
-        orElse: () => WaypointStopOption.defaultOptions.first,
+        orElse: () => allStopOptions.first,
       );
 
   void setRoundTrip(bool value) {
@@ -42,6 +64,16 @@ class BookingProvider extends ChangeNotifier {
     _selectedStopId = stopId;
     _recalculateFareLocal();
     notifyListeners();
+  }
+
+  Future<void> updateStopOptionFees(Map<String, double> newFees) async {
+    _stopOptionFees = Map<String, double>.from(newFees);
+    _recalculateFareLocal();
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('maysan_stop_option_fees', jsonEncode(_stopOptionFees));
+    } catch (_) {}
   }
 
   // Booking Type: 'ride' or 'delivery'
@@ -104,6 +136,11 @@ class BookingProvider extends ChangeNotifier {
       final str = prefs.getString('maysan_vehicle_pricing_config');
       if (str != null && str.isNotEmpty) {
         _vehiclePricingConfig = VehiclePricingConfig.fromJsonString(str);
+      }
+      final stopsStr = prefs.getString('maysan_stop_option_fees');
+      if (stopsStr != null && stopsStr.isNotEmpty) {
+        final Map<String, dynamic> decoded = jsonDecode(stopsStr);
+        _stopOptionFees = decoded.map((k, v) => MapEntry(k, (v as num).toDouble()));
       }
     } catch (_) {}
   }
