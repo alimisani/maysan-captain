@@ -9,7 +9,9 @@ import '../location_picker_sheet.dart';
 import '../maysan_map_widget.dart';
 import '../ride_booking_sheet.dart';
 import '../widgets/ad_slot_banner_widget.dart';
+import '../widgets/favorite_places_row_widget.dart';
 import '../widgets/home_bottom_nav_bar.dart';
+import '../widgets/saved_routes_widget.dart';
 
 class LayoutUberHub extends StatelessWidget {
   final bool isDark;
@@ -208,16 +210,38 @@ class LayoutUberHub extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
 
-                  // 3. Medium Ad Slot (متوسط)
+                  // 3. Favorite Places Quick Row
+                  FavoritePlacesRowWidget(
+                    isDark: isDark,
+                    onPlaceSelected: (place) {
+                      booking.setDropoffLocation(
+                        place.coordinates,
+                        customAddress: place.address,
+                        isArabic: loc.isArabic,
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 6),
+
+                  // 4. Medium Ad Slot (متوسط)
                   const AdSlotBannerWidget(slot: 'medium'),
 
-                  // 4. Embedded Live Ride Booking Panel (Matching Mockup 1)
+                  // 5. Embedded Live Ride Booking Panel (Matching Mockup 1)
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16),
                     child: RideBookingSheet(isEmbedded: true),
                   ),
+                  const SizedBox(height: 6),
 
-                  // 5. Bottom Ad Slot (سفلي)
+                  // 6. Saved Routes (المسارات وخطوط السير اليومية المحفوظة)
+                  SavedRoutesWidget(
+                    isDark: isDark,
+                    onRouteSelected: (route) {
+                      booking.applySavedRoute(route, isArabic: loc.isArabic);
+                    },
+                  ),
+
+                  // 7. Bottom Ad Slot (سفلي)
                   const AdSlotBannerWidget(slot: 'bottom'),
                 ],
               ),

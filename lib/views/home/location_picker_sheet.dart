@@ -6,11 +6,13 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/services/location_service.dart';
+import '../../core/state/auth_provider.dart';
 import '../../core/state/booking_provider.dart';
 import '../../core/state/theme_provider.dart';
 import '../../core/theme/aurora_theme.dart';
 import '../widgets/aurora_button.dart';
 import '../widgets/glass_card.dart';
+import 'widgets/add_favorite_place_dialog.dart';
 
 class LocationPickerSheet extends StatelessWidget {
   final String title;
@@ -419,36 +421,132 @@ class _FullscreenMapLocationPickerState extends State<FullscreenMapLocationPicke
                     ],
                   ),
 
-                  // Quick Favorite Places Chips (if any exist)
+                  // Quick Favorite Places & Saved Routes Bar
                   if (!_isSearching)
                     Consumer<BookingProvider>(
                       builder: (context, booking, _) {
                         final favs = booking.favoritePlaces;
-                        if (favs.isEmpty) return const SizedBox.shrink();
+                        final routes = booking.savedRoutes;
+                        final auth = context.read<AuthProvider>();
+
                         return Container(
                           margin: const EdgeInsets.only(top: 8),
-                          height: 36,
-                          child: ListView.separated(
+                          height: 38,
+                          child: ListView(
                             scrollDirection: Axis.horizontal,
                             physics: const BouncingScrollPhysics(),
-                            itemCount: favs.length,
-                            separatorBuilder: (_, __) => const SizedBox(width: 6),
-                            itemBuilder: (context, idx) {
-                              final f = favs[idx];
-                              return ActionChip(
-                                avatar: const Icon(Icons.bookmark_rounded, size: 14, color: AuroraTheme.primaryCyan),
-                                label: Text(f.title, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                                backgroundColor: isDark ? const Color(0xFF0F172A).withValues(alpha: 0.9) : Colors.white.withValues(alpha: 0.9),
+                            children: [
+                              // 1. Add Favorite Button
+                              ActionChip(
+                                avatar: const Icon(Icons.add_location_alt_rounded, size: 15, color: AuroraTheme.primaryCyan),
+                                label: const Text('+ إضافة مكان مفضل', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AuroraTheme.primaryCyan)),
+                                backgroundColor: isDark ? const Color(0xFF0F172A).withValues(alpha: 0.95) : Colors.white.withValues(alpha: 0.95),
+                                side: const BorderSide(color: AuroraTheme.primaryCyan, width: 1.2),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                                 onPressed: () {
-                                  _mapController.move(f.coordinates, 17.0);
-                                  setState(() {
-                                    _centerLocation = f.coordinates;
-                                  });
-                                  _resolveAddress(f.coordinates);
+                                  if (auth.currentUser != null) {
+                                    AddFavoritePlaceDialog.show(
+                                      context,
+                                      initialLocation: _centerLocation,
+                                      initialAddress: _resolvedAddress,
+                                    );
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('يرجى تسجيل الدخول لحفظ أماكنك المفضلة')),
+                                    );
+                                  }
                                 },
-                              );
-                            },
+                              ),
+                              const SizedBox(width: 6),
+
+                              // 2. Existing Favorite Places
+                              ...favs.map((f) => Padding(
+                                    padding: const EdgeInsets.only(left: 6),
+                                    child: ActionChip(
+                                      avatar: Icon(
+                                        f.category == 'home'
+                                            ? Icons.home_rounded
+                                            : (f.category == 'work'
+                                                ? Icons.work_rounded
+                                                : (f.category == 'university'
+                                                    ? Icons.school_rounded
+                                                    : (f.category == 'family' ? Icons.favorite_rounded : Icons.bookmark_rounded))),
+                                        size: 15,
+                                        color: f.category == 'home'
+                                            ? const Color(0xFF10B981)
+                                            : (f.category == 'work'
+                                                ? const Color(0xFF3B82F6)
+                                                : (f.category == 'university' ? const Color(0xFF8B5CF6) : const Color(0xFFF59E0B))),
+                                      ),
+                                      label: Text(f.title, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                      backgroundColor: isDark ? const Color(0xFF0F172A).withValues(alpha: 0.95) : Colors.white.withValues(alpha: 0.95),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                      onPressed: () {
+                                        _mapController.move(f.coordinates, 17.0);
+                                        setState(() {
+                                          _centerLocation = f.coordinates;
+                                        });
+                                        _resolveAddress(f.coordinates);
+                                      },
+                                    ),
+                                  )),
+
+                              // 3. Existing Saved Routes
+                              ...routes.map((r) => Padding(
+                                    padding: const EdgeInsets.only(left: 6),
+                                    child: ActionChip(
+                                      avatar: const Icon(Icons.alt_route_rounded, size: 15, color: Color(0xFF8B5CF6)),
+                                      label: Text(r.title, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                      backgroundColor: isDark ? const Color(0xFF0F172A).withValues(alpha: 0.95) : Colors.white.withValues(alpha: 0.95),
+                                      side: BorderSide(color: const Color(0xFF8B5CF6).withValues(alpha: 0.5)),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                      onPressed: () {
+                                        final target = widget.isPickup ? r.pickupCoordinates : r.dropoffCoordinates;
+                                        _mapController.move(target, 17.0);
+                                        setState(() {
+                                          _centerLocation = target;
+                                        });
+                                        _resolveAddress(target);
+                                      },
+                                    ),
+                                  )),
+
+                              // 4. Quick preset chips if user has few favorites
+                              if (favs.isEmpty) ...[
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 6),
+                                  child: ActionChip(
+                                    avatar: const Icon(Icons.home_outlined, size: 15, color: Color(0xFF10B981)),
+                                    label: const Text('أضف المنزل 🏠', style: TextStyle(fontSize: 11)),
+                                    backgroundColor: isDark ? const Color(0xFF0F172A).withValues(alpha: 0.8) : const Color(0xFFF1F5F9),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                    onPressed: () {
+                                      AddFavoritePlaceDialog.show(
+                                        context,
+                                        initialLocation: _centerLocation,
+                                        initialAddress: _resolvedAddress,
+                                      );
+                                    },
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 6),
+                                  child: ActionChip(
+                                    avatar: const Icon(Icons.work_outline_rounded, size: 15, color: Color(0xFF3B82F6)),
+                                    label: const Text('أضف العمل 💼', style: TextStyle(fontSize: 11)),
+                                    backgroundColor: isDark ? const Color(0xFF0F172A).withValues(alpha: 0.8) : const Color(0xFFF1F5F9),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                    onPressed: () {
+                                      AddFavoritePlaceDialog.show(
+                                        context,
+                                        initialLocation: _centerLocation,
+                                        initialAddress: _resolvedAddress,
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         );
                       },

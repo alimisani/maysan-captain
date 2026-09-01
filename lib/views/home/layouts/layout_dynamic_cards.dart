@@ -10,7 +10,9 @@ import '../location_picker_sheet.dart';
 import '../maysan_map_widget.dart';
 import '../ride_booking_sheet.dart';
 import '../widgets/ad_slot_banner_widget.dart';
+import '../widgets/favorite_places_row_widget.dart';
 import '../widgets/home_bottom_nav_bar.dart';
+import '../widgets/saved_routes_widget.dart';
 
 class LayoutDynamicCards extends StatelessWidget {
   final bool isDark;
@@ -320,16 +322,38 @@ class LayoutDynamicCards extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
 
-                  // 4. Medium Ad Slot (متوسط)
+                  // 4. Favorite Places Quick Row
+                  FavoritePlacesRowWidget(
+                    isDark: isDark,
+                    onPlaceSelected: (place) {
+                      booking.setDropoffLocation(
+                        place.coordinates,
+                        customAddress: place.address,
+                        isArabic: loc.isArabic,
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 6),
+
+                  // 5. Medium Ad Slot (متوسط)
                   const AdSlotBannerWidget(slot: 'medium'),
 
-                  // 5. Embedded Live Ride Booking Panel
+                  // 6. Embedded Live Ride Booking Panel
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16),
                     child: RideBookingSheet(isEmbedded: true),
                   ),
+                  const SizedBox(height: 6),
 
-                  // 6. Bottom Ad Slot (سفلي)
+                  // 7. Saved Routes (المسارات وخطوط السير اليومية المحفوظة)
+                  SavedRoutesWidget(
+                    isDark: isDark,
+                    onRouteSelected: (route) {
+                      booking.applySavedRoute(route, isArabic: loc.isArabic);
+                    },
+                  ),
+
+                  // 8. Bottom Ad Slot (سفلي)
                   const AdSlotBannerWidget(slot: 'bottom'),
                 ],
               ),
