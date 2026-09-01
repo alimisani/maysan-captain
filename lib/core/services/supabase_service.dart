@@ -860,6 +860,29 @@ class SupabaseService {
     }
   }
 
+  Future<int> getOrderTimeoutMinutes() async {
+    try {
+      final res = await client.from('app_settings').select().eq('key', 'order_timeout').limit(1);
+      if (res.isNotEmpty) {
+        return (res.first['value']?['minutes'] as num?)?.toInt() ?? 3;
+      }
+    } catch (_) {}
+    return 3; // Default 3 minutes
+  }
+
+  Future<void> updateOrderTimeoutMinutes(int minutes) async {
+    try {
+      await client.from('app_settings').upsert({
+        'key': 'order_timeout',
+        'value': {'minutes': minutes},
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      debugPrint('Update order timeout error: $e');
+      rethrow;
+    }
+  }
+
   // --- REFERRAL & REWARDS SYSTEM ---
 
   Future<Map<String, dynamic>> getReferralSettings() async {

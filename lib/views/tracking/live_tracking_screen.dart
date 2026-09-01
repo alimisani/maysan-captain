@@ -276,6 +276,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
       if (!mounted) return;
       final auth = context.read<AuthProvider>();
       final booking = context.read<BookingProvider>();
+      final isDark = context.read<ThemeProvider>().isDark;
       final user = auth.currentUser;
       final order = booking.activeOrder;
 
@@ -320,6 +321,54 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
       } else {
         // Customer: poll latest driver position and heading from DB
         await booking.checkActiveOrder(user.id, false);
+
+        // Auto-cancel if customer order exceeded timeout without acceptance
+        final currentOrder = booking.activeOrder;
+        if (currentOrder != null && currentOrder.status == 'pending') {
+          final timeoutMinutes = await SupabaseService().getOrderTimeoutMinutes();
+          final diff = DateTime.now().difference(currentOrder.createdAt);
+          if (diff.inMinutes >= timeoutMinutes) {
+            _trackingTimer?.cancel();
+            await booking.cancelOrder(currentOrder.id);
+            if (mounted) {
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (ctx) => AlertDialog(
+                  backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                  title: const Row(
+                    children: [
+                      Icon(Icons.timer_off_rounded, color: Color(0xFFF59E0B), size: 26),
+                      SizedBox(width: 10),
+                      Text('انتهت مهلة البحث', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    ],
+                  ),
+                  content: Text(
+                    'عذراً، لم نتمكن من العثور على كابتن متاح خلال فترة الانتظار ($timeoutMinutes دقائق).\nتم إلغاء الطلب تلقائياً، يمكنك إعادة المحاولة في وقت لاحق.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isDark ? Colors.white70 : const Color(0xFF475569),
+                    ),
+                  ),
+                  actions: [
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AuroraTheme.primaryBlue,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        Navigator.pop(context);
+                      },
+                      child: const Text('حسناً', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              );
+            }
+          }
+        }
       }
     });
   }

@@ -1366,6 +1366,102 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
         ),
 
+        const SizedBox(height: 16),
+
+        // Section 0.5: Passenger Order Waiting Timeout (مهلة انتظار الزبون قبل الإلغاء التلقائي)
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F172A) : Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1),
+            ),
+            boxShadow: const [
+              BoxShadow(color: Color(0x15000000), blurRadius: 12, offset: Offset(0, 3)),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AuroraTheme.primaryCyan.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.timer_rounded, color: AuroraTheme.primaryCyan, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'مهلة انتظار الزبون للطلب (الإلغاء التلقائي)',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
+                        ),
+                        Text(
+                          'إذا لم يقبل أي كابتن الطلب خلال هذه الفترة يتم إلغاؤه تلقائياً وإشعار الزبون',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [1, 2, 3, 5, 10].map((minutes) {
+                  final isSelected = admin.orderTimeoutMinutes == minutes;
+                  return ChoiceChip(
+                    label: Text(
+                      minutes == 3
+                          ? '$minutes دقائق (افتراضي)'
+                          : '$minutes ${minutes == 1 ? "دقيقة" : (minutes == 2 ? "دقيقتين" : "دقائق")}',
+                      style: TextStyle(
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        color: isSelected ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF334155)),
+                        fontSize: 12,
+                      ),
+                    ),
+                    selected: isSelected,
+                    selectedColor: AuroraTheme.primaryCyan,
+                    backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                    onSelected: (selected) async {
+                      if (selected) {
+                        await admin.updateOrderTimeoutMinutes(minutes);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('تم ضبط مهلة انتظار الطلب على $minutes ${minutes == 1 ? "دقيقة" : "دقائق"} بنجاح ✅'),
+                              backgroundColor: AuroraTheme.accentEmerald,
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        }
+                      }
+                    },
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
         // Section 1: General Base Pricing & Multi-Destination Settings
         Container(
           padding: const EdgeInsets.all(20),

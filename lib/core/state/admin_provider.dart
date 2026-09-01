@@ -53,6 +53,8 @@ class AdminProvider extends ChangeNotifier {
   String _uiLayoutTheme = 'classic_glass';
   List<AdBanner> _banners = [];
 
+  int _orderTimeoutMinutes = 3;
+
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -69,6 +71,7 @@ class AdminProvider extends ChangeNotifier {
   String get mapStyle => _mapStyle;
   String get uiLayoutTheme => _uiLayoutTheme;
   List<AdBanner> get banners => _banners;
+  int get orderTimeoutMinutes => _orderTimeoutMinutes;
 
   bool get isTieredPricingEnabled => _isTieredPricingEnabled;
   double get tier0To1000 => _tier0To1000;
@@ -119,6 +122,7 @@ class AdminProvider extends ChangeNotifier {
         _supabaseService.getTopReferrers(),
         _supabaseService.getUiLayoutTheme(),
         _supabaseService.getAllBanners(),
+        _supabaseService.getOrderTimeoutMinutes(),
       ]);
 
       final rawUsers = results[0] as List<UserProfile>;
@@ -137,6 +141,7 @@ class AdminProvider extends ChangeNotifier {
           if (seenIds.contains(u.id)) continue;
         }
 
+        seenIds.add(u.id);
         seenIds.add(u.id);
         uniqueUsers.add(u);
       }
@@ -177,6 +182,7 @@ class AdminProvider extends ChangeNotifier {
 
       _uiLayoutTheme = results[10] as String;
       _banners = results[11] as List<AdBanner>;
+      _orderTimeoutMinutes = results[12] as int;
 
       _isLoading = false;
       notifyListeners();
@@ -195,6 +201,18 @@ class AdminProvider extends ChangeNotifier {
     try {
       await _supabaseService.updateUiLayoutTheme(newLayout);
       _uiLayoutTheme = newLayout;
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> updateOrderTimeoutMinutes(int minutes) async {
+    try {
+      await _supabaseService.updateOrderTimeoutMinutes(minutes);
+      _orderTimeoutMinutes = minutes;
       notifyListeners();
     } catch (e) {
       _errorMessage = e.toString();

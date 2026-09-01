@@ -148,20 +148,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     borderRadius: 22,
                     child: Row(
                       children: [
-                        // 1. Official User Avatar (Far Right in RTL - clicking opens Profile)
-                        UserAvatarWidget(
-                          avatarUrl: user?.avatarUrl,
-                          radius: 18,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-                            );
-                          },
-                        ),
-                        const SizedBox(width: 4),
-
-                        // 2. Menu / Grid Button (Right next to user avatar on the far right)
+                        // 1. Menu / Grid Button (Placed on the far right side of avatar in RTL)
                         IconButton(
                           style: IconButton.styleFrom(
                             backgroundColor: _isQuickMenuOpen
@@ -181,7 +168,20 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           onPressed: () => setState(() => _isQuickMenuOpen = !_isQuickMenuOpen),
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 4),
+
+                        // 2. Official User Avatar (Clicking opens Profile)
+                        UserAvatarWidget(
+                          avatarUrl: user?.avatarUrl,
+                          radius: 18,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 8),
 
                         // 3. App Name + Greeting + User Type + Rating (Clicking empty space does nothing)
                         Expanded(
