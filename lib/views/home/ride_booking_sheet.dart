@@ -72,6 +72,12 @@ class _RideBookingSheetState extends State<RideBookingSheet> {
       final address = result['address'] as String;
       if (isPickup) {
         booking.setPickupLocation(point, customAddress: address, isArabic: loc.isArabic);
+        // Automatically open the dropoff / destination picker immediately after selecting pickup location
+        Future.microtask(() {
+          if (mounted) {
+            _pickLocation(false);
+          }
+        });
       } else {
         booking.setDropoffLocation(point, customAddress: address, isArabic: loc.isArabic);
       }

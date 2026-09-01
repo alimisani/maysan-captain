@@ -196,12 +196,26 @@ class LayoutDynamicCards extends StatelessWidget {
                               initialLocation: booking.pickupLocation,
                               isPickup: true,
                             );
-                            if (result != null) {
+                            if (result != null && context.mounted) {
                               booking.setPickupLocation(
                                 result['location'] as LatLng,
                                 customAddress: result['address'] as String,
                                 isArabic: loc.isArabic,
                               );
+                              // Automatically open destination / dropoff picker immediately
+                              final dropResult = await LocationPickerSheet.show(
+                                context,
+                                title: 'مكان تسليم الطلب (الوجهة)',
+                                initialLocation: booking.dropoffLocation,
+                                isPickup: false,
+                              );
+                              if (dropResult != null) {
+                                booking.setDropoffLocation(
+                                  dropResult['location'] as LatLng,
+                                  customAddress: dropResult['address'] as String,
+                                  isArabic: loc.isArabic,
+                                );
+                              }
                             }
                           },
                         ),
