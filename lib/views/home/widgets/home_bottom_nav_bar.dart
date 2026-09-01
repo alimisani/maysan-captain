@@ -72,6 +72,7 @@ class HomeBottomNavBar extends StatelessWidget {
           _buildNavItem(
             context: context,
             icon: Icons.chat_rounded,
+            customIcon: Image.asset('assets/icon/whatsapp.png', width: 22, height: 22),
             label: 'الدعم الفوري',
             isSelected: false,
             primary: const Color(0xFF10B981),
@@ -130,6 +131,7 @@ class HomeBottomNavBar extends StatelessWidget {
   Widget _buildNavItem({
     required BuildContext context,
     required IconData icon,
+    Widget? customIcon,
     required String label,
     required bool isSelected,
     required Color primary,
@@ -150,11 +152,12 @@ class HomeBottomNavBar extends StatelessWidget {
                 color: isSelected ? primary.withValues(alpha: 0.15) : Colors.transparent,
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                icon,
-                size: 20,
-                color: isSelected ? primary : (isDark ? Colors.white60 : const Color(0xFF64748B)),
-              ),
+              child: customIcon ??
+                  Icon(
+                    icon,
+                    size: 20,
+                    color: isSelected ? primary : (isDark ? Colors.white60 : const Color(0xFF64748B)),
+                  ),
             ),
             const SizedBox(height: 2),
             Text(

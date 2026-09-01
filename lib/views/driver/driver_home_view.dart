@@ -348,6 +348,7 @@ class _DriverHomeViewState extends State<DriverHomeView> {
                 ),
                 _buildCaptainNavItem(
                   icon: Icons.chat_rounded,
+                  customIcon: Image.asset('assets/icon/whatsapp.png', width: 22, height: 22),
                   label: 'الدعم',
                   isSelected: false,
                   onTap: () {
@@ -479,6 +480,7 @@ class _DriverHomeViewState extends State<DriverHomeView> {
 
   Widget _buildCaptainNavItem({
     required IconData icon,
+    Widget? customIcon,
     required String label,
     required bool isSelected,
     required VoidCallback onTap,
@@ -495,7 +497,12 @@ class _DriverHomeViewState extends State<DriverHomeView> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 20, color: isSelected ? activeColor : (isDark ? Colors.white60 : const Color(0xFF64748B))),
+            customIcon ??
+                Icon(
+                  icon,
+                  size: 20,
+                  color: isSelected ? activeColor : (isDark ? Colors.white60 : const Color(0xFF64748B)),
+                ),
             const SizedBox(height: 2),
             Text(
               label,

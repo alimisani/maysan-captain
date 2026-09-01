@@ -278,8 +278,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           _buildQuickBubble(
                             icon: Icons.chat_rounded,
+                            customIcon: Image.asset('assets/icon/whatsapp.png', width: 22, height: 22),
                             label: 'الدعم',
-                            color: const Color(0xFF8B5CF6),
+                            color: const Color(0xFF10B981),
                             onTap: () {
                               setState(() => _isQuickMenuOpen = false);
                               WhatsAppService.openWhatsApp(
@@ -415,6 +416,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildQuickBubble({
     required IconData icon,
+    Widget? customIcon,
     required String label,
     required Color color,
     required VoidCallback onTap,
@@ -434,7 +436,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 shape: BoxShape.circle,
                 border: Border.all(color: color.withValues(alpha: 0.4)),
               ),
-              child: Icon(icon, color: color, size: 22),
+              child: customIcon ?? Icon(icon, color: color, size: 22),
             ),
             const SizedBox(height: 4),
             Text(
