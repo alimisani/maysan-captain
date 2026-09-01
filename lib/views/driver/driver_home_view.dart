@@ -76,7 +76,7 @@ class _DriverHomeViewState extends State<DriverHomeView> {
     final isDark = widget.isDark;
     final loc = widget.loc;
     final vehicle = auth.currentVehicle;
-    final topPadding = MediaQuery.of(context).padding.top + 76;
+    final topPadding = MediaQuery.of(context).padding.top + 100;
 
     return Container(
       color: isDark ? const Color(0xFF090E17) : const Color(0xFFF4F6F9),
