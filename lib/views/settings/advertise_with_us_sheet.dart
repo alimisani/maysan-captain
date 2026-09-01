@@ -237,7 +237,7 @@ class AdvertiseWithUsSheet extends StatelessWidget {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                       elevation: 4,
                     ),
-                    icon: Image.asset('assets/icon/whats.png', width: 22, height: 22, color: Colors.white),
+                    icon: Image.asset('assets/icon/whatsapp.png', width: 22, height: 22),
                     label: const Text(
                       'تواصل معنا عبر واتساب لحجز إعلانك',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
