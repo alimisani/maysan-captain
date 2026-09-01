@@ -1,12 +1,19 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart' as intl;
 import 'package:provider/provider.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../core/services/notification_service.dart';
 import '../../core/services/whatsapp_service.dart';
 import '../../core/state/auth_provider.dart';
+import '../../core/state/booking_provider.dart';
 import '../../core/theme/aurora_theme.dart';
+import '../../models/ride_order.dart';
 import '../admin/admin_dashboard_screen.dart';
 import '../history/order_history_screen.dart';
 import '../profile/edit_profile_screen.dart';
+import '../settings/settings_screen.dart';
+import '../tracking/live_tracking_screen.dart';
 import 'driver_dashboard_screen.dart';
 import 'vehicle_registration_screen.dart';
 
@@ -27,12 +34,46 @@ class DriverHomeView extends StatefulWidget {
 class _DriverHomeViewState extends State<DriverHomeView> {
   bool _isOnline = true;
   int _navIndex = 0;
+  Timer? _radarTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = context.read<AuthProvider>();
+      final booking = context.read<BookingProvider>();
+      if (auth.currentUser != null) {
+        booking.updateUserContext(auth.currentUser!.id, true);
+        booking.startDriverLocationBroadcast(
+          driverId: auth.currentUser!.id,
+          driverName: auth.currentUser!.name,
+          vehicleType: auth.currentVehicle?.vehicleType ?? 'salon',
+        );
+      }
+      booking.fetchPendingOrders();
+    });
+
+    _radarTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (mounted && _isOnline) {
+        context.read<BookingProvider>().fetchPendingOrders();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _radarTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final booking = context.watch<BookingProvider>();
     final user = auth.currentUser;
     final isDark = widget.isDark;
+    final loc = widget.loc;
+    final vehicle = auth.currentVehicle;
 
     return Container(
       color: isDark ? const Color(0xFF090E17) : const Color(0xFFF4F6F9),
@@ -125,6 +166,9 @@ class _DriverHomeViewState extends State<DriverHomeView> {
                             activeThumbColor: const Color(0xFF10B981),
                             onChanged: (val) {
                               setState(() => _isOnline = val);
+                              if (val) {
+                                booking.fetchPendingOrders();
+                              }
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text(val ? 'أنت الآن متصل وتستقبل طلبات الركاب 🚀' : 'تم إيقاف استقبال الطلبات مؤقتاً'),
@@ -140,7 +184,81 @@ class _DriverHomeViewState extends State<DriverHomeView> {
                   ),
                   const SizedBox(height: 14),
 
-                  // 2. Captain Daily Performance & Earnings Row
+                  // 2. Active Ongoing Trip Notice (If captain already has an accepted trip)
+                  if (booking.activeOrder != null &&
+                      booking.activeOrder!.driverId == auth.currentUser?.id &&
+                      (booking.activeOrder!.status == 'accepted' ||
+                          booking.activeOrder!.status == 'arriving' ||
+                          booking.activeOrder!.status == 'in_progress')) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const LiveTrackingScreen()),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF0284C7), Color(0xFF0EA5E9)],
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF0284C7).withValues(alpha: 0.4),
+                                blurRadius: 16,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: const BoxDecoration(
+                                  color: Colors.white24,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.navigation_rounded, color: Colors.white, size: 24),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'لديك رحلة جارية حالياً 🚖',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'طلب #${booking.activeOrder!.orderNumber} • اضغط لمتابعة التتبع ومراحل الرحلة',
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 16),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+
+                  // 3. Captain Daily Performance & Earnings Row
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
@@ -173,7 +291,7 @@ class _DriverHomeViewState extends State<DriverHomeView> {
                   ),
                   const SizedBox(height: 14),
 
-                  // 3. Quick Actions for Captain
+                  // 4. Quick Actions for Captain (Dashboard & Vehicle Info)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
@@ -212,7 +330,7 @@ class _DriverHomeViewState extends State<DriverHomeView> {
                   ),
                   const SizedBox(height: 14),
 
-                  // 4. Radar Live Incoming Rides Container
+                  // 5. Radar Live Incoming Rides Container
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Container(
@@ -232,6 +350,7 @@ class _DriverHomeViewState extends State<DriverHomeView> {
                         ],
                       ),
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Row(
                             children: [
@@ -248,42 +367,90 @@ class _DriverHomeViewState extends State<DriverHomeView> {
                                   color: const Color(0xFF10B981).withValues(alpha: 0.15),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: const Text(
-                                  'تحديث لحظي',
-                                  style: TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold),
+                                child: Text(
+                                  booking.pendingOrders.isNotEmpty
+                                      ? '${booking.pendingOrders.length} متاح الآن'
+                                      : 'تحديث لحظي',
+                                  style: const TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold),
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 16),
-                          Container(
-                            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-                            decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(
-                                color: isDark ? const Color(0x2238BDF8) : const Color(0xFFE2E8F0),
+                          const SizedBox(height: 14),
+
+                          // If Captain is Offline
+                          if (!_isOnline) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(
+                                  color: isDark ? const Color(0x2238BDF8) : const Color(0xFFE2E8F0),
+                                ),
+                              ),
+                              child: const Column(
+                                children: [
+                                  Icon(Icons.power_settings_new_rounded, size: 36, color: Colors.grey),
+                                  SizedBox(height: 10),
+                                  Text(
+                                    'أنت غير متصل حالياً',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    'قم بتفعيل زر الاتصال أعلاه لبدء استلام الطلبات',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                  ),
+                                ],
                               ),
                             ),
-                            child: Column(
-                              children: [
-                                const Icon(Icons.map_rounded, size: 36, color: AuroraTheme.primaryCyan),
-                                const SizedBox(height: 10),
-                                Text(
-                                  _isOnline ? 'الرادار نشط وجاهز لاستقبال المشاوير' : 'أنت غير متصل حالياً',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                          ]
+                          // If Captain is Online but No Pending Orders
+                          else if (booking.pendingOrders.isEmpty) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(
+                                  color: isDark ? const Color(0x2238BDF8) : const Color(0xFFE2E8F0),
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  _isOnline
-                                      ? 'عند قيام أي زبون بطلب مشوار قريب منك سيظهر تنبيه فوري وصوتي هنا'
-                                      : 'قم بتفعيل زر الاتصال أعلاه لبدء استلام الطلبات',
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                                ),
-                              ],
+                              ),
+                              child: const Column(
+                                children: [
+                                  Icon(Icons.radar_rounded, size: 36, color: Color(0xFF10B981)),
+                                  SizedBox(height: 10),
+                                  Text(
+                                    'الرادار نشط وجاهز لاستقبال المشاوير',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    'عند قيام أي زبون بطلب مشوار قريب منك سيظهر تنبيه فوري وصوتي هنا',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
+                          ]
+                          // If Captain is Online & Pending Orders Available -> RENDER DIRECTLY IN RADAR!
+                          else ...[
+                            ...booking.pendingOrders.map(
+                              (order) => _buildRadarOrderCard(
+                                order: order,
+                                vehicleInfo: vehicle != null
+                                    ? '${vehicle.getLocalizedType(loc.isArabic)} (${vehicle.model ?? ""})'
+                                    : (loc.isArabic ? 'صالون (تكسي)' : 'Sedan (Taxi)'),
+                                isDark: isDark,
+                                loc: loc,
+                                auth: auth,
+                                booking: booking,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -293,10 +460,10 @@ class _DriverHomeViewState extends State<DriverHomeView> {
             ),
           ),
 
-          // Captain Dedicated Bottom Navigation Bar
+          // Captain Dedicated Bottom Navigation Bar with Settings
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF0F172A).withValues(alpha: 0.96) : Colors.white.withValues(alpha: 0.96),
               borderRadius: BorderRadius.circular(26),
@@ -360,8 +527,20 @@ class _DriverHomeViewState extends State<DriverHomeView> {
                   isDark: isDark,
                 ),
                 _buildCaptainNavItem(
+                  icon: Icons.settings_rounded,
+                  label: 'الإعدادات',
+                  isSelected: false,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                    );
+                  },
+                  isDark: isDark,
+                ),
+                _buildCaptainNavItem(
                   icon: Icons.person_rounded,
-                  label: 'الملف الشخصي',
+                  label: 'حسابي',
                   isSelected: false,
                   onTap: () {
                     Navigator.push(
@@ -386,6 +565,156 @@ class _DriverHomeViewState extends State<DriverHomeView> {
                     isDark: isDark,
                   ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRadarOrderCard({
+    required RideOrder order,
+    required String vehicleInfo,
+    required bool isDark,
+    required AppLocalizations loc,
+    required AuthProvider auth,
+    required BookingProvider booking,
+  }) {
+    final currencyFormatter = intl.NumberFormat('#,###');
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFF10B981).withValues(alpha: 0.4),
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Order Header
+          Row(
+            children: [
+              Text(
+                'طلب #${order.orderNumber}',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0284C7).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      order.isDelivery ? Icons.delivery_dining_rounded : Icons.local_taxi_rounded,
+                      size: 14,
+                      color: const Color(0xFF0284C7),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      order.isDelivery ? 'توصيل طلبات' : 'توصيل ركاب',
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0284C7)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Pickup
+          Row(
+            children: [
+              const Icon(Icons.circle, color: Color(0xFF10B981), size: 10),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  order.pickupAddress,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+
+          // Dropoff
+          Row(
+            children: [
+              const Icon(Icons.location_on, color: Color(0xFFEF4444), size: 12),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  order.dropoffAddress,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Fare Info
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('الأجرة المقترحة من الإدارة:', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+              Text(
+                '${currencyFormatter.format(order.initialFare.toInt())} د.ع',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF10B981)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // 1-Tap Accept Button
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF10B981),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              padding: const EdgeInsets.symmetric(vertical: 10),
+            ),
+            onPressed: () async {
+              try {
+                final success = await booking.driverAcceptOrder(
+                  orderId: order.id,
+                  driverId: auth.currentUser!.id,
+                  driverName: auth.currentUser!.name,
+                  driverPhone: auth.currentUser!.phone ?? '',
+                  driverRating: auth.currentUser!.rating,
+                  vehicleInfo: vehicleInfo,
+                  agreedFare: order.initialFare,
+                );
+                if (success) {
+                  NotificationService.playTripChime();
+                  if (mounted) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const LiveTrackingScreen()),
+                    );
+                  }
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('خطأ في قبول الطلب: $e'), backgroundColor: Colors.red),
+                  );
+                }
+              }
+            },
+            child: Text(
+              'قبول الطلب بالأجرة المحددة (${currencyFormatter.format(order.initialFare.toInt())} د.ع)',
+              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 12.5),
             ),
           ),
         ],
@@ -493,7 +822,7 @@ class _DriverHomeViewState extends State<DriverHomeView> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -507,7 +836,7 @@ class _DriverHomeViewState extends State<DriverHomeView> {
             Text(
               label,
               style: TextStyle(
-                fontSize: 10,
+                fontSize: 9.5,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 color: isSelected ? activeColor : (isDark ? Colors.white60 : const Color(0xFF64748B)),
               ),

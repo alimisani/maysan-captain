@@ -17,6 +17,7 @@ import '../widgets/glass_card.dart';
 import 'driver_documents_screen.dart';
 import 'driver_fee_payment_dialog.dart';
 import 'vehicle_registration_screen.dart';
+import '../settings/settings_screen.dart';
 
 class DriverDashboardScreen extends StatefulWidget {
   const DriverDashboardScreen({super.key});
@@ -95,6 +96,15 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
             onPressed: () {
               booking.fetchPendingOrders();
               _checkVerificationSettings();
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_rounded),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              );
             },
           ),
         ],
