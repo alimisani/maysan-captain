@@ -407,6 +407,9 @@ class SupabaseService {
     required double distanceKm,
     required double fare,
     List<Map<String, dynamic>> destinations = const [],
+    bool isRoundTrip = false,
+    int stopDurationMinutes = 0,
+    double stopFee = 0.0,
     String? notes,
     String? packageDetails,
   }) async {
@@ -433,6 +436,9 @@ class SupabaseService {
         'final_fare': fare,
         'status': 'pending',
         'fare_status': 'agreed',
+        'is_round_trip': isRoundTrip,
+        'stop_duration_minutes': stopDurationMinutes,
+        'stop_fee': stopFee,
         'notes': notes,
         'package_details': packageDetails,
         'destinations': destinations,
@@ -1229,9 +1235,12 @@ class SupabaseService {
         final val = Map<String, dynamic>.from(res.first['value'] as Map);
         return {
           'free_driver_quota': (val['free_driver_quota'] as num?)?.toInt() ?? 1,
+          'monthly_fee_amount': (val['monthly_fee_amount'] as num?)?.toDouble() ?? 0.0,
+          'three_months_fee_amount': (val['three_months_fee_amount'] as num?)?.toDouble() ?? 0.0,
+          'six_months_fee_amount': (val['six_months_fee_amount'] as num?)?.toDouble() ?? 0.0,
+          'annual_fee_amount': (val['annual_fee_amount'] as num?)?.toDouble() ?? 15000.0,
           'lifetime_fee_amount': (val['lifetime_fee_amount'] as num?)?.toDouble() ??
-              (val['driver_fee_amount'] as num?)?.toDouble() ?? 5000.0,
-          'annual_fee_amount': (val['annual_fee_amount'] as num?)?.toDouble() ?? 10000.0,
+              (val['driver_fee_amount'] as num?)?.toDouble() ?? 0.0,
           'zaincash_number': (val['zaincash_number'] as String?)?.trim() ??
               (val['payment_card_number'] as String?)?.trim() ?? '7117648506',
           'superqi_number': (val['superqi_number'] as String?)?.trim() ?? '07800000000',
@@ -1244,8 +1253,11 @@ class SupabaseService {
     }
     return {
       'free_driver_quota': 1,
-      'lifetime_fee_amount': 5000.0,
-      'annual_fee_amount': 10000.0,
+      'monthly_fee_amount': 0.0,
+      'three_months_fee_amount': 0.0,
+      'six_months_fee_amount': 0.0,
+      'annual_fee_amount': 15000.0,
+      'lifetime_fee_amount': 0.0,
       'zaincash_number': '7117648506',
       'superqi_number': '07800000000',
       'payment_instructions': 'يرجى تحويل مبلغ الاشتراك عبر محفظة زين كاش أو بطاقة سوبر كي ثم إرسال الإشعار لتفعيل الحساب فورياً',
@@ -1254,8 +1266,11 @@ class SupabaseService {
 
   Future<void> updateDriverFeeSettings({
     required int freeDriverQuota,
-    required double lifetimeFeeAmount,
+    double monthlyFeeAmount = 0.0,
+    double threeMonthsFeeAmount = 0.0,
+    double sixMonthsFeeAmount = 0.0,
     required double annualFeeAmount,
+    required double lifetimeFeeAmount,
     required String zaincashNumber,
     required String superqiNumber,
     required String paymentInstructions,
@@ -1263,8 +1278,11 @@ class SupabaseService {
     try {
       final data = {
         'free_driver_quota': freeDriverQuota,
-        'lifetime_fee_amount': lifetimeFeeAmount,
+        'monthly_fee_amount': monthlyFeeAmount,
+        'three_months_fee_amount': threeMonthsFeeAmount,
+        'six_months_fee_amount': sixMonthsFeeAmount,
         'annual_fee_amount': annualFeeAmount,
+        'lifetime_fee_amount': lifetimeFeeAmount,
         'zaincash_number': zaincashNumber.trim(),
         'superqi_number': superqiNumber.trim(),
         'payment_instructions': paymentInstructions.trim(),

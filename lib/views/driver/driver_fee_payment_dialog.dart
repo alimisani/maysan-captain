@@ -62,13 +62,16 @@ class DriverFeePaymentDialog extends StatefulWidget {
 
 class _DriverFeePaymentDialogState extends State<DriverFeePaymentDialog> {
   bool _isLoading = true;
-  double _lifetimeFeeAmount = 5000.0;
-  double _annualFeeAmount = 10000.0;
+  double _monthlyFeeAmount = 0.0;
+  double _threeMonthsFeeAmount = 0.0;
+  double _sixMonthsFeeAmount = 0.0;
+  double _annualFeeAmount = 15000.0;
+  double _lifetimeFeeAmount = 0.0;
   String _zaincashNumber = '7117648506';
   String _superqiNumber = '07800000000';
   String _instructions = 'تحويل الرسوم عبر زين كاش أو سوبر كي لتفعيل الحساب فورياً';
 
-  String _selectedPlan = 'lifetime'; // 'lifetime' or 'annual'
+  String _selectedPlan = 'annual'; // 'monthly', 'three_months', 'six_months', 'annual', 'lifetime'
 
   @override
   void initState() {
@@ -80,20 +83,31 @@ class _DriverFeePaymentDialogState extends State<DriverFeePaymentDialog> {
     try {
       final settings = await SupabaseService().getDriverFeeSettings();
       if (mounted) {
-        final life = (settings['lifetime_fee_amount'] as num?)?.toDouble() ?? 0.0;
+        final monthly = (settings['monthly_fee_amount'] as num?)?.toDouble() ?? 0.0;
+        final threeM = (settings['three_months_fee_amount'] as num?)?.toDouble() ?? 0.0;
+        final sixM = (settings['six_months_fee_amount'] as num?)?.toDouble() ?? 0.0;
         final annual = (settings['annual_fee_amount'] as num?)?.toDouble() ?? 0.0;
+        final life = (settings['lifetime_fee_amount'] as num?)?.toDouble() ?? 0.0;
+
         String plan = 'annual';
-        if (life > 0 && annual <= 0) {
-          plan = 'lifetime';
-        } else if (annual > 0 && life <= 0) {
+        if (monthly > 0) {
+          plan = 'monthly';
+        } else if (threeM > 0) {
+          plan = 'three_months';
+        } else if (sixM > 0) {
+          plan = 'six_months';
+        } else if (annual > 0) {
           plan = 'annual';
         } else if (life > 0) {
           plan = 'lifetime';
         }
 
         setState(() {
-          _lifetimeFeeAmount = life;
+          _monthlyFeeAmount = monthly;
+          _threeMonthsFeeAmount = threeM;
+          _sixMonthsFeeAmount = sixM;
           _annualFeeAmount = annual;
+          _lifetimeFeeAmount = life;
           _selectedPlan = plan;
           _zaincashNumber = (settings['zaincash_number'] as String?)?.trim() ?? '7117648506';
           _superqiNumber = (settings['superqi_number'] as String?)?.trim() ?? '07800000000';
@@ -111,6 +125,64 @@ class _DriverFeePaymentDialogState extends State<DriverFeePaymentDialog> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currencyFormatter = intl.NumberFormat('#,###');
+
+    // Filter available plans where amount > 0 (أي باقة قيمتها 0 لا تظهر نهائياً)
+    final List<Map<String, dynamic>> availablePlans = [];
+    if (_monthlyFeeAmount > 0) {
+      availablePlans.add({
+        'id': 'monthly',
+        'title': 'اشتراك شهري',
+        'duration': 'لمدة 1 شهر',
+        'amount': _monthlyFeeAmount,
+        'icon': Icons.calendar_view_month_rounded,
+        'color': const Color(0xFF10B981),
+      });
+    }
+    if (_threeMonthsFeeAmount > 0) {
+      availablePlans.add({
+        'id': 'three_months',
+        'title': 'اشتراك 3 أشهر',
+        'duration': 'لمدة ربع سنة',
+        'amount': _threeMonthsFeeAmount,
+        'icon': Icons.date_range_rounded,
+        'color': const Color(0xFF0284C7),
+      });
+    }
+    if (_sixMonthsFeeAmount > 0) {
+      availablePlans.add({
+        'id': 'six_months',
+        'title': 'اشتراك 6 أشهر',
+        'duration': 'لمدة نصف سنة',
+        'amount': _sixMonthsFeeAmount,
+        'icon': Icons.event_note_rounded,
+        'color': const Color(0xFF8B5CF6),
+      });
+    }
+    if (_annualFeeAmount > 0) {
+      availablePlans.add({
+        'id': 'annual',
+        'title': 'اشتراك سنوي',
+        'duration': 'لمدة 1 سنة',
+        'amount': _annualFeeAmount,
+        'icon': Icons.calendar_today_rounded,
+        'color': const Color(0xFF0EA5E9),
+      });
+    }
+    if (_lifetimeFeeAmount > 0) {
+      availablePlans.add({
+        'id': 'lifetime',
+        'title': 'اشتراك دائمي',
+        'duration': 'مدى الحياة',
+        'amount': _lifetimeFeeAmount,
+        'icon': Icons.stars_rounded,
+        'color': const Color(0xFFF59E0B),
+      });
+    }
+
+    // Auto-select first available plan if current selection is 0
+    if (availablePlans.isNotEmpty && !availablePlans.any((p) => p['id'] == _selectedPlan)) {
+      _selectedPlan = availablePlans.first['id'] as String;
+    }
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
@@ -183,18 +255,83 @@ class _DriverFeePaymentDialogState extends State<DriverFeePaymentDialog> {
                     const SizedBox(height: 16),
 
                     // Subscription Plans Selector (Only shows plans with amount > 0)
-                    if (_annualFeeAmount > 0 && _lifetimeFeeAmount > 0) ...[
-                      Row(
-                        children: [
-                          Expanded(child: _buildAnnualCard(isDark, currencyFormatter)),
-                          const SizedBox(width: 10),
-                          Expanded(child: _buildLifetimeCard(isDark, currencyFormatter)),
-                        ],
+                    if (availablePlans.isNotEmpty) ...[
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 8,
+                          mainAxisSpacing: 8,
+                          childAspectRatio: 1.5,
+                        ),
+                        itemCount: availablePlans.length,
+                        itemBuilder: (context, index) {
+                          final plan = availablePlans[index];
+                          final id = plan['id'] as String;
+                          final isSelected = _selectedPlan == id;
+                          final color = plan['color'] as Color;
+                          final amount = plan['amount'] as double;
+                          final icon = plan['icon'] as IconData;
+
+                          return InkWell(
+                            onTap: () => setState(() => _selectedPlan = id),
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? color.withValues(alpha: 0.15)
+                                    : (isDark ? const Color(0x221E293B) : const Color(0xFFF8FAFC)),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? color
+                                      : (isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1)),
+                                  width: isSelected ? 2 : 1,
+                                ),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(icon, size: 14, color: color),
+                                      const SizedBox(width: 4),
+                                      Flexible(
+                                        child: Text(
+                                          plan['title'] as String,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 11.5,
+                                            color: isSelected ? color : null,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    '${currencyFormatter.format(amount.toInt())} د.ع',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                      color: color,
+                                    ),
+                                  ),
+                                  Text(
+                                    plan['duration'] as String,
+                                    style: TextStyle(fontSize: 9.5, color: isDark ? Colors.white60 : Colors.grey),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
                       ),
-                    ] else if (_annualFeeAmount > 0) ...[
-                      _buildAnnualCard(isDark, currencyFormatter),
-                    ] else if (_lifetimeFeeAmount > 0) ...[
-                      _buildLifetimeCard(isDark, currencyFormatter),
                     ],
                     const SizedBox(height: 14),
 
@@ -334,12 +471,19 @@ class _DriverFeePaymentDialogState extends State<DriverFeePaymentDialog> {
                       text: 'إرسال وصل الدفع عبر واتساب الإدارة',
                       customIcon: Image.asset('assets/icon/whatsapp.png', width: 22, height: 22),
                       onPressed: () {
-                        final planName = _selectedPlan == 'annual' ? 'اشتراك سنوي (1 سنة)' : 'اشتراك دائمي (مدى الحياة)';
-                        final fee = _selectedPlan == 'annual' ? _annualFeeAmount : _lifetimeFeeAmount;
+                        final selectedMeta = availablePlans.firstWhere(
+                          (p) => p['id'] == _selectedPlan,
+                          orElse: () => {
+                            'title': 'اشتراك الكابتن',
+                            'amount': _annualFeeAmount,
+                          },
+                        );
+                        final planName = selectedMeta['title'] as String;
+                        final fee = (selectedMeta['amount'] as num).toDouble();
 
                         final msg =
                             'السلام عليكم إدارة كابتن ميسان، أنا الكابتن (${widget.driver.name}) - هاتف (${widget.driver.phone ?? "غير محدد"})\n'
-                            'قمت باختيار باقة ($planName) بمبلغ (${currencyFormatter.format(fee)} د.ع).\n'
+                            'قمت باختيار باقة ($planName) بمبلغ (${currencyFormatter.format(fee.toInt())} د.ع).\n'
                             'معرّف الحساب: ${widget.driver.id}\n'
                             'مرفق وصل التحويل لتفعيل/تجديد الحساب، مع الشكر والتقدير.';
 
@@ -367,106 +511,5 @@ class _DriverFeePaymentDialogState extends State<DriverFeePaymentDialog> {
       ),
     );
   }
-
-  Widget _buildAnnualCard(bool isDark, intl.NumberFormat currencyFormatter) {
-    return InkWell(
-      onTap: () => setState(() => _selectedPlan = 'annual'),
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
-        decoration: BoxDecoration(
-          color: _selectedPlan == 'annual'
-              ? AuroraTheme.primaryCyan.withValues(alpha: 0.15)
-              : (isDark ? const Color(0x221E293B) : const Color(0xFFF8FAFC)),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: _selectedPlan == 'annual'
-                ? AuroraTheme.primaryCyan
-                : (isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1)),
-            width: _selectedPlan == 'annual' ? 2 : 1,
-          ),
-        ),
-        child: Column(
-          children: [
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.calendar_today_rounded, size: 14, color: AuroraTheme.primaryCyan),
-                SizedBox(width: 4),
-                Text(
-                  'اشتراك سنوي',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${currencyFormatter.format(_annualFeeAmount)} د.ع',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-                color: AuroraTheme.primaryCyan,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              'لمدة 1 سنة',
-              style: TextStyle(fontSize: 10, color: isDark ? Colors.white60 : Colors.grey),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLifetimeCard(bool isDark, intl.NumberFormat currencyFormatter) {
-    return InkWell(
-      onTap: () => setState(() => _selectedPlan = 'lifetime'),
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
-        decoration: BoxDecoration(
-          color: _selectedPlan == 'lifetime'
-              ? const Color(0xFFF59E0B).withValues(alpha: 0.15)
-              : (isDark ? const Color(0x221E293B) : const Color(0xFFF8FAFC)),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: _selectedPlan == 'lifetime'
-                ? const Color(0xFFF59E0B)
-                : (isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1)),
-            width: _selectedPlan == 'lifetime' ? 2 : 1,
-          ),
-        ),
-        child: Column(
-          children: [
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.stars_rounded, size: 16, color: Color(0xFFF59E0B)),
-                SizedBox(width: 4),
-                Text(
-                  'اشتراك دائمي',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${currencyFormatter.format(_lifetimeFeeAmount)} د.ع',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-                color: Color(0xFFF59E0B),
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              'مدى الحياة للأبد',
-              style: TextStyle(fontSize: 10, color: isDark ? Colors.white60 : Colors.grey),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
+

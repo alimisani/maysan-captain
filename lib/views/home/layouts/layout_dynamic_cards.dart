@@ -43,13 +43,15 @@ class LayoutDynamicCards extends StatelessWidget {
     final pLoc = booking.pickupLocation;
     final dLoc = booking.dropoffLocation;
 
+    final topPadding = MediaQuery.of(context).padding.top + 96;
+
     return Container(
       color: isDark ? const Color(0xFF090E17) : const Color(0xFFF4F6F9),
       child: Column(
         children: [
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.only(top: 75, bottom: 16),
+              padding: EdgeInsets.only(top: topPadding, bottom: 24),
               physics: const BouncingScrollPhysics(),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -28,13 +28,7 @@ class AdminProvider extends ChangeNotifier {
   double _tier2001To2500 = 2750.0;
   double _tier2501To3000 = 3000.0;
 
-  int _freeDriverQuota = 1;
-  double _lifetimeFeeAmount = 5000.0;
-  double _annualFeeAmount = 10000.0;
-  String _zaincashNumber = '7117648506';
-  String _superqiNumber = '07800000000';
-  String _paymentInstructions =
-      'يرجى تحويل مبلغ الاشتراك عبر محفظة زين كاش أو بطاقة سوبر كي ثم إرسال الإشعار لتفعيل الحساب فورياً';
+
 
   Map<String, dynamic> _referralSettings = {
     'is_referral_system_enabled': true,
@@ -82,9 +76,23 @@ class AdminProvider extends ChangeNotifier {
   double get tier2001To2500 => _tier2001To2500;
   double get tier2501To3000 => _tier2501To3000;
 
+  int _freeDriverQuota = 100;
+  double _monthlyFeeAmount = 0.0;
+  double _threeMonthsFeeAmount = 0.0;
+  double _sixMonthsFeeAmount = 0.0;
+  double _annualFeeAmount = 15000.0;
+  double _lifetimeFeeAmount = 50000.0;
+  String _zaincashNumber = '07721655570';
+  String _superqiNumber = '7117648506';
+  String _paymentInstructions =
+      'يرجى تحويل مبلغ الاشتراك عبر محفظة زين كاش أو بطاقة سوبر كي ثم إرسال الإشعار لتفعيل الحساب فورياً';
+
   int get freeDriverQuota => _freeDriverQuota;
-  double get lifetimeFeeAmount => _lifetimeFeeAmount;
+  double get monthlyFeeAmount => _monthlyFeeAmount;
+  double get threeMonthsFeeAmount => _threeMonthsFeeAmount;
+  double get sixMonthsFeeAmount => _sixMonthsFeeAmount;
   double get annualFeeAmount => _annualFeeAmount;
+  double get lifetimeFeeAmount => _lifetimeFeeAmount;
   String get zaincashNumber => _zaincashNumber;
   String get superqiNumber => _superqiNumber;
   String get paymentInstructions => _paymentInstructions;
@@ -169,8 +177,11 @@ class AdminProvider extends ChangeNotifier {
 
       final feeSettings = results[5] as Map<String, dynamic>;
       _freeDriverQuota = (feeSettings['free_driver_quota'] as num?)?.toInt() ?? 100;
-      _lifetimeFeeAmount = (feeSettings['lifetime_fee_amount'] as num?)?.toDouble() ?? 50000.0;
+      _monthlyFeeAmount = (feeSettings['monthly_fee_amount'] as num?)?.toDouble() ?? 0.0;
+      _threeMonthsFeeAmount = (feeSettings['three_months_fee_amount'] as num?)?.toDouble() ?? 0.0;
+      _sixMonthsFeeAmount = (feeSettings['six_months_fee_amount'] as num?)?.toDouble() ?? 0.0;
       _annualFeeAmount = (feeSettings['annual_fee_amount'] as num?)?.toDouble() ?? 15000.0;
+      _lifetimeFeeAmount = (feeSettings['lifetime_fee_amount'] as num?)?.toDouble() ?? 0.0;
       _zaincashNumber = feeSettings['zaincash_number'] as String? ?? '07721655570';
       _superqiNumber = feeSettings['superqi_number'] as String? ?? '7117648506';
       _paymentInstructions = feeSettings['payment_instructions'] as String? ??
@@ -497,8 +508,11 @@ class AdminProvider extends ChangeNotifier {
 
   Future<void> updateDriverFeeSettings({
     required int freeDriverQuota,
-    required double lifetimeFeeAmount,
+    double monthlyFeeAmount = 0.0,
+    double threeMonthsFeeAmount = 0.0,
+    double sixMonthsFeeAmount = 0.0,
     required double annualFeeAmount,
+    required double lifetimeFeeAmount,
     required String zaincashNumber,
     required String superqiNumber,
     required String paymentInstructions,
@@ -509,13 +523,19 @@ class AdminProvider extends ChangeNotifier {
     try {
       await _supabaseService.updateDriverFeeSettings(
         freeDriverQuota: freeDriverQuota,
-        lifetimeFeeAmount: lifetimeFeeAmount,
+        monthlyFeeAmount: monthlyFeeAmount,
+        threeMonthsFeeAmount: threeMonthsFeeAmount,
+        sixMonthsFeeAmount: sixMonthsFeeAmount,
         annualFeeAmount: annualFeeAmount,
+        lifetimeFeeAmount: lifetimeFeeAmount,
         zaincashNumber: zaincashNumber,
         superqiNumber: superqiNumber,
         paymentInstructions: paymentInstructions,
       );
       _freeDriverQuota = freeDriverQuota;
+      _monthlyFeeAmount = monthlyFeeAmount;
+      _threeMonthsFeeAmount = threeMonthsFeeAmount;
+      _sixMonthsFeeAmount = sixMonthsFeeAmount;
       _lifetimeFeeAmount = lifetimeFeeAmount;
       _annualFeeAmount = annualFeeAmount;
       _zaincashNumber = zaincashNumber;

@@ -7,6 +7,7 @@ import '../../core/state/auth_provider.dart';
 import '../../core/state/booking_provider.dart';
 import '../../core/state/theme_provider.dart';
 import '../../core/theme/aurora_theme.dart';
+import '../../models/vehicle_pricing_config.dart';
 import '../tracking/live_tracking_screen.dart';
 import '../widgets/aurora_button.dart';
 import 'location_picker_sheet.dart';
@@ -582,7 +583,145 @@ class _RideBookingSheetState extends State<RideBookingSheet> {
             ),
           ),
 
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
+
+          // Trip Options: Round Trip & Stop on the Way
+          if (booking.isRide) ...[
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0x661E293B) : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1),
+                ),
+              ),
+              child: Column(
+                children: [
+                  // 1. Round-Trip Option (رحلة ذهاب وإياب)
+                  InkWell(
+                    onTap: () => booking.setRoundTrip(!booking.isRoundTrip),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: booking.isRoundTrip
+                                  ? const Color(0xFF8B5CF6).withValues(alpha: 0.2)
+                                  : (isDark ? const Color(0x33334155) : const Color(0xFFE2E8F0)),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.sync_alt_rounded,
+                              size: 16,
+                              color: booking.isRoundTrip ? const Color(0xFF8B5CF6) : const Color(0xFF64748B),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'رحلة ذهاب وإياب (العودة لنقطة الانطلاق)',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                ),
+                                Text(
+                                  booking.isRoundTrip
+                                      ? 'مفعّل • يتم احتساب مجموع الرحلتين تلقائياً (x2)'
+                                      : 'حساب مشوار العودة مع نفس الكابتن',
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch.adaptive(
+                            value: booking.isRoundTrip,
+                            activeThumbColor: const Color(0xFF8B5CF6),
+                            onChanged: (val) => booking.setRoundTrip(val),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  Divider(height: 12, color: isDark ? const Color(0x2238BDF8) : const Color(0xFFE2E8F0)),
+
+                  // 2. Waypoint Stop on the Way Option (التوقف في الطريق)
+                  InkWell(
+                    onTap: () => _showStopOptionsSheet(context, booking, isDark, loc),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: booking.selectedStopOption.id != 'none'
+                                  ? const Color(0xFFF59E0B).withValues(alpha: 0.2)
+                                  : (isDark ? const Color(0x33334155) : const Color(0xFFE2E8F0)),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.timer_outlined,
+                              size: 16,
+                              color: booking.selectedStopOption.id != 'none'
+                                  ? const Color(0xFFF59E0B)
+                                  : const Color(0xFF64748B),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'التوقف في الطريق (الانتظار)',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                ),
+                                Text(
+                                  booking.selectedStopOption.id == 'none'
+                                      ? 'انقر لتحديد مدة التوقف ورسوم الانتظار...'
+                                      : '${booking.selectedStopOption.labelAr} (+${currencyFormatter.format(booking.selectedStopOption.fee.toInt())} د.ع)',
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    color: booking.selectedStopOption.id != 'none'
+                                        ? const Color(0xFFF59E0B)
+                                        : (isDark ? Colors.white60 : const Color(0xFF64748B)),
+                                    fontWeight: booking.selectedStopOption.id != 'none'
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (booking.selectedStopOption.id != 'none')
+                            GestureDetector(
+                              onTap: () => booking.setStopOption('none'),
+                              child: const Padding(
+                                padding: EdgeInsets.all(4),
+                                child: Icon(Icons.close_rounded, size: 18, color: Color(0xFFEF4444)),
+                              ),
+                            )
+                          else
+                            const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: Color(0xFF64748B)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
 
           // Fare & Distance Bar
           Row(
@@ -641,6 +780,125 @@ class _RideBookingSheetState extends State<RideBookingSheet> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showStopOptionsSheet(
+    BuildContext context,
+    BookingProvider booking,
+    bool isDark,
+    AppLocalizations loc,
+  ) {
+    final currencyFormatter = intl.NumberFormat('#,###');
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.timer_outlined, color: Color(0xFFF59E0B), size: 22),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'التوقف في الطريق',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: WaypointStopOption.defaultOptions.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final option = WaypointStopOption.defaultOptions[index];
+                      final isSelected = booking.selectedStopOption.id == option.id;
+
+                      return ListTile(
+                        onTap: () {
+                          booking.setStopOption(option.id);
+                          Navigator.pop(ctx);
+                        },
+                        leading: Container(
+                          width: 22,
+                          height: 22,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isSelected ? const Color(0xFFF59E0B) : Colors.grey,
+                              width: 2,
+                            ),
+                          ),
+                          child: isSelected
+                              ? Center(
+                                  child: Container(
+                                    width: 10,
+                                    height: 10,
+                                    decoration: const BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Color(0xFFF59E0B),
+                                    ),
+                                  ),
+                                )
+                              : null,
+                        ),
+                        title: Text(
+                          option.labelAr,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                            color: isSelected ? (isDark ? Colors.white : const Color(0xFF0F172A)) : null,
+                          ),
+                        ),
+                        trailing: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: option.fee > 0
+                                ? const Color(0xFFF59E0B).withValues(alpha: 0.15)
+                                : (isDark ? const Color(0x33334155) : const Color(0xFFF1F5F9)),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            option.fee > 0
+                                ? '+${currencyFormatter.format(option.fee.toInt())} د.ع'
+                                : 'مجاناً',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: option.fee > 0
+                                  ? const Color(0xFFF59E0B)
+                                  : (isDark ? Colors.white60 : const Color(0xFF64748B)),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

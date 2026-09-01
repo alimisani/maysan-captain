@@ -32,6 +32,9 @@ class RideOrder {
   final List<Map<String, dynamic>> destinations;
   final List<String> rejectedDriverIds;
   final Map<String, int> driverRejectionCounts;
+  final bool isRoundTrip; // رحلة ذهاب وإياب
+  final int stopDurationMinutes; // مدة التوقف في الطريق بالدقائق
+  final double stopFee; // تكلفة التوقف المضافة
   final DateTime createdAt;
   final DateTime? completedAt;
 
@@ -69,6 +72,9 @@ class RideOrder {
     this.destinations = const [],
     this.rejectedDriverIds = const [],
     this.driverRejectionCounts = const {},
+    this.isRoundTrip = false,
+    this.stopDurationMinutes = 0,
+    this.stopFee = 0.0,
     required this.createdAt,
     this.completedAt,
   });
@@ -121,6 +127,9 @@ class RideOrder {
     List<Map<String, dynamic>>? destinations,
     List<String>? rejectedDriverIds,
     Map<String, int>? driverRejectionCounts,
+    bool? isRoundTrip,
+    int? stopDurationMinutes,
+    double? stopFee,
     DateTime? createdAt,
     DateTime? completedAt,
   }) {
@@ -158,6 +167,9 @@ class RideOrder {
       destinations: destinations ?? this.destinations,
       rejectedDriverIds: rejectedDriverIds ?? this.rejectedDriverIds,
       driverRejectionCounts: driverRejectionCounts ?? this.driverRejectionCounts,
+      isRoundTrip: isRoundTrip ?? this.isRoundTrip,
+      stopDurationMinutes: stopDurationMinutes ?? this.stopDurationMinutes,
+      stopFee: stopFee ?? this.stopFee,
       createdAt: createdAt ?? this.createdAt,
       completedAt: completedAt ?? this.completedAt,
     );
@@ -222,6 +234,9 @@ class RideOrder {
       destinations: parseDestinations(),
       rejectedDriverIds: parseRejectedDrivers(),
       driverRejectionCounts: parseRejectionCounts(),
+      isRoundTrip: json['is_round_trip'] == true,
+      stopDurationMinutes: (json['stop_duration_minutes'] as num?)?.toInt() ?? 0,
+      stopFee: (json['stop_fee'] as num?)?.toDouble() ?? 0.0,
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now()
           : DateTime.now(),
@@ -266,6 +281,9 @@ class RideOrder {
       'destinations': destinations,
       'rejected_driver_ids': rejectedDriverIds,
       'driver_rejection_counts': driverRejectionCounts,
+      'is_round_trip': isRoundTrip,
+      'stop_duration_minutes': stopDurationMinutes,
+      'stop_fee': stopFee,
       'created_at': createdAt.toIso8601String(),
       'completed_at': completedAt?.toIso8601String(),
     };

@@ -16,6 +16,7 @@ import '../../core/theme/aurora_theme.dart';
 import '../../models/custom_route_pricing.dart';
 import '../../models/user_profile.dart';
 import '../../models/ad_banner.dart';
+import '../../models/vehicle_pricing_config.dart';
 import '../widgets/aurora_background.dart';
 import '../widgets/aurora_button.dart';
 import '../widgets/custom_text_field.dart';
@@ -44,8 +45,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   final TextEditingController _tier2501To3000Controller = TextEditingController(text: '3000');
 
   final TextEditingController _freeDriverQuotaController = TextEditingController();
-  final TextEditingController _lifetimeFeeAmountController = TextEditingController();
+  final TextEditingController _monthlyFeeAmountController = TextEditingController();
+  final TextEditingController _threeMonthsFeeAmountController = TextEditingController();
+  final TextEditingController _sixMonthsFeeAmountController = TextEditingController();
   final TextEditingController _annualFeeAmountController = TextEditingController();
+  final TextEditingController _lifetimeFeeAmountController = TextEditingController();
   final TextEditingController _zaincashNumberController = TextEditingController();
   final TextEditingController _superqiNumberController = TextEditingController();
   final TextEditingController _paymentInstructionsController = TextEditingController();
@@ -101,8 +105,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     _maxDestinationsController.text = admin.maxDestinations.toString();
 
     _freeDriverQuotaController.text = admin.freeDriverQuota.toString();
-    _lifetimeFeeAmountController.text = admin.lifetimeFeeAmount.toInt().toString();
+    _monthlyFeeAmountController.text = admin.monthlyFeeAmount.toInt().toString();
+    _threeMonthsFeeAmountController.text = admin.threeMonthsFeeAmount.toInt().toString();
+    _sixMonthsFeeAmountController.text = admin.sixMonthsFeeAmount.toInt().toString();
     _annualFeeAmountController.text = admin.annualFeeAmount.toInt().toString();
+    _lifetimeFeeAmountController.text = admin.lifetimeFeeAmount.toInt().toString();
     _zaincashNumberController.text = admin.zaincashNumber;
     _superqiNumberController.text = admin.superqiNumber;
     _paymentInstructionsController.text = admin.paymentInstructions;
@@ -1509,6 +1516,79 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ),
               const SizedBox(height: 16),
 
+              // Master Global Pricing Toggle Card (Mutual Switch)
+              Consumer<BookingProvider>(
+                builder: (context, booking, _) {
+                  final bool isGlobalActive = !booking.vehiclePricingConfig.isVehicleSpecificPricingEnabled;
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: isGlobalActive
+                          ? AuroraTheme.accentEmerald.withValues(alpha: 0.12)
+                          : (isDark ? const Color(0x331E293B) : const Color(0xFFF1F5F9)),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isGlobalActive
+                            ? AuroraTheme.accentEmerald.withValues(alpha: 0.4)
+                            : (isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1)),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          isGlobalActive ? Icons.check_circle_rounded : Icons.toggle_off_rounded,
+                          color: isGlobalActive ? AuroraTheme.accentEmerald : const Color(0xFF64748B),
+                          size: 22,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'تفعيل نظام التسعير العام الموحد',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                ),
+                              ),
+                              Text(
+                                isGlobalActive
+                                    ? 'مفعّل: يتم تطبيق الأجرة الموحدة وشرائح المسافة العامة أدناه مع إيقاف تسعير المركبات تلقائياً'
+                                    : 'معطّل: تم تفعيل نظام تسعير المركبات المخصص تلقائياً',
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch.adaptive(
+                          value: isGlobalActive,
+                          activeThumbColor: AuroraTheme.accentEmerald,
+                          onChanged: (val) async {
+                            await booking.setVehicleSpecificPricingEnabled(!val);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(val
+                                      ? 'تم تفعيل نظام التسعير العام وإيقاف تسعير المركبات'
+                                      : 'تم تفعيل نظام التسعير المخصص لكل نوع مركبة'),
+                                  backgroundColor: val ? AuroraTheme.accentEmerald : const Color(0xFF3B82F6),
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+
               CustomTextField(
                 controller: _baseFareController,
                 label: 'الأجرة الأساسية للرحلات (د.ع)',
@@ -1746,6 +1826,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
         const SizedBox(height: 22),
 
+        // Section: Vehicle-specific Dynamic Pricing & Policies (تسعير وسياسات المركبات)
+        _buildVehiclePricingSection(context, isDark),
+
+        const SizedBox(height: 22),
+
         // Section 2: Driver Activation & Lifetime Subscription Fees
         Container(
           padding: const EdgeInsets.all(20),
@@ -1922,11 +2007,29 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               const SizedBox(height: 14),
 
               CustomTextField(
-                controller: _lifetimeFeeAmountController,
-                label: 'مبلغ رسم الاشتراك الدائمي (مدى الحياة) (د.ع)',
-                hint: '50000',
+                controller: _monthlyFeeAmountController,
+                label: 'مبلغ رسم الاشتراك الشهري (لمدة 1 شهر) (د.ع)',
+                hint: '0 (اتركه 0 لإخفاء هذا الخيار عن السائق)',
                 keyboardType: TextInputType.number,
-                prefixIcon: Icons.stars_rounded,
+                prefixIcon: Icons.calendar_view_month_rounded,
+              ),
+              const SizedBox(height: 14),
+
+              CustomTextField(
+                controller: _threeMonthsFeeAmountController,
+                label: 'مبلغ رسم الاشتراك لـ (3 أشهر) (د.ع)',
+                hint: '0 (اتركه 0 لإخفاء هذا الخيار عن السائق)',
+                keyboardType: TextInputType.number,
+                prefixIcon: Icons.date_range_rounded,
+              ),
+              const SizedBox(height: 14),
+
+              CustomTextField(
+                controller: _sixMonthsFeeAmountController,
+                label: 'مبلغ رسم الاشتراك لـ (6 أشهر) (د.ع)',
+                hint: '0 (اتركه 0 لإخفاء هذا الخيار عن السائق)',
+                keyboardType: TextInputType.number,
+                prefixIcon: Icons.event_note_rounded,
               ),
               const SizedBox(height: 14),
 
@@ -1936,6 +2039,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 hint: '15000',
                 keyboardType: TextInputType.number,
                 prefixIcon: Icons.calendar_today_rounded,
+              ),
+              const SizedBox(height: 14),
+
+              CustomTextField(
+                controller: _lifetimeFeeAmountController,
+                label: 'مبلغ رسم الاشتراك الدائمي (مدى الحياة) (د.ع)',
+                hint: '0 (اتركه 0 لإخفاء هذا الخيار عن السائق)',
+                keyboardType: TextInputType.number,
+                prefixIcon: Icons.stars_rounded,
               ),
               const SizedBox(height: 14),
 
@@ -1960,7 +2072,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               CustomTextField(
                 controller: _paymentInstructionsController,
                 label: 'تعليمات وطريقة التحويل الموجهة للسائق',
-                hint: 'تحويل الرسوم لمرة واحدة عبر زين كاش أو ماستر كارد لتفعيل الحساب مدى الحياة',
+                hint: 'تحويل الرسوم لمرة واحدة عبر زين كاش أو ماستر كارد لتفعيل الحساب',
                 maxLines: 2,
                 prefixIcon: Icons.info_outline_rounded,
               ),
@@ -1971,16 +2083,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 icon: Icons.save_rounded,
                 onPressed: () async {
                   final quota = int.tryParse(_freeDriverQuotaController.text.trim()) ?? 100;
-                  final lifetimeFee = double.tryParse(_lifetimeFeeAmountController.text.trim()) ?? 5000.0;
-                  final annualFee = double.tryParse(_annualFeeAmountController.text.trim()) ?? 10000.0;
+                  final monthlyFee = double.tryParse(_monthlyFeeAmountController.text.trim()) ?? 0.0;
+                  final threeMonthsFee = double.tryParse(_threeMonthsFeeAmountController.text.trim()) ?? 0.0;
+                  final sixMonthsFee = double.tryParse(_sixMonthsFeeAmountController.text.trim()) ?? 0.0;
+                  final annualFee = double.tryParse(_annualFeeAmountController.text.trim()) ?? 15000.0;
+                  final lifetimeFee = double.tryParse(_lifetimeFeeAmountController.text.trim()) ?? 0.0;
                   final zaincash = _zaincashNumberController.text.trim();
                   final superqi = _superqiNumberController.text.trim();
                   final inst = _paymentInstructionsController.text.trim();
 
                   await admin.updateDriverFeeSettings(
                     freeDriverQuota: quota,
-                    lifetimeFeeAmount: lifetimeFee,
+                    monthlyFeeAmount: monthlyFee,
+                    threeMonthsFeeAmount: threeMonthsFee,
+                    sixMonthsFeeAmount: sixMonthsFee,
                     annualFeeAmount: annualFee,
+                    lifetimeFeeAmount: lifetimeFee,
                     zaincashNumber: zaincash,
                     superqiNumber: superqi,
                     paymentInstructions: inst,
@@ -6759,6 +6877,668 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  // --- VEHICLE SPECIFIC PRICING & POLICIES SECTION ---
+  Widget _buildVehiclePricingSection(BuildContext context, bool isDark) {
+    final booking = context.watch<BookingProvider>();
+    final config = booking.vehiclePricingConfig;
+    final currencyFormatter = intl.NumberFormat('#,###');
+
+    final vehicleMeta = {
+      'salon': {
+        'icon': Icons.local_taxi_rounded,
+        'color': const Color(0xFF10B981),
+        'title': 'تاكسي صالون (Salon)',
+      },
+      'vip': {
+        'icon': Icons.workspace_premium_rounded,
+        'color': const Color(0xFF8B5CF6),
+        'title': 'كابتن VIP (Executive)',
+      },
+      'tuk_tuk': {
+        'icon': Icons.electric_rickshaw_rounded,
+        'color': const Color(0xFFF59E0B),
+        'title': 'تكتك ميسان (Tuk-Tuk)',
+      },
+      'delivery': {
+        'icon': Icons.delivery_dining_rounded,
+        'color': const Color(0xFF0284C7),
+        'title': 'توصيل طلبات / طرود',
+      },
+      'pickup': {
+        'icon': Icons.local_shipping_rounded,
+        'color': const Color(0xFFEC4899),
+        'title': 'بيك آب / حمل ونقل بضائع',
+      },
+    };
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1),
+        ),
+        boxShadow: const [
+          BoxShadow(color: Color(0x15000000), blurRadius: 16, offset: Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+                  ),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.directions_car_filled_rounded, color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'تسعير وسياسات المركبات المخصصة',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                    ),
+                    Text(
+                      'تخصيص الأجرة الأساسية، سعر الكيلومتر، والحد الأدنى لكل فئة مركبة',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // Master Switch
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: config.isVehicleSpecificPricingEnabled
+                  ? (isDark ? const Color(0x3310B981) : const Color(0x1510B981))
+                  : (isDark ? const Color(0x22334155) : const Color(0xFFF1F5F9)),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: config.isVehicleSpecificPricingEnabled
+                    ? const Color(0xFF10B981).withValues(alpha: 0.4)
+                    : (isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1)),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  config.isVehicleSpecificPricingEnabled
+                      ? Icons.check_circle_rounded
+                      : Icons.pause_circle_filled_rounded,
+                  color: config.isVehicleSpecificPricingEnabled
+                      ? const Color(0xFF10B981)
+                      : const Color(0xFF64748B),
+                  size: 22,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'تفعيل التسعير والسياسات الخاصة بالمركبات',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                      ),
+                      Text(
+                        config.isVehicleSpecificPricingEnabled
+                            ? 'مفعّل: كل مركبة تحتسب أجرتها بناءً على تسعيرتها وسياساتها أدناه'
+                            : 'معطّل: يتم استخدام التسعير العام الموحد لكافة المركبات',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch.adaptive(
+                  value: config.isVehicleSpecificPricingEnabled,
+                  activeThumbColor: const Color(0xFF10B981),
+                  onChanged: (val) async {
+                    await booking.setVehicleSpecificPricingEnabled(val);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(val
+                              ? 'تم تفعيل نظام التسعير المخصص لكل نوع مركبة'
+                              : 'تم تعطيل التسعير المخصص والعودة للتسعير العام'),
+                          backgroundColor: val ? AuroraTheme.accentEmerald : Colors.orange,
+                        ),
+                      );
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Vehicle Cards List
+          ...config.items.entries.map((entry) {
+            final key = entry.key;
+            final item = entry.value;
+            final meta = vehicleMeta[key] ?? {
+              'icon': Icons.directions_car_rounded,
+              'color': Colors.blue,
+              'title': item.nameAr,
+            };
+            final color = meta['color'] as Color;
+            final icon = meta['icon'] as IconData;
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0x661E293B) : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: color.withValues(alpha: 0.35),
+                  width: 1.2,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(icon, color: color, size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item.nameAr,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              ),
+                            ),
+                            if (item.policyNotes.isNotEmpty)
+                              Text(
+                                item.policyNotes,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.edit_note_rounded, size: 24),
+                        color: color,
+                        tooltip: 'تعديل التسعيرة والسياسة',
+                        onPressed: () => _showEditVehiclePricingDialog(context, booking, item, color),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildPricingBadge(
+                          'الأساس',
+                          '${currencyFormatter.format(item.baseFare.toInt())} د.ع',
+                          isDark,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: _buildPricingBadge(
+                          'سعر الكيلو',
+                          '${currencyFormatter.format(item.perKmRate.toInt())} د.ع',
+                          isDark,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: _buildPricingBadge(
+                          'الحد الأدنى',
+                          '${currencyFormatter.format(item.minFare.toInt())} د.ع',
+                          isDark,
+                        ),
+                      ),
+                      if (item.rushMultiplier > 1.0) ...[
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: _buildPricingBadge(
+                            'المضاعف',
+                            '${item.rushMultiplier}x',
+                            isDark,
+                            color: const Color(0xFF8B5CF6),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }),
+
+          const SizedBox(height: 8),
+
+          // Reset to Defaults Button
+          OutlinedButton.icon(
+            onPressed: () async {
+              await booking.saveVehiclePricingConfig(VehiclePricingConfig.defaultConfig());
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('تم استعادة التسعيرات والسياسات الافتراضية بنجاح'),
+                    backgroundColor: AuroraTheme.accentEmerald,
+                  ),
+                );
+              }
+            },
+            icon: const Icon(Icons.restart_alt_rounded, size: 18),
+            label: const Text('استعادة التسعيرات والسياسات الافتراضية للمركبات'),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              side: BorderSide(color: isDark ? const Color(0x4438BDF8) : const Color(0xFFCBD5E1)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPricingBadge(String label, String value, bool isDark, {Color? color}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFE2E8F0),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              color: isDark ? Colors.white60 : const Color(0xFF64748B),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.bold,
+              color: color ?? (isDark ? Colors.white : const Color(0xFF0F172A)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditVehiclePricingDialog(
+    BuildContext context,
+    BookingProvider booking,
+    VehiclePricingItem item,
+    Color themeColor,
+  ) {
+    final baseFareCtrl = TextEditingController(text: item.baseFare.toInt().toString());
+    final perKmCtrl = TextEditingController(text: item.perKmRate.toInt().toString());
+    final minFareCtrl = TextEditingController(text: item.minFare.toInt().toString());
+    final rushCtrl = TextEditingController(text: item.rushMultiplier.toString());
+    final notesCtrl = TextEditingController(text: item.policyNotes);
+    bool isEnabled = item.isEnabled;
+    bool isTieredPricingEnabled = item.isTieredPricingEnabled;
+    final tier0Ctrl = TextEditingController(text: item.tier0To1000.toInt().toString());
+    final tier1Ctrl = TextEditingController(text: item.tier1001To1500.toInt().toString());
+    final tier2Ctrl = TextEditingController(text: item.tier1501To2000.toInt().toString());
+    final tier3Ctrl = TextEditingController(text: item.tier2001To2500.toInt().toString());
+    final tier4Ctrl = TextEditingController(text: item.tier2501To3000.toInt().toString());
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFF0F172A)
+          : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+                left: 20,
+                right: 20,
+                top: 20,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: themeColor.withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(Icons.tune_rounded, color: themeColor, size: 22),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'تعديل تسعيرة وسياسة: ${item.nameAr}',
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
+                              Text(
+                                item.nameEn,
+                                style: const TextStyle(fontSize: 11, color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 20),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: baseFareCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              labelText: 'الأجرة الأساسية (د.ع)',
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            controller: perKmCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              labelText: 'سعر الكيلومتر (د.ع)',
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: minFareCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              labelText: 'الحد الأدنى للأجرة (د.ع)',
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            controller: rushCtrl,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            decoration: InputDecoration(
+                              labelText: 'مضاعف الخدمة / الذروة',
+                              hintText: '1.0',
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Per-Vehicle Meter Tiers (شرائح تسعير المسافة بالمتر الخاصة بهذه المركبة)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0x331E293B) : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isTieredPricingEnabled
+                              ? themeColor.withValues(alpha: 0.4)
+                              : (isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1)),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.straighten_rounded, size: 18, color: themeColor),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  'شرائح المسافة بالمتر لـ ${item.nameAr} (0-3000م)',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                ),
+                              ),
+                              Switch.adaptive(
+                                value: isTieredPricingEnabled,
+                                activeThumbColor: themeColor,
+                                onChanged: (val) => setSheetState(() => isTieredPricingEnabled = val),
+                              ),
+                            ],
+                          ),
+                          if (isTieredPricingEnabled) ...[
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: tier0Ctrl,
+                                    keyboardType: TextInputType.number,
+                                    decoration: InputDecoration(
+                                      labelText: '0-1000م (د.ع)',
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: TextField(
+                                    controller: tier1Ctrl,
+                                    keyboardType: TextInputType.number,
+                                    decoration: InputDecoration(
+                                      labelText: '1001-1500م (د.ع)',
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: TextField(
+                                    controller: tier2Ctrl,
+                                    keyboardType: TextInputType.number,
+                                    decoration: InputDecoration(
+                                      labelText: '1501-2000م (د.ع)',
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: tier3Ctrl,
+                                    keyboardType: TextInputType.number,
+                                    decoration: InputDecoration(
+                                      labelText: '2001-2500م (د.ع)',
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: TextField(
+                                    controller: tier4Ctrl,
+                                    keyboardType: TextInputType.number,
+                                    decoration: InputDecoration(
+                                      labelText: '2501-3000م (د.ع)',
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    TextField(
+                      controller: notesCtrl,
+                      maxLines: 2,
+                      decoration: InputDecoration(
+                        labelText: 'سياسة وشروط الخدمة / ملاحظات الفئة',
+                        hintText: 'مثال: سيارات حديثة ومكيفة مع أفضل الكباتن...',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('تفعيل هذه الفئة من المركبات في التطبيق', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                      value: isEnabled,
+                      activeThumbColor: themeColor,
+                      onChanged: (val) => setSheetState(() => isEnabled = val),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        final double base = double.tryParse(baseFareCtrl.text.trim()) ?? item.baseFare;
+                        final double perKm = double.tryParse(perKmCtrl.text.trim()) ?? item.perKmRate;
+                        final double minF = double.tryParse(minFareCtrl.text.trim()) ?? item.minFare;
+                        final double rush = double.tryParse(rushCtrl.text.trim()) ?? item.rushMultiplier;
+                        final String notes = notesCtrl.text.trim();
+                        final double t0 = double.tryParse(tier0Ctrl.text.trim()) ?? item.tier0To1000;
+                        final double t1 = double.tryParse(tier1Ctrl.text.trim()) ?? item.tier1001To1500;
+                        final double t2 = double.tryParse(tier2Ctrl.text.trim()) ?? item.tier1501To2000;
+                        final double t3 = double.tryParse(tier3Ctrl.text.trim()) ?? item.tier2001To2500;
+                        final double t4 = double.tryParse(tier4Ctrl.text.trim()) ?? item.tier2501To3000;
+
+                        final updated = item.copyWith(
+                          baseFare: base,
+                          perKmRate: perKm,
+                          minFare: minF,
+                          rushMultiplier: rush,
+                          policyNotes: notes,
+                          isEnabled: isEnabled,
+                          isTieredPricingEnabled: isTieredPricingEnabled,
+                          tier0To1000: t0,
+                          tier1001To1500: t1,
+                          tier1501To2000: t2,
+                          tier2001To2500: t3,
+                          tier2501To3000: t4,
+                        );
+
+                        await booking.updateVehiclePricingItem(updated);
+                        if (context.mounted) {
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('تم تحديث تسعيرة وسياسة ${item.nameAr} بنجاح'),
+                              backgroundColor: AuroraTheme.accentEmerald,
+                            ),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.check_circle_outline_rounded),
+                      label: const Text('حفظ التعديلات والتسعيرة', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: themeColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

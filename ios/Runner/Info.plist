@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Maysan Captain</string>
+	<string>كابتن ميسان</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -47,8 +47,6 @@
 			</array>
 		</dict>
 	</dict>
-	<key>CFBundleDisplayName</key>
-	<string>كابتن ميسان</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>يحتاج تطبيق كابتن ميسان للوصول إلى موقعك لتحديد نقطة الانطلاق والوجهة بدقة وتتبع مسار الرحلة على الخريطة.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>

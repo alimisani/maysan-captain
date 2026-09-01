@@ -39,10 +39,12 @@ class LayoutClassicGlass extends StatelessWidget {
       );
     }
 
+    final topPadding = MediaQuery.of(context).padding.top + 96;
+
     return Container(
       color: isDark ? const Color(0xFF090E17) : const Color(0xFFF3F5F9),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.only(top: 80, bottom: 20),
+        padding: EdgeInsets.only(top: topPadding, bottom: 24),
         physics: const BouncingScrollPhysics(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -132,9 +134,11 @@ class LayoutClassicGlass extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            // 3. Quick 4-Vehicle Grid [تاكسي صالون] [كابتن VIP] [تكتك ميسان] [توصيل طلبات]
-            Padding(
+            // 3. Quick 5-Vehicle Row [صالون] [VIP] [تكتك] [توصيل] [بيك آب / حمل]
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
+              physics: const BouncingScrollPhysics(),
               child: Row(
                 children: [
                   _buildVehiclePill(
@@ -166,6 +170,14 @@ class LayoutClassicGlass extends StatelessWidget {
                     type: 'delivery',
                     icon: Icons.delivery_dining_rounded,
                     color: const Color(0xFF3B82F6),
+                    booking: booking,
+                  ),
+                  const SizedBox(width: 8),
+                  _buildVehiclePill(
+                    title: 'بيك آب / حمل',
+                    type: 'pickup',
+                    icon: Icons.local_shipping_rounded,
+                    color: const Color(0xFFEC4899),
                     booking: booking,
                   ),
                 ],
@@ -222,7 +234,8 @@ class LayoutClassicGlass extends StatelessWidget {
     final isSelected = (type == 'delivery' && booking.isDelivery) ||
         (type != 'delivery' && booking.isRide && booking.selectedVehicleType == type);
 
-    return Expanded(
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 85),
       child: GestureDetector(
         onTap: () {
           if (type == 'delivery') {
@@ -233,7 +246,7 @@ class LayoutClassicGlass extends StatelessWidget {
           }
         },
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
           decoration: BoxDecoration(
             color: isSelected ? color.withValues(alpha: 0.15) : (isDark ? const Color(0xFF1E293B) : Colors.white),
             borderRadius: BorderRadius.circular(16),

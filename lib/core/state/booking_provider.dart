@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/app_constants.dart';
 import '../services/background_order_service.dart';
 import '../services/location_service.dart';
@@ -11,9 +12,37 @@ import '../../models/ride_order.dart';
 import '../../models/ad_banner.dart';
 import '../../models/favorite_place.dart';
 import '../../models/saved_route.dart';
+import '../../models/vehicle_pricing_config.dart';
 
 class BookingProvider extends ChangeNotifier {
   final SupabaseService _supabaseService = SupabaseService();
+
+  // Vehicle-specific Dynamic Pricing Config
+  VehiclePricingConfig _vehiclePricingConfig = VehiclePricingConfig.defaultConfig();
+  VehiclePricingConfig get vehiclePricingConfig => _vehiclePricingConfig;
+
+  // Stop on Way & Round Trip State
+  bool _isRoundTrip = false;
+  String _selectedStopId = 'none';
+
+  bool get isRoundTrip => _isRoundTrip;
+  String get selectedStopId => _selectedStopId;
+  WaypointStopOption get selectedStopOption => WaypointStopOption.defaultOptions.firstWhere(
+        (o) => o.id == _selectedStopId,
+        orElse: () => WaypointStopOption.defaultOptions.first,
+      );
+
+  void setRoundTrip(bool value) {
+    _isRoundTrip = value;
+    _recalculateFareLocal();
+    notifyListeners();
+  }
+
+  void setStopOption(String stopId) {
+    _selectedStopId = stopId;
+    _recalculateFareLocal();
+    notifyListeners();
+  }
 
   // Booking Type: 'ride' or 'delivery'
   String _serviceType = 'ride';
@@ -64,8 +93,43 @@ class BookingProvider extends ChangeNotifier {
       _tier1501To2000 = (pricing['tier_1501_2000'] as num?)?.toDouble() ?? 2500.0;
       _tier2001To2500 = (pricing['tier_2001_2500'] as num?)?.toDouble() ?? 2750.0;
       _tier2501To3000 = (pricing['tier_2501_3000'] as num?)?.toDouble() ?? 3000.0;
-      _recalculateFareLocal();
     } catch (_) {}
+    await loadVehiclePricingConfig();
+    _recalculateFareLocal();
+  }
+
+  Future<void> loadVehiclePricingConfig() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final str = prefs.getString('maysan_vehicle_pricing_config');
+      if (str != null && str.isNotEmpty) {
+        _vehiclePricingConfig = VehiclePricingConfig.fromJsonString(str);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> saveVehiclePricingConfig(VehiclePricingConfig config) async {
+    _vehiclePricingConfig = config;
+    _recalculateFareLocal();
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('maysan_vehicle_pricing_config', config.toJsonString());
+    } catch (e) {
+      debugPrint('Save vehicle pricing config error: $e');
+    }
+  }
+
+  Future<void> updateVehiclePricingItem(VehiclePricingItem item) async {
+    final newItems = Map<String, VehiclePricingItem>.from(_vehiclePricingConfig.items);
+    newItems[item.vehicleType] = item;
+    final updatedConfig = _vehiclePricingConfig.copyWith(items: newItems);
+    await saveVehiclePricingConfig(updatedConfig);
+  }
+
+  Future<void> setVehicleSpecificPricingEnabled(bool enabled) async {
+    final updatedConfig = _vehiclePricingConfig.copyWith(isVehicleSpecificPricingEnabled: enabled);
+    await saveVehiclePricingConfig(updatedConfig);
   }
 
   LatLng? _liveUserGps;
@@ -626,7 +690,14 @@ class BookingProvider extends ChangeNotifier {
 
   void _recalculateFareLocal() {
     if (_distanceKm <= 0) {
-      _estimatedFare = isDelivery ? _deliveryBaseFare : _baseFare;
+      double base = isDelivery ? _deliveryBaseFare : _baseFare;
+      if (_vehiclePricingConfig.isVehicleSpecificPricingEnabled) {
+        final vItem = _vehiclePricingConfig.getItem(_selectedVehicleType);
+        base = vItem.baseFare;
+      }
+      double finalTotal = _isRoundTrip ? (base * 2.0) : base;
+      finalTotal += selectedStopOption.fee;
+      _estimatedFare = (finalTotal / 250).ceil() * 250.0;
       notifyListeners();
       return;
     }
@@ -648,9 +719,50 @@ class BookingProvider extends ChangeNotifier {
       }
     }
 
+    double calculated;
+
     if (matchedCustomPrice != null) {
-      _estimatedFare = matchedCustomPrice;
+      calculated = matchedCustomPrice;
+    } else if (_vehiclePricingConfig.isVehicleSpecificPricingEnabled) {
+      // 1. Vehicle-specific Dynamic Pricing Engine
+      final vItem = _vehiclePricingConfig.getItem(_selectedVehicleType);
+      final double base = vItem.baseFare;
+      final double perKm = vItem.perKmRate;
+      final double minF = vItem.minFare;
+      final double rush = vItem.rushMultiplier;
+
+      int totalLegs = 1 + _extraDestinations.length;
+      final distanceMeters = (_distanceKm * 1000.0).round();
+
+      if (vItem.isTieredPricingEnabled && distanceMeters <= 3000 && _extraDestinations.isEmpty) {
+        // Vehicle's own meter tiers
+        if (distanceMeters <= 1000) {
+          calculated = vItem.tier0To1000;
+        } else if (distanceMeters <= 1500) {
+          calculated = vItem.tier1001To1500;
+        } else if (distanceMeters <= 2000) {
+          calculated = vItem.tier1501To2000;
+        } else if (distanceMeters <= 2500) {
+          calculated = vItem.tier2001To2500;
+        } else {
+          calculated = vItem.tier2501To3000;
+        }
+        calculated *= rush;
+      } else {
+        // Above 3000m or multi-destinations
+        double billedKm = _distanceKm.ceilToDouble();
+        if (billedKm < 1.0) billedKm = 1.0;
+
+        double distanceCharge = billedKm * perKm;
+        double rawFare = base + distanceCharge;
+        if (_extraDestinations.isNotEmpty) {
+          rawFare = (rawFare > (base * totalLegs)) ? rawFare : (base * totalLegs);
+        }
+
+        calculated = (rawFare < minF ? minF : rawFare) * rush;
+      }
     } else {
+      // 2. Global Tiered Pricing Engine
       double base = isDelivery ? _deliveryBaseFare : _baseFare;
       double vehicleMultiplier = 1.0;
       if (_selectedVehicleType == 'vip') vehicleMultiplier = 1.6;
@@ -658,7 +770,6 @@ class BookingProvider extends ChangeNotifier {
       if (_selectedVehicleType == 'tuk_tuk') vehicleMultiplier = 0.8;
       if (_selectedVehicleType == 'pickup') vehicleMultiplier = 1.3;
 
-      double calculated;
       int totalLegs = 1 + _extraDestinations.length;
       final distanceMeters = (_distanceKm * 1000.0).round();
 
@@ -693,10 +804,18 @@ class BookingProvider extends ChangeNotifier {
         // When perKmRate is 0, each leg adds baseFare
         calculated = (base * totalLegs) * vehicleMultiplier;
       }
-
-      // Round to nearest 250 IQD
-      _estimatedFare = (calculated / 250).ceil() * 250.0;
     }
+
+    // Apply Round Trip calculation (ذهاب وإياب = مجموع الرحلتين x 2)
+    if (_isRoundTrip) {
+      calculated = calculated * 2.0;
+    }
+
+    // Apply Waypoint Stop Fee on the way (مبلغ التوقف في الطريق)
+    calculated += selectedStopOption.fee;
+
+    // Round to nearest 250 IQD
+    _estimatedFare = (calculated / 250).ceil() * 250.0;
     notifyListeners();
   }
 
@@ -747,6 +866,9 @@ class BookingProvider extends ChangeNotifier {
         distanceKm: _distanceKm,
         fare: _estimatedFare,
         destinations: destinationsList,
+        isRoundTrip: _isRoundTrip,
+        stopDurationMinutes: selectedStopOption.minutes,
+        stopFee: selectedStopOption.fee,
         notes: notes,
         packageDetails: packageDetails,
       );
