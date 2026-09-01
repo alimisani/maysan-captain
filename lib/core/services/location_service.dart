@@ -189,13 +189,24 @@ class LocationService {
 
   // Accurate Reverse Geocoding via Nominatim, Maysan Local Landmarks & Google Plus Code
   static Future<String> getRealAddress(LatLng point, {bool isArabic = true}) async {
+    String? poiName;
     String? roadName;
     String? neighborhood;
     final plusCode = getPlusCode(point);
 
+    // 1. Check local high-precision Maysan landmarks first (if within 150m)
+    final localNearest = _findNearestLandmark(point, maxThresholdKm: 0.15);
+    if (localNearest != null) {
+      final lm = isArabic ? localNearest.location.nameAr : localNearest.location.nameEn;
+      if (plusCode.isNotEmpty) {
+        return '$lm ($plusCode)';
+      }
+      return lm;
+    }
+
     try {
       final url = Uri.parse(
-        'https://nominatim.openstreetmap.org/reverse?lat=${point.latitude}&lon=${point.longitude}&format=json&accept-language=ar&zoom=19',
+        'https://nominatim.openstreetmap.org/reverse?lat=${point.latitude}&lon=${point.longitude}&format=json&accept-language=ar&zoom=19&addressdetails=1&extratags=1&namedetails=1',
       );
 
       final response = await http.get(
@@ -205,9 +216,36 @@ class LocationService {
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
-        final address = data['address'] as Map<String, dynamic>?;
+        
+        // Extract specific POI name
+        final exactName = data['name'] ?? data['namedetails']?['name:ar'] ?? data['namedetails']?['name'];
+        if (exactName != null && exactName.toString().trim().isNotEmpty) {
+          final n = exactName.toString().trim();
+          if (!n.contains('ميسان') && n != 'العمارة') {
+            poiName = n;
+          }
+        }
 
+        final address = data['address'] as Map<String, dynamic>?;
         if (address != null) {
+          if (poiName == null) {
+            final landmark = address['amenity'] ??
+                address['hospital'] ??
+                address['clinic'] ??
+                address['pharmacy'] ??
+                address['building'] ??
+                address['shop'] ??
+                address['tourism'] ??
+                address['historic'] ??
+                address['place_of_worship'];
+            if (landmark != null && landmark.toString().trim().isNotEmpty) {
+              final lm = landmark.toString().trim();
+              if (!lm.contains('ميسان') && lm != 'العمارة') {
+                poiName = lm;
+              }
+            }
+          }
+
           final road = address['road'] ?? address['pedestrian'] ?? address['street'] ?? address['path'];
           final suburb = address['suburb'] ?? address['neighbourhood'] ?? address['quarter'] ?? address['residential'] ?? address['village'];
 
@@ -229,11 +267,15 @@ class LocationService {
       debugPrint('Nominatim geocoding error: $e');
     }
 
-    // Find nearest Maysan location/neighborhood
-    final nearest = _findNearestLandmark(point);
+    // Fallback to broader nearest landmark
+    final nearest = _findNearestLandmark(point, maxThresholdKm: 0.45);
     String baseTitle;
 
-    if (roadName != null && neighborhood != null) {
+    if (poiName != null && neighborhood != null) {
+      baseTitle = '$poiName، $neighborhood';
+    } else if (poiName != null) {
+      baseTitle = poiName;
+    } else if (roadName != null && neighborhood != null) {
       baseTitle = '$roadName، $neighborhood';
     } else if (roadName != null && nearest != null) {
       final landmark = isArabic ? nearest.location.nameAr : nearest.location.nameEn;
@@ -272,7 +314,7 @@ class LocationService {
     return baseTitle;
   }
 
-  static _NearestResult? _findNearestLandmark(LatLng point) {
+  static _NearestResult? _findNearestLandmark(LatLng point, {double maxThresholdKm = 0.45}) {
     MaysanLocation? nearest;
     double minDistance = double.infinity;
 
@@ -284,8 +326,7 @@ class LocationService {
       }
     }
 
-    // Only associate landmark if user is within 450 meters (0.45 km)
-    if (nearest != null && minDistance <= 0.45) {
+    if (nearest != null && minDistance <= maxThresholdKm) {
       return _NearestResult(location: nearest, distanceKm: minDistance);
     }
     return null;

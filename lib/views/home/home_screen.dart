@@ -21,6 +21,7 @@ import '../settings/settings_screen.dart';
 import '../tracking/live_tracking_screen.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/user_avatar_widget.dart';
+import '../driver/driver_home_view.dart';
 import 'layouts/layout_classic_glass.dart';
 import 'layouts/layout_uber_hub.dart';
 import 'layouts/layout_dynamic_cards.dart';
@@ -35,6 +36,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  bool _isQuickMenuOpen = false;
   Timer? _activeOrderTimer;
 
   @override
@@ -133,7 +135,7 @@ class _HomeScreenState extends State<HomeScreen> {
         body: Stack(
           children: [
             // Dynamic Active UI Layout (Classic Glass, Uber Hub, Dynamic Cards, VIP Concierge)
-            _buildActiveLayout(booking, isDark, loc),
+            _buildActiveLayout(auth, booking, isDark, loc),
 
             // Top Bar with App Branding & Profile / Theme / Language
             Positioned(
@@ -218,12 +220,99 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           onPressed: () => localeProvider.toggleLanguage(),
                         ),
+                        if (booking.uiLayoutTheme == 'classic_glass')
+                          IconButton(
+                            icon: Icon(
+                              _isQuickMenuOpen ? Icons.close_rounded : Icons.grid_view_rounded,
+                              size: 22,
+                              color: AuroraTheme.primaryCyan,
+                            ),
+                            onPressed: () => setState(() => _isQuickMenuOpen = !_isQuickMenuOpen),
+                          ),
                       ],
                     ),
                   ),
                 ),
               ),
             ),
+
+            // Floating Jumping Bubbles Overlay (for Classic Glass Layout)
+            if (_isQuickMenuOpen && booking.uiLayoutTheme == 'classic_glass')
+              Positioned(
+                top: 72,
+                left: 16,
+                right: 16,
+                child: SafeArea(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF0F172A).withValues(alpha: 0.95) : Colors.white.withValues(alpha: 0.95),
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(color: AuroraTheme.primaryCyan.withValues(alpha: 0.3)),
+                      boxShadow: const [
+                        BoxShadow(color: Color(0x35000000), blurRadius: 16, offset: Offset(0, 6)),
+                      ],
+                    ),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      child: Row(
+                        children: [
+                          _buildQuickBubble(
+                            icon: Icons.account_balance_wallet_rounded,
+                            label: 'المحفظة',
+                            color: const Color(0xFF10B981),
+                            onTap: () {
+                              setState(() => _isQuickMenuOpen = false);
+                              Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen()));
+                            },
+                          ),
+                          _buildQuickBubble(
+                            icon: Icons.receipt_long_rounded,
+                            label: 'الرحلات',
+                            color: const Color(0xFF3B82F6),
+                            onTap: () {
+                              setState(() => _isQuickMenuOpen = false);
+                              Navigator.push(context, MaterialPageRoute(builder: (_) => const OrderHistoryScreen()));
+                            },
+                          ),
+                          _buildQuickBubble(
+                            icon: Icons.chat_rounded,
+                            label: 'الدعم',
+                            color: const Color(0xFF8B5CF6),
+                            onTap: () {
+                              setState(() => _isQuickMenuOpen = false);
+                              WhatsAppService.openWhatsApp(
+                                phone: '7117648506',
+                                message: 'مرحباً، أحتاج مساعدة أو استفسار',
+                              );
+                            },
+                          ),
+                          _buildQuickBubble(
+                            icon: Icons.settings_rounded,
+                            label: 'الإعدادات',
+                            color: const Color(0xFF64748B),
+                            onTap: () {
+                              setState(() => _isQuickMenuOpen = false);
+                              Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
+                            },
+                          ),
+                          if (user?.isAdmin ?? false)
+                            _buildQuickBubble(
+                              icon: Icons.admin_panel_settings_rounded,
+                              label: 'الإدارة',
+                              color: const Color(0xFFEF4444),
+                              onTap: () {
+                                setState(() => _isQuickMenuOpen = false);
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminDashboardScreen()));
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
 
             if (booking.activeOrder != null)
               Positioned(
@@ -324,7 +413,44 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildActiveLayout(BookingProvider booking, bool isDark, AppLocalizations loc) {
+  Widget _buildQuickBubble({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+                border: Border.all(color: color.withValues(alpha: 0.4)),
+              ),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActiveLayout(AuthProvider auth, BookingProvider booking, bool isDark, AppLocalizations loc) {
+    if (auth.currentUser?.isDriver ?? false) {
+      return DriverHomeView(isDark: isDark, loc: loc);
+    }
     switch (booking.uiLayoutTheme) {
       case 'uber_hub':
         return LayoutUberHub(isDark: isDark, loc: loc);

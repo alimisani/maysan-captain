@@ -10,7 +10,6 @@ import '../location_picker_sheet.dart';
 import '../maysan_map_widget.dart';
 import '../ride_booking_sheet.dart';
 import '../widgets/ad_banner_carousel_widget.dart';
-import '../widgets/home_bottom_nav_bar.dart';
 
 class LayoutClassicGlass extends StatelessWidget {
   final bool isDark;
@@ -41,225 +40,212 @@ class LayoutClassicGlass extends StatelessWidget {
 
     return Container(
       color: isDark ? const Color(0xFF090E17) : const Color(0xFFF3F5F9),
-      child: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.only(top: 75, bottom: 16),
-              physics: const BouncingScrollPhysics(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // 1. User Trust & Status Card
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.only(top: 80, bottom: 20),
+        physics: const BouncingScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // 1. User Trust & Status Card
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: isDark
+                        ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
+                        : [Colors.white, const Color(0xFFF8FAFC)],
+                  ),
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(
+                    color: isDark ? const Color(0x3338BDF8) : const Color(0xFFE2E8F0),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isDark ? const Color(0x33000000) : const Color(0x0A000000),
+                      blurRadius: 14,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: isDark
-                              ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
-                              : [Colors.white, const Color(0xFFF8FAFC)],
-                        ),
-                        borderRadius: BorderRadius.circular(22),
-                        border: Border.all(
-                          color: isDark ? const Color(0x3338BDF8) : const Color(0xFFE2E8F0),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: isDark ? const Color(0x33000000) : const Color(0x0A000000),
-                            blurRadius: 14,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
+                        gradient: AuroraTheme.primaryGradient,
+                        shape: BoxShape.circle,
                       ),
-                      child: Row(
+                      child: const Icon(Icons.shield_rounded, color: Colors.white, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              gradient: AuroraTheme.primaryGradient,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.shield_rounded, color: Colors.white, size: 20),
+                          Text(
+                            user != null ? 'مرحباً، ${user.name}' : 'خدمة كابتن ميسان الموثوقة',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  user != null ? 'مرحباً، ${user.name}' : 'خدمة كابتن ميسان الموثوقة',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  user?.ambassadorBadge ?? 'الطلب الفوري والأسرع في ميسان',
-                                  style: const TextStyle(
-                                    fontSize: 11.5,
-                                    color: AuroraTheme.primaryCyan,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
+                          const SizedBox(height: 2),
+                          Text(
+                            user?.ambassadorBadge ?? 'الطلب الفوري والأسرع في ميسان',
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              color: AuroraTheme.primaryCyan,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
 
-                  // 2. Direct Destination Search Bar
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () async {
-                          final result = await LocationPickerSheet.show(
-                            context,
-                            title: 'مكان الوصول (الوجهة)',
-                            initialLocation: booking.dropoffLocation,
-                            isPickup: false,
-                          );
-                          if (result != null) {
-                            booking.setDropoffLocation(
-                              result['location'] as LatLng,
-                              customAddress: result['address'] as String,
-                              isArabic: loc.isArabic,
-                            );
-                          }
-                        },
-                        borderRadius: BorderRadius.circular(20),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                          decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: AuroraTheme.primaryCyan.withValues(alpha: 0.4),
-                              width: 1.5,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AuroraTheme.primaryCyan.withValues(alpha: 0.12),
-                                blurRadius: 12,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: AuroraTheme.primaryCyan.withValues(alpha: 0.15),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.search_rounded, color: AuroraTheme.primaryCyan, size: 20),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'إلى أين وجهتك القادمة؟',
-                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      booking.dropoffAddress.isNotEmpty && booking.dropoffAddress != 'تحديد الوجهة والمقصد'
-                                          ? booking.dropoffAddress
-                                          : 'انقر لتحديد وجهتك والمحطات...',
-                                      style: TextStyle(
-                                        fontSize: 11.5,
-                                        color: isDark ? Colors.white60 : const Color(0xFF64748B),
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AuroraTheme.primaryCyan),
-                            ],
-                          ),
-                        ),
+            // 2. Direct Destination Search Bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () async {
+                    final result = await LocationPickerSheet.show(
+                      context,
+                      title: 'مكان الوصول (الوجهة)',
+                      initialLocation: booking.dropoffLocation,
+                      isPickup: false,
+                    );
+                    if (result != null) {
+                      booking.setDropoffLocation(
+                        result['location'] as LatLng,
+                        customAddress: result['address'] as String,
+                        isArabic: loc.isArabic,
+                      );
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: AuroraTheme.primaryCyan.withValues(alpha: 0.4),
+                        width: 1.5,
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // 3. Quick 4-Vehicle Grid
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      children: [
-                        _buildVehiclePill(
-                          title: 'صالون',
-                          type: 'salon',
-                          icon: Icons.local_taxi_rounded,
-                          color: const Color(0xFF10B981),
-                          booking: booking,
-                        ),
-                        const SizedBox(width: 8),
-                        _buildVehiclePill(
-                          title: 'كابتن VIP',
-                          type: 'vip',
-                          icon: Icons.workspace_premium_rounded,
-                          color: const Color(0xFFF59E0B),
-                          booking: booking,
-                        ),
-                        const SizedBox(width: 8),
-                        _buildVehiclePill(
-                          title: 'توصيل',
-                          type: 'delivery',
-                          icon: Icons.delivery_dining_rounded,
-                          color: const Color(0xFF3B82F6),
-                          booking: booking,
-                        ),
-                        const SizedBox(width: 8),
-                        _buildVehiclePill(
-                          title: 'تكتك',
-                          type: 'tuk_tuk',
-                          icon: Icons.electric_rickshaw_rounded,
-                          color: const Color(0xFF8B5CF6),
-                          booking: booking,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AuroraTheme.primaryCyan.withValues(alpha: 0.12),
+                          blurRadius: 12,
+                          offset: const Offset(0, 3),
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // 4. Commercial Ad Banners Carousel
-                  if (activeBanners.isNotEmpty) ...[
-                    AdBannerCarouselWidget(
-                      banners: activeBanners,
-                      height: 130,
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AuroraTheme.primaryCyan.withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.search_rounded, color: AuroraTheme.primaryCyan, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'إلى أين وجهتك القادمة؟',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                booking.dropoffAddress.isNotEmpty && booking.dropoffAddress != 'تحديد الوجهة والمقصد'
+                                    ? booking.dropoffAddress
+                                    : 'انقر لتحديد وجهتك والمحطات...',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AuroraTheme.primaryCyan),
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                  ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
 
-                  // 5. Embedded Live Ride Booking Panel
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: RideBookingSheet(isEmbedded: true),
+            // 3. Quick 4-Vehicle Grid [تاكسي صالون] [كابتن VIP] [توصيل طلبات] [تكتك ميسان]
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  _buildVehiclePill(
+                    title: 'تاكسي صالون',
+                    type: 'salon',
+                    icon: Icons.local_taxi_rounded,
+                    color: const Color(0xFF10B981),
+                    booking: booking,
+                  ),
+                  const SizedBox(width: 8),
+                  _buildVehiclePill(
+                    title: 'كابتن VIP',
+                    type: 'vip',
+                    icon: Icons.workspace_premium_rounded,
+                    color: const Color(0xFFF59E0B),
+                    booking: booking,
+                  ),
+                  const SizedBox(width: 8),
+                  _buildVehiclePill(
+                    title: 'توصيل طلبات',
+                    type: 'delivery',
+                    icon: Icons.delivery_dining_rounded,
+                    color: const Color(0xFF3B82F6),
+                    booking: booking,
+                  ),
+                  const SizedBox(width: 8),
+                  _buildVehiclePill(
+                    title: 'تكتك ميسان',
+                    type: 'tuk_tuk',
+                    icon: Icons.electric_rickshaw_rounded,
+                    color: const Color(0xFF8B5CF6),
+                    booking: booking,
                   ),
                 ],
               ),
             ),
-          ),
+            const SizedBox(height: 12),
 
-          // Bottom Navigation Bar
-          HomeBottomNavBar(
-            selectedIndex: 0,
-            isDark: isDark,
-            accentColor: AuroraTheme.primaryCyan,
-          ),
-        ],
+            // 4. Commercial Ad Banners Carousel
+            if (activeBanners.isNotEmpty) ...[
+              AdBannerCarouselWidget(
+                banners: activeBanners,
+                height: 130,
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              ),
+              const SizedBox(height: 8),
+            ],
+
+            // 5. Embedded Live Ride Booking Panel
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: RideBookingSheet(isEmbedded: true),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -78,22 +78,40 @@ class AppConstants {
 
     // Hospitals & Medical
     MaysanLocation(
+      nameAr: 'مستشفى دجلة الأهلي',
+      nameEn: 'Dijla Private Hospital',
+      districtAr: 'قضاء العمارة',
+      coordinates: const LatLng(31.8415, 47.1472),
+    ),
+    MaysanLocation(
+      nameAr: 'مستشفى الزهراوي الجراحي',
+      nameEn: 'Al-Zahrawi Surgical Hospital',
+      districtAr: 'قضاء العمارة',
+      coordinates: const LatLng(31.8425, 47.1468),
+    ),
+    MaysanLocation(
       nameAr: 'مستشفى الصدر التعليمي',
       nameEn: 'Al-Sadr Teaching Hospital',
       districtAr: 'قضاء العمارة',
       coordinates: const LatLng(31.8460, 47.1580),
     ),
     MaysanLocation(
+      nameAr: 'مستشفى العمارة الأهلي العام',
+      nameEn: 'Al-Amarah General Private Hospital',
+      districtAr: 'قضاء العمارة',
+      coordinates: const LatLng(31.8398, 47.1485),
+    ),
+    MaysanLocation(
+      nameAr: 'متحف ميسان الحضاري',
+      nameEn: 'Maysan Cultural Museum',
+      districtAr: 'قضاء العمارة',
+      coordinates: const LatLng(31.8440, 47.1488),
+    ),
+    MaysanLocation(
       nameAr: 'مستشفى الطفل والولادة',
       nameEn: 'Pediatric & Maternity Hospital',
       districtAr: 'قضاء العمارة',
       coordinates: const LatLng(31.8480, 47.1520),
-    ),
-    MaysanLocation(
-      nameAr: 'مستشفى الحلة الأهلي / الزهراوي',
-      nameEn: 'Al-Hilla Private Hospital',
-      districtAr: 'قضاء العمارة',
-      coordinates: const LatLng(31.8422, 47.1472),
     ),
 
     // Education & Universities

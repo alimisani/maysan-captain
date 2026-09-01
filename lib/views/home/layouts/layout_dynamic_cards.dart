@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import '../../../core/localization/app_localizations.dart';
@@ -38,8 +39,11 @@ class LayoutDynamicCards extends StatelessWidget {
       );
     }
 
+    final pLoc = booking.pickupLocation;
+    final dLoc = booking.dropoffLocation;
+
     return Container(
-      color: isDark ? const Color(0xFF0C1222) : const Color(0xFFF1F5F9),
+      color: isDark ? const Color(0xFF090E17) : const Color(0xFFF4F6F9),
       child: Column(
         children: [
           Expanded(
@@ -49,218 +53,282 @@ class LayoutDynamicCards extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // 1. Dynamic Greeting & Status Bento Header
+                  // 1. Hero Destination Card
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Container(
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
+                    child: InkWell(
+                      onTap: () async {
+                        await booking.triggerInstantRideFlow(isArabic: loc.isArabic);
+                        if (context.mounted) {
+                          final result = await LocationPickerSheet.show(
+                            context,
+                            title: 'مكان الوصول (الوجهة)',
+                            initialLocation: booking.dropoffLocation,
+                            isPickup: false,
+                          );
+                          if (result != null) {
+                            booking.setDropoffLocation(
+                              result['location'] as LatLng,
+                              customAddress: result['address'] as String,
+                              isArabic: loc.isArabic,
+                            );
+                          }
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(24),
+                      child: Container(
+                        height: 125,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            begin: Alignment.topRight,
+                            end: Alignment.bottomLeft,
+                            colors: [Color(0xFF064E3B), Color(0xFF0D9488), Color(0xFF042F2C)],
+                          ),
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF064E3B).withValues(alpha: 0.35),
+                              blurRadius: 16,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF0284C7).withValues(alpha: 0.35),
-                            blurRadius: 16,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              shape: BoxShape.circle,
+                        child: Stack(
+                          children: [
+                            Positioned(
+                              left: -10,
+                              bottom: -5,
+                              child: Opacity(
+                                opacity: 0.25,
+                                child: Icon(Icons.directions_car_filled_rounded, size: 130, color: Colors.white),
+                              ),
                             ),
-                            child: const Icon(Icons.bolt_rounded, color: Colors.white, size: 24),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  user != null ? 'أهلاً بك، ${user.name}' : 'كابتن ميسان الذكي',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  user?.ambassadorBadge ?? 'الطلب الفوري والأسرع في محافظة ميسان',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.white.withValues(alpha: 0.9),
-                                    fontWeight: FontWeight.w600,
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        const Text(
+                                          'إلى أين تريد الذهاب؟',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 19,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          'حدد وجهتك الآن بلمسة واحدة وابدأ رحلتك...',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.white.withValues(alpha: 0.85),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              ],
+                                  Container(
+                                    padding: const EdgeInsets.all(14),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(18),
+                                      boxShadow: const [
+                                        BoxShadow(
+                                          color: Color(0x22000000),
+                                          blurRadius: 10,
+                                          offset: Offset(0, 3),
+                                        ),
+                                      ],
+                                    ),
+                                    child: const Icon(
+                                      Icons.search_rounded,
+                                      color: Color(0xFF064E3B),
+                                      size: 26,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
                   const SizedBox(height: 14),
 
-                  // 2. 2x2 Bento Action Tiles
+                  // 2. 4 Service Category Cards
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
                       children: [
-                        _buildDynamicTile(
-                          context: context,
-                          title: 'طلب مشوار فوري',
-                          subtitle: 'تحديد موقعي والطلب ⚡',
+                        _buildCategoryCard(
+                          title: 'تاكسي صالون',
+                          subtitle: 'مشاوير سريعة',
                           icon: Icons.local_taxi_rounded,
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF10B981), Color(0xFF059669)],
-                          ),
-                          isSelected: booking.isRide && booking.selectedVehicleType == 'salon',
-                          onTap: () async {
-                            await booking.triggerInstantRideFlow(vehicleType: 'salon', isArabic: loc.isArabic);
-                            if (context.mounted) {
-                              final result = await LocationPickerSheet.show(
-                                context,
-                                title: 'مكان الوصول (الوجهة)',
-                                initialLocation: booking.dropoffLocation,
-                                isPickup: false,
-                              );
-                              if (result != null) {
-                                booking.setDropoffLocation(
-                                  result['location'] as LatLng,
-                                  customAddress: result['address'] as String,
-                                  isArabic: loc.isArabic,
-                                );
-                              }
-                            }
-                          },
+                          color: const Color(0xFF10B981),
+                          type: 'salon',
+                          booking: booking,
                         ),
-                        const SizedBox(width: 10),
-                        _buildDynamicTile(
-                          context: context,
-                          title: 'كابتن VIP فاخر',
-                          subtitle: 'راحة وفخامة ملكية 👑',
+                        const SizedBox(width: 8),
+                        _buildCategoryCard(
+                          title: 'كابتن VIP',
+                          subtitle: 'خدمة خاصة',
                           icon: Icons.workspace_premium_rounded,
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
-                          ),
-                          isSelected: booking.isRide && booking.selectedVehicleType == 'vip',
-                          onTap: () async {
-                            await booking.triggerInstantRideFlow(vehicleType: 'vip', isArabic: loc.isArabic);
-                            if (context.mounted) {
-                              final result = await LocationPickerSheet.show(
-                                context,
-                                title: 'حدد وجهتك الفاخرة VIP',
-                                initialLocation: booking.dropoffLocation,
-                                isPickup: false,
-                              );
-                              if (result != null) {
-                                booking.setDropoffLocation(
-                                  result['location'] as LatLng,
-                                  customAddress: result['address'] as String,
-                                  isArabic: loc.isArabic,
-                                );
-                              }
-                            }
-                          },
+                          color: const Color(0xFFF59E0B),
+                          type: 'vip',
+                          booking: booking,
                         ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      children: [
-                        _buildDynamicTile(
-                          context: context,
-                          title: 'توصيل ودليفري',
-                          subtitle: 'طلبات وطرود فورية 📦',
-                          icon: Icons.delivery_dining_rounded,
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
-                          ),
-                          isSelected: booking.isDelivery,
-                          onTap: () async {
-                            booking.setServiceType('delivery');
-                            final result = await LocationPickerSheet.show(
-                              context,
-                              title: 'مكان استلام الطلب (الانطلاق)',
-                              initialLocation: booking.pickupLocation,
-                              isPickup: true,
-                            );
-                            if (result != null && context.mounted) {
-                              booking.setPickupLocation(
-                                result['location'] as LatLng,
-                                customAddress: result['address'] as String,
-                                isArabic: loc.isArabic,
-                              );
-                              final dropResult = await LocationPickerSheet.show(
-                                context,
-                                title: 'مكان تسليم الطلب (الوجهة)',
-                                initialLocation: booking.dropoffLocation,
-                                isPickup: false,
-                              );
-                              if (dropResult != null) {
-                                booking.setDropoffLocation(
-                                  dropResult['location'] as LatLng,
-                                  customAddress: dropResult['address'] as String,
-                                  isArabic: loc.isArabic,
-                                );
-                              }
-                            }
-                          },
+                        const SizedBox(width: 8),
+                        _buildCategoryCard(
+                          title: 'توصيل طلبات',
+                          subtitle: 'ديلفري فوري',
+                          icon: Icons.two_wheeler_rounded,
+                          color: const Color(0xFF3B82F6),
+                          type: 'delivery',
+                          booking: booking,
                         ),
-                        const SizedBox(width: 10),
-                        _buildDynamicTile(
-                          context: context,
+                        const SizedBox(width: 8),
+                        _buildCategoryCard(
                           title: 'تكتك ميسان',
-                          subtitle: 'تنقل سريع واقتصادي 🛺',
+                          subtitle: 'نقل اقتصادي',
                           icon: Icons.electric_rickshaw_rounded,
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
-                          ),
-                          isSelected: booking.isRide && booking.selectedVehicleType == 'tuk_tuk',
-                          onTap: () async {
-                            await booking.triggerInstantRideFlow(vehicleType: 'tuk_tuk', isArabic: loc.isArabic);
-                            if (context.mounted) {
-                              final result = await LocationPickerSheet.show(
-                                context,
-                                title: 'مكان التوصيل بالتكتك',
-                                initialLocation: booking.dropoffLocation,
-                                isPickup: false,
-                              );
-                              if (result != null) {
-                                booking.setDropoffLocation(
-                                  result['location'] as LatLng,
-                                  customAddress: result['address'] as String,
-                                  isArabic: loc.isArabic,
-                                );
-                              }
-                            }
-                          },
+                          color: const Color(0xFF8B5CF6),
+                          type: 'tuk_tuk',
+                          booking: booking,
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 12),
 
-                  // 3. Commercial Ad Banners Carousel
+                  // 3. Mini Map Live Preview Card (Matching Mockup 2 & 3)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Container(
+                      height: 140,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(
+                          color: isDark ? const Color(0x3338BDF8) : const Color(0xFFE2E8F0),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: isDark ? const Color(0x33000000) : const Color(0x0C000000),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(22),
+                        child: Stack(
+                          children: [
+                            FlutterMap(
+                              options: MapOptions(
+                                initialCenter: pLoc,
+                                initialZoom: 14.0,
+                                interactionOptions: const InteractionOptions(flags: InteractiveFlag.none),
+                              ),
+                              children: [
+                                TileLayer(
+                                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                  userAgentPackageName: 'com.maysan.captain',
+                                ),
+                                PolylineLayer(
+                                  polylines: [
+                                    Polyline(
+                                      points: [pLoc, dLoc],
+                                      color: const Color(0xFF10B981),
+                                      strokeWidth: 4.0,
+                                    ),
+                                  ],
+                                ),
+                                MarkerLayer(
+                                  markers: [
+                                    Marker(
+                                      point: pLoc,
+                                      width: 32,
+                                      height: 32,
+                                      child: const Icon(Icons.location_on_rounded, color: Color(0xFF10B981), size: 30),
+                                    ),
+                                    Marker(
+                                      point: dLoc,
+                                      width: 32,
+                                      height: 32,
+                                      child: const Icon(Icons.location_on_rounded, color: Color(0xFFEF4444), size: 30),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            Positioned(
+                              top: 10,
+                              right: 10,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF10B981),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Text(
+                                  'معاينة المسار المباشر',
+                                  style: TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              bottom: 10,
+                              left: 10,
+                              child: InkWell(
+                                onTap: () async {
+                                  await booking.triggerInstantRideFlow(isArabic: loc.isArabic);
+                                },
+                                borderRadius: BorderRadius.circular(14),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(14),
+                                    boxShadow: const [
+                                      BoxShadow(color: Color(0x22000000), blurRadius: 6),
+                                    ],
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.my_location_rounded, color: Color(0xFF10B981), size: 16),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'تحديد موقعي تلقائياً',
+                                        style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 4. Commercial Ad Banners Carousel
                   if (activeBanners.isNotEmpty) ...[
                     AdBannerCarouselWidget(
                       banners: activeBanners,
-                      height: 140,
+                      height: 130,
                       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                     ),
                     const SizedBox(height: 8),
                   ],
 
-                  // 4. Embedded Live Ride Booking Panel
+                  // 5. Embedded Live Ride Booking Panel
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16),
                     child: RideBookingSheet(isEmbedded: true),
@@ -274,89 +342,93 @@ class LayoutDynamicCards extends StatelessWidget {
           HomeBottomNavBar(
             selectedIndex: 0,
             isDark: isDark,
-            accentColor: const Color(0xFF0284C7),
+            accentColor: const Color(0xFF10B981),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDynamicTile({
-    required BuildContext context,
+  Widget _buildCategoryCard({
     required String title,
     required String subtitle,
     required IconData icon,
-    required LinearGradient gradient,
-    required bool isSelected,
-    required VoidCallback onTap,
+    required Color color,
+    required String type,
+    required BookingProvider booking,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isSelected = (type == 'delivery' && booking.isDelivery) ||
+        (type != 'delivery' && booking.isRide && booking.selectedVehicleType == type);
 
     return Expanded(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(22),
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : Colors.white,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(
-                color: isSelected ? gradient.colors.first : (isDark ? const Color(0x3338BDF8) : const Color(0xFFE2E8F0)),
-                width: isSelected ? 2.2 : 1.0,
+      child: GestureDetector(
+        onTap: () {
+          if (type == 'delivery') {
+            booking.setServiceType('delivery');
+          } else {
+            booking.setServiceType('ride');
+            booking.setSelectedVehicleType(type);
+          }
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: isSelected ? color : (isDark ? const Color(0x3338BDF8) : const Color(0xFFE2E8F0)),
+              width: isSelected ? 2.0 : 1.0,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: isSelected ? color.withValues(alpha: 0.25) : const Color(0x0A000000),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: isSelected ? gradient.colors.first.withValues(alpha: 0.3) : const Color(0x0E000000),
-                  blurRadius: 14,
-                  offset: const Offset(0, 4),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
                 ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(9),
-                  decoration: BoxDecoration(
-                    gradient: gradient,
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [
-                      BoxShadow(
-                        color: gradient.colors.first.withValues(alpha: 0.35),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Icon(icon, color: Colors.white, size: 20),
+                child: Icon(icon, color: color, size: 22),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                  color: isSelected ? color : (isDark ? Colors.white : const Color(0xFF0F172A)),
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                    color: isSelected ? gradient.colors.first : (isDark ? Colors.white : const Color(0xFF0F172A)),
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 9,
+                  color: isDark ? Colors.white54 : const Color(0xFF64748B),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    color: isDark ? Colors.white54 : const Color(0xFF64748B),
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 8),
+              Container(
+                height: 3,
+                width: 24,
+                decoration: BoxDecoration(
+                  color: isSelected ? color : Colors.transparent,
+                  borderRadius: BorderRadius.circular(2),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
