@@ -337,23 +337,24 @@ class LayoutDynamicCards extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
 
-                  // 5. Medium Ad Slot (متوسط)
-                  const AdSlotBannerWidget(slot: 'medium'),
-
-                  // 6. Embedded Live Ride Booking Panel
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: RideBookingSheet(isEmbedded: true),
-                  ),
-                  const SizedBox(height: 6),
-
-                  // 7. Saved Routes (المسارات وخطوط السير اليومية المحفوظة)
+                  // 5. Saved Routes (المسارات وخطوط السير اليومية المحفوظة)
                   SavedRoutesWidget(
                     isDark: isDark,
                     onRouteSelected: (route) {
                       booking.applySavedRoute(route, isArabic: loc.isArabic);
                     },
                   ),
+                  const SizedBox(height: 6),
+
+                  // 6. Medium Ad Slot (متوسط)
+                  const AdSlotBannerWidget(slot: 'medium'),
+
+                  // 7. Embedded Live Ride Booking Panel
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: RideBookingSheet(isEmbedded: true),
+                  ),
+                  const SizedBox(height: 6),
 
                   // 8. Bottom Ad Slot (سفلي)
                   const AdSlotBannerWidget(slot: 'bottom'),

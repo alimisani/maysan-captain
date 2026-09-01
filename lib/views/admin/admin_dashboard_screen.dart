@@ -7254,6 +7254,76 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
           const SizedBox(height: 16),
 
+          // Master On/Off Switch for Stop Options
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: booking.isStopOptionsEnabled
+                  ? const Color(0xFFF59E0B).withValues(alpha: 0.12)
+                  : (isDark ? const Color(0x33334155) : const Color(0xFFF1F5F9)),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: booking.isStopOptionsEnabled
+                    ? const Color(0xFFF59E0B)
+                    : (isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1)),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  booking.isStopOptionsEnabled ? Icons.check_circle_rounded : Icons.do_not_disturb_on_rounded,
+                  color: booking.isStopOptionsEnabled ? const Color(0xFFF59E0B) : const Color(0xFF94A3B8),
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'تفعيل خدمة خيارات التوقف في الطريق',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                      ),
+                      Text(
+                        booking.isStopOptionsEnabled
+                            ? 'مفعّل • تظهر خيارات التوقف والانتظار للزبائن في الرئيسية'
+                            : 'معطّل • مخفية بالكامل من شاشة الحجز في الصفحة الرئيسية',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch.adaptive(
+                  value: booking.isStopOptionsEnabled,
+                  activeThumbColor: const Color(0xFFF59E0B),
+                  onChanged: (val) async {
+                    await booking.setStopOptionsEnabled(val);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            val
+                                ? 'تم تفعيل خيارات التوقف في الطريق وإظهارها للزبائن'
+                                : 'تم إيقاف خيارات التوقف في الطريق وإخفائها من الرئيسية',
+                          ),
+                          backgroundColor: val ? AuroraTheme.accentEmerald : const Color(0xFFEF4444),
+                        ),
+                      );
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
           Row(
             children: [
               Expanded(

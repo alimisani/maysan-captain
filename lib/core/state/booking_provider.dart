@@ -25,6 +25,7 @@ class BookingProvider extends ChangeNotifier {
   // Stop on Way & Round Trip State
   bool _isRoundTrip = false;
   String _selectedStopId = 'none';
+  bool _isStopOptionsEnabled = true;
 
   Map<String, double> _stopOptionFees = {
     '0_5': 500.0,
@@ -36,6 +37,7 @@ class BookingProvider extends ChangeNotifier {
   };
 
   Map<String, double> get stopOptionFees => _stopOptionFees;
+  bool get isStopOptionsEnabled => _isStopOptionsEnabled;
 
   List<WaypointStopOption> get allStopOptions => [
         const WaypointStopOption(id: 'none', labelAr: 'بدون توقف في الطريق', labelEn: 'No Stops', minutes: 0, fee: 0.0),
@@ -64,6 +66,19 @@ class BookingProvider extends ChangeNotifier {
     _selectedStopId = stopId;
     _recalculateFareLocal();
     notifyListeners();
+  }
+
+  Future<void> setStopOptionsEnabled(bool enabled) async {
+    _isStopOptionsEnabled = enabled;
+    if (!enabled) {
+      _selectedStopId = 'none';
+    }
+    _recalculateFareLocal();
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('maysan_is_stop_options_enabled', enabled);
+    } catch (_) {}
   }
 
   Future<void> updateStopOptionFees(Map<String, double> newFees) async {
@@ -141,6 +156,9 @@ class BookingProvider extends ChangeNotifier {
       if (stopsStr != null && stopsStr.isNotEmpty) {
         final Map<String, dynamic> decoded = jsonDecode(stopsStr);
         _stopOptionFees = decoded.map((k, v) => MapEntry(k, (v as num).toDouble()));
+      }
+      if (prefs.containsKey('maysan_is_stop_options_enabled')) {
+        _isStopOptionsEnabled = prefs.getBool('maysan_is_stop_options_enabled') ?? true;
       }
     } catch (_) {}
   }

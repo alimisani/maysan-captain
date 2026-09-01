@@ -651,72 +651,73 @@ class _RideBookingSheetState extends State<RideBookingSheet> {
                     ),
                   ),
 
-                  Divider(height: 12, color: isDark ? const Color(0x2238BDF8) : const Color(0xFFE2E8F0)),
-
                   // 2. Waypoint Stop on the Way Option (التوقف في الطريق)
-                  InkWell(
-                    onTap: () => _showStopOptionsSheet(context, booking, isDark, loc),
-                    borderRadius: BorderRadius.circular(12),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: booking.selectedStopOption.id != 'none'
-                                  ? const Color(0xFFF59E0B).withValues(alpha: 0.2)
-                                  : (isDark ? const Color(0x33334155) : const Color(0xFFE2E8F0)),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.timer_outlined,
-                              size: 16,
-                              color: booking.selectedStopOption.id != 'none'
-                                  ? const Color(0xFFF59E0B)
-                                  : const Color(0xFF64748B),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'التوقف في الطريق (الانتظار)',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                                ),
-                                Text(
-                                  booking.selectedStopOption.id == 'none'
-                                      ? 'انقر لتحديد مدة التوقف ورسوم الانتظار...'
-                                      : '${booking.selectedStopOption.labelAr} (+${currencyFormatter.format(booking.selectedStopOption.fee.toInt())} د.ع)',
-                                  style: TextStyle(
-                                    fontSize: 10.5,
-                                    color: booking.selectedStopOption.id != 'none'
-                                        ? const Color(0xFFF59E0B)
-                                        : (isDark ? Colors.white60 : const Color(0xFF64748B)),
-                                    fontWeight: booking.selectedStopOption.id != 'none'
-                                        ? FontWeight.bold
-                                        : FontWeight.normal,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (booking.selectedStopOption.id != 'none')
-                            GestureDetector(
-                              onTap: () => booking.setStopOption('none'),
-                              child: const Padding(
-                                padding: EdgeInsets.all(4),
-                                child: Icon(Icons.close_rounded, size: 18, color: Color(0xFFEF4444)),
+                  if (booking.isStopOptionsEnabled) ...[
+                    Divider(height: 12, color: isDark ? const Color(0x2238BDF8) : const Color(0xFFE2E8F0)),
+                    InkWell(
+                      onTap: () => _showStopOptionsSheet(context, booking, isDark, loc),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: booking.selectedStopOption.id != 'none'
+                                    ? const Color(0xFFF59E0B).withValues(alpha: 0.2)
+                                    : (isDark ? const Color(0x33334155) : const Color(0xFFE2E8F0)),
+                                shape: BoxShape.circle,
                               ),
-                            )
-                          else
-                            const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: Color(0xFF64748B)),
-                        ],
+                              child: Icon(
+                                Icons.timer_outlined,
+                                size: 16,
+                                color: booking.selectedStopOption.id != 'none'
+                                    ? const Color(0xFFF59E0B)
+                                    : const Color(0xFF64748B),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'التوقف في الطريق (الانتظار)',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                  ),
+                                  Text(
+                                    booking.selectedStopOption.id == 'none'
+                                        ? 'انقر لتحديد مدة التوقف ورسوم الانتظار...'
+                                        : '${booking.selectedStopOption.labelAr} (+${currencyFormatter.format(booking.selectedStopOption.fee.toInt())} د.ع)',
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      color: booking.selectedStopOption.id != 'none'
+                                          ? const Color(0xFFF59E0B)
+                                          : (isDark ? Colors.white60 : const Color(0xFF64748B)),
+                                      fontWeight: booking.selectedStopOption.id != 'none'
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (booking.selectedStopOption.id != 'none')
+                              GestureDetector(
+                                onTap: () => booking.setStopOption('none'),
+                                child: const Padding(
+                                  padding: EdgeInsets.all(4),
+                                  child: Icon(Icons.close_rounded, size: 18, color: Color(0xFFEF4444)),
+                                ),
+                              )
+                            else
+                              const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: Color(0xFF64748B)),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),

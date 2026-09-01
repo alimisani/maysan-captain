@@ -225,23 +225,24 @@ class LayoutUberHub extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
 
-                  // 4. Medium Ad Slot (متوسط)
-                  const AdSlotBannerWidget(slot: 'medium'),
-
-                  // 5. Embedded Live Ride Booking Panel (Matching Mockup 1)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: RideBookingSheet(isEmbedded: true),
-                  ),
-                  const SizedBox(height: 6),
-
-                  // 6. Saved Routes (المسارات وخطوط السير اليومية المحفوظة)
+                  // 4. Saved Routes (المسارات وخطوط السير اليومية المحفوظة)
                   SavedRoutesWidget(
                     isDark: isDark,
                     onRouteSelected: (route) {
                       booking.applySavedRoute(route, isArabic: loc.isArabic);
                     },
                   ),
+                  const SizedBox(height: 6),
+
+                  // 5. Medium Ad Slot (متوسط)
+                  const AdSlotBannerWidget(slot: 'medium'),
+
+                  // 6. Embedded Live Ride Booking Panel (Matching Mockup 1)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: RideBookingSheet(isEmbedded: true),
+                  ),
+                  const SizedBox(height: 6),
 
                   // 7. Bottom Ad Slot (سفلي)
                   const AdSlotBannerWidget(slot: 'bottom'),
