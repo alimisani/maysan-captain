@@ -20,11 +20,13 @@ import 'vehicle_registration_screen.dart';
 class DriverHomeView extends StatefulWidget {
   final bool isDark;
   final AppLocalizations loc;
+  final String uiLayoutTheme;
 
   const DriverHomeView({
     super.key,
     required this.isDark,
     required this.loc,
+    this.uiLayoutTheme = 'classic_glass',
   });
 
   @override
@@ -167,11 +169,24 @@ class _DriverHomeViewState extends State<DriverHomeView> {
                             onChanged: (val) {
                               setState(() => _isOnline = val);
                               if (val) {
+                                if (auth.currentUser != null) {
+                                  booking.startDriverLocationBroadcast(
+                                    driverId: auth.currentUser!.id,
+                                    driverName: auth.currentUser!.name,
+                                    vehicleType: auth.currentVehicle?.vehicleType ?? 'salon',
+                                  );
+                                }
                                 booking.fetchPendingOrders();
+                              } else {
+                                if (auth.currentUser != null) {
+                                  booking.stopDriverLocationBroadcast(auth.currentUser!.id);
+                                }
                               }
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text(val ? 'أنت الآن متصل وتستقبل طلبات الركاب 🚀' : 'تم إيقاف استقبال الطلبات مؤقتاً'),
+                                  content: Text(val
+                                      ? 'أنت الآن متصل وتستقبل طلبات الركاب 🚀'
+                                      : 'تم تفعيل وضع الاستراحة وإخفاء المركبة من الخارطة 🛑'),
                                   backgroundColor: val ? const Color(0xFF10B981) : const Color(0xFF64748B),
                                   duration: const Duration(seconds: 2),
                                 ),
@@ -460,113 +475,120 @@ class _DriverHomeViewState extends State<DriverHomeView> {
             ),
           ),
 
-          // Captain Dedicated Bottom Navigation Bar with Settings
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0F172A).withValues(alpha: 0.96) : Colors.white.withValues(alpha: 0.96),
-              borderRadius: BorderRadius.circular(26),
-              border: Border.all(
-                color: isDark ? const Color(0xFF10B981).withValues(alpha: 0.3) : const Color(0xFFE2E8F0),
-                width: 1.2,
+          // Captain Dedicated Bottom Navigation Bar (Hidden in Classic Glass Layout)
+          if (widget.uiLayoutTheme != 'classic_glass')
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A).withValues(alpha: 0.96) : Colors.white.withValues(alpha: 0.96),
+                borderRadius: BorderRadius.circular(26),
+                border: Border.all(
+                  color: isDark ? const Color(0xFF10B981).withValues(alpha: 0.3) : const Color(0xFFE2E8F0),
+                  width: 1.2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: isDark ? const Color(0x35000000) : const Color(0x12000000),
+                    blurRadius: 18,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: isDark ? const Color(0x35000000) : const Color(0x12000000),
-                  blurRadius: 18,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildCaptainNavItem(
-                  icon: Icons.home_rounded,
-                  label: 'الرئيسية',
-                  isSelected: _navIndex == 0,
-                  onTap: () => setState(() => _navIndex = 0),
-                  isDark: isDark,
-                ),
-                _buildCaptainNavItem(
-                  icon: Icons.speed_rounded,
-                  label: 'لوحة القيادة',
-                  isSelected: _navIndex == 1,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const DriverDashboardScreen()),
-                    );
-                  },
-                  isDark: isDark,
-                ),
-                _buildCaptainNavItem(
-                  icon: Icons.receipt_long_rounded,
-                  label: 'سجل الرحلات',
-                  isSelected: false,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const OrderHistoryScreen()),
-                    );
-                  },
-                  isDark: isDark,
-                ),
-                _buildCaptainNavItem(
-                  icon: Icons.chat_rounded,
-                  customIcon: Image.asset('assets/icon/whatsapp.png', width: 22, height: 22),
-                  label: 'الدعم',
-                  isSelected: false,
-                  onTap: () {
-                    WhatsAppService.openWhatsApp(
-                      phone: '7117648506',
-                      message: 'مرحباً، أحتاج مساعدة أو استفسار كابتن',
-                    );
-                  },
-                  isDark: isDark,
-                ),
-                _buildCaptainNavItem(
-                  icon: Icons.settings_rounded,
-                  label: 'الإعدادات',
-                  isSelected: false,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                    );
-                  },
-                  isDark: isDark,
-                ),
-                _buildCaptainNavItem(
-                  icon: Icons.person_rounded,
-                  label: 'حسابي',
-                  isSelected: false,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-                    );
-                  },
-                  isDark: isDark,
-                ),
-                if (user?.isAdmin ?? false)
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
                   _buildCaptainNavItem(
-                    icon: Icons.admin_panel_settings_rounded,
-                    label: 'الإدارة',
-                    isSelected: false,
-                    color: const Color(0xFFEF4444),
+                    icon: Icons.home_rounded,
+                    label: 'الرئيسية',
+                    isSelected: _navIndex == 0,
+                    color: const Color(0xFF10B981),
+                    onTap: () => setState(() => _navIndex = 0),
+                    isDark: isDark,
+                  ),
+                  _buildCaptainNavItem(
+                    icon: Icons.speed_rounded,
+                    label: 'لوحة القيادة',
+                    isSelected: _navIndex == 1,
+                    color: const Color(0xFF06B6D4),
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
+                        MaterialPageRoute(builder: (_) => const DriverDashboardScreen()),
                       );
                     },
                     isDark: isDark,
                   ),
-              ],
+                  _buildCaptainNavItem(
+                    icon: Icons.receipt_long_rounded,
+                    label: 'سجل الرحلات',
+                    isSelected: false,
+                    color: const Color(0xFF3B82F6),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const OrderHistoryScreen()),
+                      );
+                    },
+                    isDark: isDark,
+                  ),
+                  _buildCaptainNavItem(
+                    icon: Icons.chat_rounded,
+                    customIcon: Image.asset('assets/icon/whatsapp.png', width: 22, height: 22),
+                    label: 'الدعم',
+                    isSelected: false,
+                    color: const Color(0xFF25D366),
+                    onTap: () {
+                      WhatsAppService.openWhatsApp(
+                        phone: '7117648506',
+                        message: 'مرحباً، أحتاج مساعدة أو استفسار كابتن',
+                      );
+                    },
+                    isDark: isDark,
+                  ),
+                  _buildCaptainNavItem(
+                    icon: Icons.settings_rounded,
+                    label: 'الإعدادات',
+                    isSelected: false,
+                    color: const Color(0xFF8B5CF6),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                      );
+                    },
+                    isDark: isDark,
+                  ),
+                  _buildCaptainNavItem(
+                    icon: Icons.person_rounded,
+                    label: 'حسابي',
+                    isSelected: false,
+                    color: const Color(0xFFF59E0B),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                      );
+                    },
+                    isDark: isDark,
+                  ),
+                  if (user?.isAdmin ?? false)
+                    _buildCaptainNavItem(
+                      icon: Icons.admin_panel_settings_rounded,
+                      label: 'الإدارة',
+                      isSelected: false,
+                      color: const Color(0xFFEF4444),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
+                        );
+                      },
+                      isDark: isDark,
+                    ),
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );

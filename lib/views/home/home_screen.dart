@@ -146,11 +146,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: GlassCard(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     borderRadius: 22,
                     child: Row(
                       children: [
-                        // Official App or User Avatar
+                        // 1. Official User Avatar
                         UserAvatarWidget(
                           avatarUrl: user?.avatarUrl,
                           radius: 18,
@@ -161,8 +161,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             );
                           },
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 8),
 
+                        // 2. Greeting & Name (أهلاً، [الاسم])
                         Expanded(
                           child: InkWell(
                             onTap: () {
@@ -176,12 +177,16 @@ class _HomeScreenState extends State<HomeScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  loc.translate('appName'),
+                                  user != null
+                                      ? 'أهلاً، ${user.name}'
+                                      : loc.translate('appName'),
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    fontSize: 14.5,
+                                    fontSize: 13.5,
                                     color: isDark ? Colors.white : const Color(0xFF0F172A),
                                   ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                                 Text(
                                   user != null
@@ -190,7 +195,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
-                                    fontSize: 11,
+                                    fontSize: 10.5,
                                     color: AuroraTheme.primaryCyan,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -200,35 +205,57 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
 
+                        // 3. Grid / Menu Button (Right next to user profile in top bar)
                         IconButton(
+                          style: IconButton.styleFrom(
+                            backgroundColor: _isQuickMenuOpen
+                                ? AuroraTheme.primaryCyan.withValues(alpha: 0.2)
+                                : Colors.transparent,
+                            padding: const EdgeInsets.all(6),
+                            minimumSize: const Size(36, 36),
+                          ),
+                          icon: AnimatedRotation(
+                            turns: _isQuickMenuOpen ? 0.25 : 0,
+                            duration: const Duration(milliseconds: 250),
+                            child: Icon(
+                              _isQuickMenuOpen ? Icons.close_rounded : Icons.grid_view_rounded,
+                              size: 22,
+                              color: _isQuickMenuOpen ? AuroraTheme.accentRose : AuroraTheme.primaryCyan,
+                            ),
+                          ),
+                          onPressed: () => setState(() => _isQuickMenuOpen = !_isQuickMenuOpen),
+                        ),
+
+                        // 4. Dark/Light Mode Switcher
+                        IconButton(
+                          style: IconButton.styleFrom(
+                            padding: const EdgeInsets.all(6),
+                            minimumSize: const Size(36, 36),
+                          ),
                           icon: Icon(
                             isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                            size: 20,
+                            size: 19,
                             color: isDark ? AuroraTheme.accentAmber : AuroraTheme.primaryBlue,
                           ),
                           onPressed: () => themeProvider.toggleTheme(),
                         ),
 
-                        IconButton(
-                          icon: Text(
-                            loc.isArabic ? 'English' : 'عربي',
+                        // 5. Language Toggle
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            minimumSize: const Size(36, 36),
+                          ),
+                          onPressed: () => localeProvider.toggleLanguage(),
+                          child: Text(
+                            loc.isArabic ? 'EN' : 'عربي',
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 12,
                               color: AuroraTheme.primaryCyan,
                             ),
                           ),
-                          onPressed: () => localeProvider.toggleLanguage(),
                         ),
-                        if (booking.uiLayoutTheme == 'classic_glass')
-                          IconButton(
-                            icon: Icon(
-                              _isQuickMenuOpen ? Icons.close_rounded : Icons.grid_view_rounded,
-                              size: 22,
-                              color: AuroraTheme.primaryCyan,
-                            ),
-                            onPressed: () => setState(() => _isQuickMenuOpen = !_isQuickMenuOpen),
-                          ),
                       ],
                     ),
                   ),
@@ -236,21 +263,28 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-            // Floating Jumping Bubbles Overlay (for Classic Glass Layout)
-            if (_isQuickMenuOpen && booking.uiLayoutTheme == 'classic_glass')
-              Positioned(
-                top: 72,
-                left: 16,
-                right: 16,
-                child: SafeArea(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+            // Smooth Dropdown Menu with the 5 Requested Icons
+            Positioned(
+              top: 72,
+              left: 16,
+              right: 16,
+              child: SafeArea(
+                child: AnimatedCrossFade(
+                  duration: const Duration(milliseconds: 280),
+                  firstCurve: Curves.easeOutCubic,
+                  secondCurve: Curves.easeInCubic,
+                  crossFadeState: _isQuickMenuOpen
+                      ? CrossFadeState.showSecond
+                      : CrossFadeState.showFirst,
+                  firstChild: const SizedBox(width: double.infinity, height: 0),
+                  secondChild: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF0F172A).withValues(alpha: 0.95) : Colors.white.withValues(alpha: 0.95),
+                      color: isDark ? const Color(0xFF0F172A).withValues(alpha: 0.96) : Colors.white.withValues(alpha: 0.96),
                       borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: AuroraTheme.primaryCyan.withValues(alpha: 0.3)),
+                      border: Border.all(color: AuroraTheme.primaryCyan.withValues(alpha: 0.35)),
                       boxShadow: const [
-                        BoxShadow(color: Color(0x35000000), blurRadius: 16, offset: Offset(0, 6)),
+                        BoxShadow(color: Color(0x35000000), blurRadius: 18, offset: Offset(0, 6)),
                       ],
                     ),
                     child: SingleChildScrollView(
@@ -258,18 +292,19 @@ class _HomeScreenState extends State<HomeScreen> {
                       physics: const BouncingScrollPhysics(),
                       child: Row(
                         children: [
-                          _buildQuickBubble(
-                            icon: Icons.account_balance_wallet_rounded,
-                            label: 'المحفظة',
-                            color: const Color(0xFF10B981),
-                            onTap: () {
-                              setState(() => _isQuickMenuOpen = false);
-                              Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen()));
-                            },
-                          ),
+                          if (user?.isAdmin ?? false)
+                            _buildQuickBubble(
+                              icon: Icons.admin_panel_settings_rounded,
+                              label: 'لوحة الإدارة',
+                              color: const Color(0xFFEF4444),
+                              onTap: () {
+                                setState(() => _isQuickMenuOpen = false);
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminDashboardScreen()));
+                              },
+                            ),
                           _buildQuickBubble(
                             icon: Icons.receipt_long_rounded,
-                            label: 'الرحلات',
+                            label: 'الطلبات',
                             color: const Color(0xFF3B82F6),
                             onTap: () {
                               setState(() => _isQuickMenuOpen = false);
@@ -279,8 +314,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           _buildQuickBubble(
                             icon: Icons.chat_rounded,
                             customIcon: Image.asset('assets/icon/whatsapp.png', width: 22, height: 22),
-                            label: 'الدعم',
-                            color: const Color(0xFF10B981),
+                            label: 'واتساب الدعم',
+                            color: const Color(0xFF25D366),
                             onTap: () {
                               setState(() => _isQuickMenuOpen = false);
                               WhatsAppService.openWhatsApp(
@@ -292,28 +327,28 @@ class _HomeScreenState extends State<HomeScreen> {
                           _buildQuickBubble(
                             icon: Icons.settings_rounded,
                             label: 'الإعدادات',
-                            color: const Color(0xFF64748B),
+                            color: const Color(0xFF8B5CF6),
                             onTap: () {
                               setState(() => _isQuickMenuOpen = false);
                               Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
                             },
                           ),
-                          if (user?.isAdmin ?? false)
-                            _buildQuickBubble(
-                              icon: Icons.admin_panel_settings_rounded,
-                              label: 'الإدارة',
-                              color: const Color(0xFFEF4444),
-                              onTap: () {
-                                setState(() => _isQuickMenuOpen = false);
-                                Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminDashboardScreen()));
-                              },
-                            ),
+                          _buildQuickBubble(
+                            icon: Icons.logout_rounded,
+                            label: 'تسجيل الخروج',
+                            color: const Color(0xFFF43F5E),
+                            onTap: () {
+                              setState(() => _isQuickMenuOpen = false);
+                              _showLogoutDialog(context, auth, isDark, loc);
+                            },
+                          ),
                         ],
                       ),
                     ),
                   ),
                 ),
               ),
+            ),
 
             if (booking.activeOrder != null)
               Positioned(
@@ -449,9 +484,65 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _showLogoutDialog(BuildContext context, AuthProvider auth, bool isDark, AppLocalizations loc) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: Row(
+          children: [
+            const Icon(Icons.logout_rounded, color: Color(0xFFF43F5E), size: 24),
+            const SizedBox(width: 10),
+            Text(
+              loc.isArabic ? 'تسجيل الخروج' : 'Logout',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+          ],
+        ),
+        content: Text(
+          loc.isArabic
+              ? 'هل أنت متأكد من رغبتك في تسجيل الخروج من حسابك؟'
+              : 'Are you sure you want to logout from your account?',
+          style: TextStyle(
+            fontSize: 13,
+            color: isDark ? Colors.white70 : const Color(0xFF475569),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              loc.isArabic ? 'إلغاء' : 'Cancel',
+              style: const TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.bold),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFF43F5E),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await auth.logout();
+            },
+            child: Text(
+              loc.isArabic ? 'تسجيل الخروج' : 'Logout',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildActiveLayout(AuthProvider auth, BookingProvider booking, bool isDark, AppLocalizations loc) {
     if (auth.currentUser?.isDriver ?? false) {
-      return DriverHomeView(isDark: isDark, loc: loc);
+      return DriverHomeView(
+        isDark: isDark,
+        loc: loc,
+        uiLayoutTheme: booking.uiLayoutTheme,
+      );
     }
     switch (booking.uiLayoutTheme) {
       case 'uber_hub':

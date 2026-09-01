@@ -53,7 +53,7 @@ class HomeBottomNavBar extends StatelessWidget {
             icon: Icons.home_rounded,
             label: 'الرئيسية',
             isSelected: selectedIndex == 0,
-            primary: primary,
+            itemColor: const Color(0xFF10B981),
             onTap: () {},
           ),
           _buildNavItem(
@@ -61,7 +61,7 @@ class HomeBottomNavBar extends StatelessWidget {
             icon: Icons.receipt_long_rounded,
             label: 'رحلاتي',
             isSelected: false,
-            primary: primary,
+            itemColor: const Color(0xFF0284C7),
             onTap: () {
               Navigator.push(
                 context,
@@ -75,7 +75,7 @@ class HomeBottomNavBar extends StatelessWidget {
             customIcon: Image.asset('assets/icon/whatsapp.png', width: 22, height: 22),
             label: 'الدعم الفوري',
             isSelected: false,
-            primary: const Color(0xFF10B981),
+            itemColor: const Color(0xFF25D366),
             onTap: () {
               WhatsAppService.openWhatsApp(
                 phone: '7117648506',
@@ -88,7 +88,7 @@ class HomeBottomNavBar extends StatelessWidget {
             icon: Icons.person_rounded,
             label: 'حسابي',
             isSelected: false,
-            primary: primary,
+            itemColor: const Color(0xFFF59E0B),
             onTap: () {
               Navigator.push(
                 context,
@@ -101,7 +101,7 @@ class HomeBottomNavBar extends StatelessWidget {
             icon: Icons.settings_rounded,
             label: 'الإعدادات',
             isSelected: false,
-            primary: primary,
+            itemColor: const Color(0xFF8B5CF6),
             onTap: () {
               Navigator.push(
                 context,
@@ -115,7 +115,7 @@ class HomeBottomNavBar extends StatelessWidget {
               icon: Icons.admin_panel_settings_rounded,
               label: 'الإدارة',
               isSelected: false,
-              primary: const Color(0xFFEF4444),
+              itemColor: const Color(0xFFEF4444),
               onTap: () {
                 Navigator.push(
                   context,
@@ -134,14 +134,14 @@ class HomeBottomNavBar extends StatelessWidget {
     Widget? customIcon,
     required String label,
     required bool isSelected,
-    required Color primary,
+    required Color itemColor,
     required VoidCallback onTap,
   }) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -149,14 +149,14 @@ class HomeBottomNavBar extends StatelessWidget {
               duration: const Duration(milliseconds: 200),
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: isSelected ? primary.withValues(alpha: 0.15) : Colors.transparent,
+                color: isSelected ? itemColor.withValues(alpha: 0.18) : itemColor.withValues(alpha: 0.10),
                 shape: BoxShape.circle,
               ),
               child: customIcon ??
                   Icon(
                     icon,
                     size: 20,
-                    color: isSelected ? primary : (isDark ? Colors.white60 : const Color(0xFF64748B)),
+                    color: itemColor,
                   ),
             ),
             const SizedBox(height: 2),
@@ -164,8 +164,8 @@ class HomeBottomNavBar extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: 10,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: isSelected ? primary : (isDark ? Colors.white60 : const Color(0xFF64748B)),
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                color: isSelected ? itemColor : (isDark ? Colors.white70 : const Color(0xFF475569)),
               ),
             ),
           ],

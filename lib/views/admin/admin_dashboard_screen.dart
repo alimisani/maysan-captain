@@ -427,7 +427,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         return matchName || matchPhone || matchEmail;
       }
       return true;
-    }).toList();
+    }).toList()
+      ..sort((a, b) {
+        if (a.isAdmin && !b.isAdmin) return -1;
+        if (!a.isAdmin && b.isAdmin) return 1;
+        return b.createdAt.compareTo(a.createdAt);
+      });
 
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),

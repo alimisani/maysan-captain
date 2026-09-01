@@ -46,67 +46,7 @@ class LayoutClassicGlass extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 1. User Trust & Status Card
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: isDark
-                        ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
-                        : [Colors.white, const Color(0xFFF8FAFC)],
-                  ),
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(
-                    color: isDark ? const Color(0x3338BDF8) : const Color(0xFFE2E8F0),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: isDark ? const Color(0x33000000) : const Color(0x0A000000),
-                      blurRadius: 14,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        gradient: AuroraTheme.primaryGradient,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.shield_rounded, color: Colors.white, size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            user != null ? 'مرحباً، ${user.name}' : 'خدمة كابتن ميسان الموثوقة',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14.5),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            user?.ambassadorBadge ?? 'الطلب الفوري والأسرع في ميسان',
-                            style: const TextStyle(
-                              fontSize: 11.5,
-                              color: AuroraTheme.primaryCyan,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // 2. Direct Destination Search Bar
+            // 1. Direct Destination Search Bar
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Material(
