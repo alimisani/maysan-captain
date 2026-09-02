@@ -9,6 +9,7 @@ import '../../models/custom_route_pricing.dart';
 import '../../models/ad_banner.dart';
 import '../../models/favorite_place.dart';
 import '../../models/saved_route.dart';
+import '../../models/vehicle_pricing_config.dart';
 
 class SupabaseService {
   static final SupabaseService _instance = SupabaseService._internal();
@@ -837,6 +838,77 @@ class SupabaseService {
       });
     } catch (e) {
       debugPrint('Update pricing error: $e');
+      rethrow;
+    }
+  }
+
+  // --- VEHICLE-SPECIFIC PRICING MANAGEMENT ---
+
+  Future<VehiclePricingConfig> getVehiclePricingConfig() async {
+    try {
+      final res = await client.from('app_settings').select().eq('key', 'vehicle_pricing').limit(1);
+      if (res.isNotEmpty && res.first['value'] != null) {
+        final Map<String, dynamic> val = res.first['value'] as Map<String, dynamic>;
+        return VehiclePricingConfig.fromJson(val);
+      }
+    } catch (e) {
+      debugPrint('Get vehicle pricing from cloud error: $e');
+    }
+    return VehiclePricingConfig.defaultConfig();
+  }
+
+  Future<void> updateVehiclePricingConfig(VehiclePricingConfig config) async {
+    try {
+      await client.from('app_settings').upsert({
+        'key': 'vehicle_pricing',
+        'value': config.toJson(),
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      debugPrint('Update vehicle pricing cloud error: $e');
+      rethrow;
+    }
+  }
+
+  // --- STOP-ON-THE-WAY (WAITING DURATION) MANAGEMENT ---
+
+  Future<Map<String, dynamic>> getStopOptionsSettings() async {
+    try {
+      final res = await client.from('app_settings').select().eq('key', 'stop_options').limit(1);
+      if (res.isNotEmpty && res.first['value'] != null) {
+        return res.first['value'] as Map<String, dynamic>;
+      }
+    } catch (e) {
+      debugPrint('Get stop options from cloud error: $e');
+    }
+    return {
+      'is_stop_options_enabled': true,
+      'fees': {
+        '0_5': 500.0,
+        '5_10': 1000.0,
+        '10_15': 1500.0,
+        '15_20': 2000.0,
+        '20_25': 2500.0,
+        '25_30': 3000.0,
+      },
+    };
+  }
+
+  Future<void> updateStopOptionsSettings({
+    required bool isEnabled,
+    required Map<String, double> fees,
+  }) async {
+    try {
+      await client.from('app_settings').upsert({
+        'key': 'stop_options',
+        'value': {
+          'is_stop_options_enabled': isEnabled,
+          'fees': fees,
+        },
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      debugPrint('Update stop options cloud error: $e');
       rethrow;
     }
   }

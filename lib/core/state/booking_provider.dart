@@ -79,6 +79,14 @@ class BookingProvider extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('maysan_is_stop_options_enabled', enabled);
     } catch (_) {}
+    try {
+      await _supabaseService.updateStopOptionsSettings(
+        isEnabled: enabled,
+        fees: _stopOptionFees,
+      );
+    } catch (e) {
+      debugPrint('Sync stop options error: $e');
+    }
   }
 
   Future<void> updateStopOptionFees(Map<String, double> newFees) async {
@@ -89,6 +97,14 @@ class BookingProvider extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('maysan_stop_option_fees', jsonEncode(_stopOptionFees));
     } catch (_) {}
+    try {
+      await _supabaseService.updateStopOptionsSettings(
+        isEnabled: _isStopOptionsEnabled,
+        fees: _stopOptionFees,
+      );
+    } catch (e) {
+      debugPrint('Sync stop options fees error: $e');
+    }
   }
 
   // Booking Type: 'ride' or 'delivery'
@@ -141,8 +157,30 @@ class BookingProvider extends ChangeNotifier {
       _tier2001To2500 = (pricing['tier_2001_2500'] as num?)?.toDouble() ?? 2750.0;
       _tier2501To3000 = (pricing['tier_2501_3000'] as num?)?.toDouble() ?? 3000.0;
     } catch (_) {}
-    await loadVehiclePricingConfig();
+
+    try {
+      final cloudVehicleConfig = await _supabaseService.getVehiclePricingConfig();
+      _vehiclePricingConfig = cloudVehicleConfig;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('maysan_vehicle_pricing_config', cloudVehicleConfig.toJsonString());
+    } catch (_) {
+      await loadVehiclePricingConfig();
+    }
+
+    try {
+      final cloudStopOptions = await _supabaseService.getStopOptionsSettings();
+      _isStopOptionsEnabled = cloudStopOptions['is_stop_options_enabled'] as bool? ?? true;
+      if (cloudStopOptions['fees'] != null) {
+        final Map<String, dynamic> feesMap = cloudStopOptions['fees'] as Map<String, dynamic>;
+        _stopOptionFees = feesMap.map((k, v) => MapEntry(k, (v as num).toDouble()));
+      }
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('maysan_is_stop_options_enabled', _isStopOptionsEnabled);
+      await prefs.setString('maysan_stop_option_fees', jsonEncode(_stopOptionFees));
+    } catch (_) {}
+
     _recalculateFareLocal();
+    notifyListeners();
   }
 
   Future<void> loadVehiclePricingConfig() async {
@@ -172,6 +210,11 @@ class BookingProvider extends ChangeNotifier {
       await prefs.setString('maysan_vehicle_pricing_config', config.toJsonString());
     } catch (e) {
       debugPrint('Save vehicle pricing config error: $e');
+    }
+    try {
+      await _supabaseService.updateVehiclePricingConfig(config);
+    } catch (e) {
+      debugPrint('Sync vehicle pricing cloud error: $e');
     }
   }
 
@@ -817,14 +860,8 @@ class BookingProvider extends ChangeNotifier {
         calculated = (rawFare < minF ? minF : rawFare) * rush;
       }
     } else {
-      // 2. Global Tiered Pricing Engine
+      // 2. Global General Pricing Engine (Strictly applies general rates without hidden multipliers)
       double base = isDelivery ? _deliveryBaseFare : _baseFare;
-      double vehicleMultiplier = 1.0;
-      if (_selectedVehicleType == 'vip') vehicleMultiplier = 1.6;
-      if (_selectedVehicleType == 'motorcycle') vehicleMultiplier = 0.75;
-      if (_selectedVehicleType == 'tuk_tuk') vehicleMultiplier = 0.8;
-      if (_selectedVehicleType == 'pickup') vehicleMultiplier = 1.3;
-
       int totalLegs = 1 + _extraDestinations.length;
       final distanceMeters = (_distanceKm * 1000.0).round();
 
@@ -841,7 +878,6 @@ class BookingProvider extends ChangeNotifier {
         } else {
           calculated = _tier2501To3000;
         }
-        calculated *= vehicleMultiplier;
       } else if (_perKmRate > 0) {
         // Above 3000m or multi-destination or delivery
         double billedKm = _distanceKm.ceilToDouble();
@@ -850,14 +886,14 @@ class BookingProvider extends ChangeNotifier {
         
         if (_extraDestinations.isNotEmpty) {
           // Multi-destination trip: apply total distance * perKmRate (minimum base fare * total legs)
-          calculated = (fareFromKm > (base * totalLegs) ? fareFromKm : (base * totalLegs)) * vehicleMultiplier;
+          calculated = (fareFromKm > (base * totalLegs) ? fareFromKm : (base * totalLegs));
         } else {
           // Single destination trip:
-          calculated = (fareFromKm < base && fareFromKm > 0 ? fareFromKm : (fareFromKm >= base ? fareFromKm : base)) * vehicleMultiplier;
+          calculated = (fareFromKm < base && fareFromKm > 0 ? fareFromKm : (fareFromKm >= base ? fareFromKm : base));
         }
       } else {
         // When perKmRate is 0, each leg adds baseFare
-        calculated = (base * totalLegs) * vehicleMultiplier;
+        calculated = (base * totalLegs);
       }
     }
 
@@ -866,8 +902,10 @@ class BookingProvider extends ChangeNotifier {
       calculated = calculated * 2.0;
     }
 
-    // Apply Waypoint Stop Fee on the way (مبلغ التوقف في الطريق)
-    calculated += selectedStopOption.fee;
+    // Apply Waypoint Stop Fee on the way (مبلغ التوقف في الطريق) only if enabled
+    if (_isStopOptionsEnabled) {
+      calculated += selectedStopOption.fee;
+    }
 
     // Round to nearest 250 IQD
     _estimatedFare = (calculated / 250).ceil() * 250.0;

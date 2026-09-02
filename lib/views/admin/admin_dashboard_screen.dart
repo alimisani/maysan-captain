@@ -44,6 +44,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   final TextEditingController _tier2001To2500Controller = TextEditingController(text: '2750');
   final TextEditingController _tier2501To3000Controller = TextEditingController(text: '3000');
 
+  // Stop Options (Waiting Duration) Controllers
+  final TextEditingController _stop0To5Controller = TextEditingController(text: '500');
+  final TextEditingController _stop5To10Controller = TextEditingController(text: '1000');
+  final TextEditingController _stop10To15Controller = TextEditingController(text: '1500');
+  final TextEditingController _stop15To20Controller = TextEditingController(text: '2000');
+  final TextEditingController _stop20To25Controller = TextEditingController(text: '2500');
+  final TextEditingController _stop25To30Controller = TextEditingController(text: '3000');
+
   final TextEditingController _freeDriverQuotaController = TextEditingController();
   final TextEditingController _monthlyFeeAmountController = TextEditingController();
   final TextEditingController _threeMonthsFeeAmountController = TextEditingController();
@@ -97,6 +105,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Future<void> _loadAdminData() async {
+    final booking = context.read<BookingProvider>();
     final admin = context.read<AdminProvider>();
     await admin.fetchAllData();
     _baseFareController.text = admin.baseFare.toInt().toString();
@@ -113,6 +122,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     _zaincashNumberController.text = admin.zaincashNumber;
     _superqiNumberController.text = admin.superqiNumber;
     _paymentInstructionsController.text = admin.paymentInstructions;
+
+    final fees = booking.stopOptionFees;
+    _stop0To5Controller.text = (fees['0_5'] ?? 500.0).toInt().toString();
+    _stop5To10Controller.text = (fees['5_10'] ?? 1000.0).toInt().toString();
+    _stop10To15Controller.text = (fees['10_15'] ?? 1500.0).toInt().toString();
+    _stop15To20Controller.text = (fees['15_20'] ?? 2000.0).toInt().toString();
+    _stop20To25Controller.text = (fees['20_25'] ?? 2500.0).toInt().toString();
+    _stop25To30Controller.text = (fees['25_30'] ?? 3000.0).toInt().toString();
 
     final approvalSetting = await SupabaseService().getCustomerDriverApprovalSetting();
     final blockSettings = await SupabaseService().getRejectedDriverSettings();
@@ -1796,6 +1813,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   final tier3 = double.tryParse(_tier2001To2500Controller.text.trim()) ?? 2750.0;
                   final tier4 = double.tryParse(_tier2501To3000Controller.text.trim()) ?? 3000.0;
 
+                  final bookingProvider = context.read<BookingProvider>();
+                  final messenger = ScaffoldMessenger.of(context);
+
                   await admin.updatePricing(
                     baseFare: base,
                     perKmRate: perKm,
@@ -1810,14 +1830,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     tier2501To3000: tier4,
                   );
 
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('تم حفظ وتحديث التسعير العام وشرائح المسافة بنجاح'),
-                        backgroundColor: AuroraTheme.accentEmerald,
-                      ),
-                    );
-                  }
+                  await bookingProvider.loadPricingSettings();
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('تم حفظ وتحديث التسعير العام وشرائح المسافة بنجاح'),
+                      backgroundColor: AuroraTheme.accentEmerald,
+                    ),
+                  );
                 },
               ),
             ],
@@ -7191,14 +7210,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   Widget _buildStopOptionFeesSection(BuildContext context, bool isDark) {
     final booking = context.watch<BookingProvider>();
-    final fees = booking.stopOptionFees;
-
-    final stop0To5Ctrl = TextEditingController(text: (fees['0_5'] ?? 500.0).toInt().toString());
-    final stop5To10Ctrl = TextEditingController(text: (fees['5_10'] ?? 1000.0).toInt().toString());
-    final stop10To15Ctrl = TextEditingController(text: (fees['10_15'] ?? 1500.0).toInt().toString());
-    final stop15To20Ctrl = TextEditingController(text: (fees['15_20'] ?? 2000.0).toInt().toString());
-    final stop20To25Ctrl = TextEditingController(text: (fees['20_25'] ?? 2500.0).toInt().toString());
-    final stop25To30Ctrl = TextEditingController(text: (fees['25_30'] ?? 3000.0).toInt().toString());
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -7328,7 +7339,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             children: [
               Expanded(
                 child: CustomTextField(
-                  controller: stop0To5Ctrl,
+                  controller: _stop0To5Controller,
                   label: 'توقف ٠ إلى ٥ دقائق (د.ع)',
                   hint: '500',
                   keyboardType: TextInputType.number,
@@ -7338,7 +7349,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: CustomTextField(
-                  controller: stop5To10Ctrl,
+                  controller: _stop5To10Controller,
                   label: 'توقف ٥ إلى ١٠ دقائق (د.ع)',
                   hint: '1000',
                   keyboardType: TextInputType.number,
@@ -7353,7 +7364,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             children: [
               Expanded(
                 child: CustomTextField(
-                  controller: stop10To15Ctrl,
+                  controller: _stop10To15Controller,
                   label: 'توقف ١٠ إلى ١٥ دقيقة (د.ع)',
                   hint: '1500',
                   keyboardType: TextInputType.number,
@@ -7363,7 +7374,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: CustomTextField(
-                  controller: stop15To20Ctrl,
+                  controller: _stop15To20Controller,
                   label: 'توقف ١٥ إلى ٢٠ دقيقة (د.ع)',
                   hint: '2000',
                   keyboardType: TextInputType.number,
@@ -7378,7 +7389,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             children: [
               Expanded(
                 child: CustomTextField(
-                  controller: stop20To25Ctrl,
+                  controller: _stop20To25Controller,
                   label: 'توقف ٢٠ إلى ٢٥ دقيقة (د.ع)',
                   hint: '2500',
                   keyboardType: TextInputType.number,
@@ -7388,7 +7399,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: CustomTextField(
-                  controller: stop25To30Ctrl,
+                  controller: _stop25To30Controller,
                   label: 'توقف ٢٥ إلى ٣٠ دقيقة (د.ع)',
                   hint: '3000',
                   keyboardType: TextInputType.number,
@@ -7403,12 +7414,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             text: 'حفظ وتحديث رسوم التوقف والانتظار',
             icon: Icons.save_rounded,
             onPressed: () async {
-              final f0 = double.tryParse(stop0To5Ctrl.text.trim()) ?? 500.0;
-              final f1 = double.tryParse(stop5To10Ctrl.text.trim()) ?? 1000.0;
-              final f2 = double.tryParse(stop10To15Ctrl.text.trim()) ?? 1500.0;
-              final f3 = double.tryParse(stop15To20Ctrl.text.trim()) ?? 2000.0;
-              final f4 = double.tryParse(stop20To25Ctrl.text.trim()) ?? 2500.0;
-              final f5 = double.tryParse(stop25To30Ctrl.text.trim()) ?? 3000.0;
+              final f0 = double.tryParse(_stop0To5Controller.text.trim()) ?? 500.0;
+              final f1 = double.tryParse(_stop5To10Controller.text.trim()) ?? 1000.0;
+              final f2 = double.tryParse(_stop10To15Controller.text.trim()) ?? 1500.0;
+              final f3 = double.tryParse(_stop15To20Controller.text.trim()) ?? 2000.0;
+              final f4 = double.tryParse(_stop20To25Controller.text.trim()) ?? 2500.0;
+              final f5 = double.tryParse(_stop25To30Controller.text.trim()) ?? 3000.0;
 
               await booking.updateStopOptionFees({
                 '0_5': f0,
