@@ -985,28 +985,60 @@ class BookingProvider extends ChangeNotifier {
     if (order != null) {
       if (_lastKnownOrderStatus != order.status) {
         if (!isDriver) {
-          // Passenger notifications
+          // Passenger notifications & Live Activity drawer card
           if (order.status == 'fare_proposed') {
             NotificationService.showFareProposedNotification(
               driverName: order.driverName ?? 'الكابتن',
               proposedFare: order.proposedFare ?? order.finalFare,
               vehicleInfo: order.vehicleInfo ?? 'سيارة كابتن ميسان',
             );
-          } else if (order.status == 'accepted') {
-            NotificationService.showOrderAcceptedNotification(
+          } else if (order.status == 'accepted' || order.status == 'on_way') {
+            NotificationService.showLiveTripNotification(
+              orderId: order.id,
               driverName: order.driverName ?? 'الكابتن',
-              vehicleInfo: order.vehicleInfo ?? 'سيارة معتمدة',
-              driverPhone: order.driverPhone ?? '',
+              driverRating: order.driverRating ?? 5.0,
+              vehicleInfo: order.vehicleInfo ?? 'Hyundai Accent أزرق | 31606 أ ميسان',
+              status: 'accepted',
+              pickupAddress: order.pickupAddress,
+              dropoffAddress: order.dropoffAddress,
+              progress: 0.35,
+              etaText: '2 دقيقة',
             );
-          } else if (order.status == 'arriving') {
+          } else if (order.status == 'arriving' || order.status == 'arrived') {
             NotificationService.showDriverArrivedNotification(
               driverName: order.driverName ?? 'الكابتن',
             );
+            NotificationService.showLiveTripNotification(
+              orderId: order.id,
+              driverName: order.driverName ?? 'الكابتن',
+              driverRating: order.driverRating ?? 5.0,
+              vehicleInfo: order.vehicleInfo ?? 'Hyundai Accent أزرق | 31606 أ ميسان',
+              status: 'arrived',
+              pickupAddress: order.pickupAddress,
+              dropoffAddress: order.dropoffAddress,
+              progress: 0.55,
+              etaText: 'وصل الكابتن',
+            );
+          } else if (order.status == 'in_progress') {
+            NotificationService.showLiveTripNotification(
+              orderId: order.id,
+              driverName: order.driverName ?? 'الكابتن',
+              driverRating: order.driverRating ?? 5.0,
+              vehicleInfo: order.vehicleInfo ?? 'Hyundai Accent أزرق | 31606 أ ميسان',
+              status: 'in_progress',
+              pickupAddress: order.pickupAddress,
+              dropoffAddress: order.dropoffAddress,
+              progress: 0.85,
+              etaText: 'في الطريق',
+            );
           } else if (order.status == 'completed') {
+            NotificationService.dismissLiveTripNotification();
             NotificationService.showTripCompletedNotification(
               finalFare: order.finalFare,
               isDriver: false,
             );
+          } else if (order.status == 'cancelled') {
+            NotificationService.dismissLiveTripNotification();
           }
         } else {
           // Driver notifications

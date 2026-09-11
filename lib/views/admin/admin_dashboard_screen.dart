@@ -1744,65 +1744,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 16),
-
-                    // Section 2: Multi-Destination (ميزة تعدد الوجهات والمحطات) - تحت نظام شرائح تسعير المسافة بالمتر
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0x331E293B) : const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1),
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.alt_route_rounded, size: 20, color: AuroraTheme.primaryCyan),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'ميزة تعدد الوجهات والمحطات',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.bold,
-                                        color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                      ),
-                                    ),
-                                    Text(
-                                      'السماح للزبون بإضافة أكثر من مقصد أو محطة توقف في الرحلة الواحدة',
-                                      style: TextStyle(fontSize: 10.5, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Switch(
-                                value: _isMultiDestinationsEnabled,
-                                activeThumbColor: AuroraTheme.accentEmerald,
-                                onChanged: (val) => setState(() => _isMultiDestinationsEnabled = val),
-                              ),
-                            ],
-                          ),
-                          if (_isMultiDestinationsEnabled) ...[
-                            const SizedBox(height: 10),
-                            CustomTextField(
-                              controller: _maxDestinationsController,
-                              label: 'الحد الأقصى للوجهات في الرحلة الواحدة (2 إلى 5)',
-                              hint: '5',
-                              keyboardType: TextInputType.number,
-                              prefixIcon: Icons.pin_drop_rounded,
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-
                     const SizedBox(height: 20),
 
                     AuroraButton(
@@ -1881,6 +1822,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ],
           ),
         ),
+        const SizedBox(height: 22),
+
+        // Section: Multi-Destination Settings (بطاقة ميزة تعدد الوجهات والمحطات المستقلة)
+        _buildMultiDestinationSection(context, isDark),
 
         const SizedBox(height: 22),
 
@@ -7477,6 +7422,110 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   ),
                 );
               }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- INDEPENDENT MULTI-DESTINATION CARD (بطاقة ميزة تعدد الوجهات والمحطات) ---
+  Widget _buildMultiDestinationSection(BuildContext context, bool isDark) {
+    final admin = context.read<AdminProvider>();
+    final bookingProvider = context.read<BookingProvider>();
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1),
+        ),
+        boxShadow: const [
+          BoxShadow(color: Color(0x15000000), blurRadius: 12, offset: Offset(0, 3)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AuroraTheme.primaryCyan.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.alt_route_rounded, color: AuroraTheme.primaryCyan, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'ميزة تعدد الوجهات والمحطات',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'السماح للزبون بإضافة أكثر من مقصد أو محطة توقف في الرحلة الواحدة',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch.adaptive(
+                value: _isMultiDestinationsEnabled,
+                activeThumbColor: AuroraTheme.accentEmerald,
+                onChanged: (val) => setState(() => _isMultiDestinationsEnabled = val),
+              ),
+            ],
+          ),
+          if (_isMultiDestinationsEnabled) ...[
+            const SizedBox(height: 16),
+            CustomTextField(
+              controller: _maxDestinationsController,
+              label: 'الحد الأقصى للوجهات في الرحلة الواحدة (2 إلى 5)',
+              hint: '5',
+              keyboardType: TextInputType.number,
+              prefixIcon: Icons.pin_drop_rounded,
+            ),
+          ],
+          const SizedBox(height: 16),
+          AuroraButton(
+            text: 'حفظ إعدادات تعدد الوجهات',
+            onPressed: () async {
+              final maxDest = int.tryParse(_maxDestinationsController.text.trim()) ?? 5;
+              final messenger = ScaffoldMessenger.of(context);
+              await admin.updatePricing(
+                baseFare: admin.baseFare,
+                perKmRate: admin.perKmRate,
+                deliveryBaseFare: admin.deliveryBaseFare,
+                isMultiDestinationsEnabled: _isMultiDestinationsEnabled,
+                maxDestinations: maxDest,
+                isTieredPricingEnabled: admin.isTieredPricingEnabled,
+                tier0To1000: admin.tier0To1000,
+                tier1001To1500: admin.tier1001To1500,
+                tier1501To2000: admin.tier1501To2000,
+                tier2001To2500: admin.tier2001To2500,
+                tier2501To3000: admin.tier2501To3000,
+              );
+              await bookingProvider.loadPricingSettings();
+              messenger.showSnackBar(
+                const SnackBar(
+                  content: Text('تم حفظ إعدادات تعدد الوجهات والمحطات بنجاح ✅'),
+                  backgroundColor: AuroraTheme.accentEmerald,
+                ),
+              );
             },
           ),
         ],

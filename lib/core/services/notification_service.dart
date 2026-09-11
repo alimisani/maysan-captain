@@ -1,6 +1,8 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'trip_live_notification_renderer.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notificationsPlugin =
@@ -309,6 +311,172 @@ class NotificationService {
       );
     } catch (e) {
       debugPrint('Show trip completed notification error: $e');
+    }
+  }
+
+  // --- LIVE ACTIVITY TRIP NOTIFICATION (لوحة الإشعارات الذكية المباشرة) ---
+
+  static const int liveTripNotificationId = 9901;
+
+  static Future<void> showLiveTripNotification({
+    required String orderId,
+    required String driverName,
+    required double driverRating,
+    required String vehicleInfo,
+    required String status,
+    required String pickupAddress,
+    required String dropoffAddress,
+    double progress = 0.35,
+    String? etaText,
+  }) async {
+    try {
+      _playCustomSound('sounds/trip_chime.wav');
+
+      // 1. Parse vehicle details and Iraqi plate from vehicleInfo
+      String model = 'Hyundai Accent';
+      String color = 'أزرق';
+      String plateNumber = '31606';
+      String plateLetter = 'أ';
+      String plateCity = 'ميسان';
+      String plateType = 'خصوصي';
+
+      if (vehicleInfo.isNotEmpty) {
+        for (final c in ['أزرق', 'أبيض', 'أسود', 'فضي', 'رصاصي', 'أحمر', 'أصفر', 'ماروني']) {
+          if (vehicleInfo.contains(c)) {
+            color = c;
+            break;
+          }
+        }
+        final matchNumber = RegExp(r'\b\d{3,6}\b').firstMatch(vehicleInfo);
+        if (matchNumber != null) {
+          plateNumber = matchNumber.group(0)!;
+        }
+        for (final l in ['أ', 'ب', 'ج', 'د', 'هـ', 'و', 'ط', 'ك', 'ل', 'م', 'ن']) {
+          if (vehicleInfo.contains(l)) {
+            plateLetter = l;
+            break;
+          }
+        }
+        if (vehicleInfo.contains('أجرة') || vehicleInfo.contains('تكسي') || vehicleInfo.contains('صالون')) {
+          plateType = 'أجرة';
+        }
+        model = vehicleInfo
+            .replaceAll(color, '')
+            .replaceAll(plateNumber, '')
+            .replaceAll(plateLetter, '')
+            .replaceAll('خصوصي', '')
+            .replaceAll('أجرة', '')
+            .replaceAll('تكسي', '')
+            .replaceAll('|', '')
+            .replaceAll('-', '')
+            .replaceAll('(', '')
+            .replaceAll(')', '')
+            .trim();
+        if (model.isEmpty) model = 'Hyundai Accent';
+      }
+
+      // 2. Status specific headings and progress
+      String statusTitle = 'الكابتن في الطريق إليك';
+      String defaultEta = '2 دقيقة';
+      double calculatedProgress = progress;
+
+      if (status == 'accepted' || status == 'on_way') {
+        statusTitle = 'الكابتن في الطريق إليك';
+        defaultEta = '2 دقيقة';
+        calculatedProgress = 0.35;
+      } else if (status == 'arrived' || status == 'arriving') {
+        statusTitle = 'وصل الكابتن إلى موقعك!';
+        defaultEta = 'بانتظارك 🚖';
+        calculatedProgress = 0.55;
+      } else if (status == 'in_progress') {
+        statusTitle = 'جاري التوجه إلى الوجهة...';
+        defaultEta = 'في الطريق 🏁';
+        calculatedProgress = 0.85;
+      }
+
+      final effectiveEta = etaText ?? defaultEta;
+
+      // 3. Render the Live Activity Notification Card (Image Canvas)
+      final imagePath = await TripLiveNotificationRenderer.renderLiveTripCard(
+        statusTitle: statusTitle,
+        etaText: effectiveEta,
+        driverName: driverName,
+        driverRating: driverRating,
+        vehicleModel: model,
+        vehicleColor: color,
+        plateNumber: plateNumber,
+        plateLetter: plateLetter,
+        plateCity: plateCity,
+        plateType: plateType,
+        progress: calculatedProgress,
+      );
+
+      // 4. Construct Android Notification Details with ongoing live activity
+      final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+        channelTrips,
+        'تحديثات ومسار الرحلات المباشرة',
+        channelDescription: 'إشعارات حية تفاعلية لمسار وحالة الرحلة على شاشة القفل ولوحة الإشعارات',
+        importance: Importance.max,
+        priority: Priority.high,
+        ongoing: true, // Pinned live activity widget
+        autoCancel: false,
+        showProgress: true,
+        maxProgress: 100,
+        progress: (calculatedProgress * 100).toInt(),
+        category: AndroidNotificationCategory.status,
+        color: const Color(0xFF0EA5E9),
+        subText: 'ميسان كابتن • رحلة مباشرة',
+        enableVibration: true,
+        vibrationPattern: _vibrationPattern,
+        playSound: true,
+        styleInformation: imagePath != null
+            ? BigPictureStyleInformation(
+                FilePathAndroidBitmap(imagePath),
+                contentTitle: '🚖 $statusTitle ($effectiveEta)',
+                summaryText: '$color $model • [ $plateNumber $plateLetter | $plateCity ]',
+                hideExpandedLargeIcon: true,
+              )
+            : BigTextStyleInformation(
+                '🚖 <b>$statusTitle</b><br/>'
+                '🚗 <b>$color $model</b> • [ $plateNumber $plateLetter | $plateCity $plateType ]<br/>'
+                '⏱️ <b>$effectiveEta حتى يصل السائق</b><br/>'
+                '👤 الكابتن: $driverName (⭐ ${driverRating.toStringAsFixed(1)})<br/>'
+                '📍 الانطلاق: $pickupAddress ➔ الوجهة: $dropoffAddress',
+                htmlFormatBigText: true,
+                contentTitle: '🚖 $statusTitle',
+                summaryText: 'ميسان كابتن • رحلة مباشرة',
+                htmlFormatContentTitle: true,
+                htmlFormatSummaryText: true,
+              ),
+      );
+
+      final NotificationDetails details = NotificationDetails(
+        android: androidDetails,
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentSound: true,
+          presentBanner: true,
+          presentList: true,
+        ),
+      );
+
+      await _notificationsPlugin.show(
+        liveTripNotificationId,
+        '🚖 $statusTitle ($effectiveEta)',
+        '$color $model • [ $plateNumber $plateLetter | $plateCity ] - الكابتن: $driverName',
+        details,
+        payload: 'live_trip_$orderId',
+      );
+    } catch (e) {
+      debugPrint('Show live trip notification error: $e');
+    }
+  }
+
+  static Future<void> dismissLiveTripNotification() async {
+    try {
+      await _notificationsPlugin.cancel(liveTripNotificationId);
+    } catch (e) {
+      debugPrint('Dismiss live trip notification error: $e');
     }
   }
 }
