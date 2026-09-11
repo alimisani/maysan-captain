@@ -54,6 +54,17 @@ class _RideBookingSheetState extends State<RideBookingSheet> {
         context,
         MaterialPageRoute(builder: (_) => const LiveTrackingScreen()),
       );
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            booking.errorMessage ?? 'تعذر إرسال طلب المشوار، يرجى المحاولة مرة أخرى',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 

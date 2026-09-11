@@ -446,7 +446,16 @@ class SupabaseService {
         'created_at': DateTime.now().toIso8601String(),
       };
 
-      await client.from('rides_and_deliveries').insert(data);
+      try {
+        await client.from('rides_and_deliveries').insert(data);
+      } catch (insertError) {
+        debugPrint('Insert order with all fields failed: $insertError. Attempting fallback...');
+        final fallbackData = Map<String, dynamic>.from(data);
+        fallbackData.remove('is_round_trip');
+        fallbackData.remove('stop_duration_minutes');
+        fallbackData.remove('stop_fee');
+        await client.from('rides_and_deliveries').insert(fallbackData);
+      }
       return RideOrder.fromJson(data);
     } catch (e) {
       debugPrint('Create order error: $e');

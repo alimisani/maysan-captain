@@ -1,18 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../../../core/state/auth_provider.dart';
 import '../../../core/state/booking_provider.dart';
 import '../../profile/edit_profile_screen.dart';
 import '../driver_quick_sheet.dart';
-import '../location_picker_sheet.dart';
 import '../maysan_map_widget.dart';
 import '../ride_booking_sheet.dart';
 import '../widgets/ad_slot_banner_widget.dart';
-import '../widgets/favorite_places_row_widget.dart';
+import '../widgets/favorites_and_routes_card_widget.dart';
 import '../widgets/home_bottom_nav_bar.dart';
-import '../widgets/saved_routes_widget.dart';
 
 class LayoutLuxuryConcierge extends StatelessWidget {
   final bool isDark;
@@ -55,97 +52,6 @@ class LayoutLuxuryConcierge extends StatelessWidget {
                 children: [
                   // 1. Main Ad Slot (كبير بارز)
                   const AdSlotBannerWidget(slot: 'main'),
-
-                  // 2. Executive Logo & Hero Destination Banner (Matching Mockup 4)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: InkWell(
-                      onTap: () async {
-                        await booking.triggerInstantRideFlow(isArabic: loc.isArabic);
-                        if (context.mounted) {
-                          final result = await LocationPickerSheet.show(
-                            context,
-                            title: 'مكان الوصول (الوجهة)',
-                            initialLocation: booking.dropoffLocation,
-                            isPickup: false,
-                          );
-                          if (result != null) {
-                            booking.setDropoffLocation(
-                              result['location'] as LatLng,
-                              customAddress: result['address'] as String,
-                              isArabic: loc.isArabic,
-                            );
-                          }
-                        }
-                      },
-                      borderRadius: BorderRadius.circular(24),
-                      child: Container(
-                        padding: const EdgeInsets.all(18),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            begin: Alignment.topRight,
-                            end: Alignment.bottomLeft,
-                            colors: [Color(0xFF064E3B), Color(0xFF0F766E), Color(0xFF022C22)],
-                          ),
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF064E3B).withValues(alpha: 0.35),
-                              blurRadius: 16,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'إلى أين تريد الذهاب؟',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'توصلك بسرعة وأمان في جميع أنحاء ميسان',
-                              style: TextStyle(fontSize: 11.5, color: Colors.white.withValues(alpha: 0.85)),
-                            ),
-                            const SizedBox(height: 12),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.location_on_rounded, color: Color(0xFF10B981), size: 20),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      booking.dropoffAddress.isNotEmpty && booking.dropoffAddress != 'تحديد الوجهة والمقصد'
-                                          ? booking.dropoffAddress
-                                          : 'أدخل الوجهة أو اختر من الخريطة...',
-                                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: const BoxDecoration(
-                                      color: Color(0xFF064E3B),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(Icons.search_rounded, color: Colors.white, size: 18),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
 
                   // 2. Central Orbit / Radial Radar Section (Matching Mockup 4)
                   Padding(
@@ -325,10 +231,20 @@ class LayoutLuxuryConcierge extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
 
-                  // 4. Favorite Places Quick Row
-                  FavoritePlacesRowWidget(
+                  // 4. Medium Ad Slot (متوسط)
+                  const AdSlotBannerWidget(slot: 'medium'),
+
+                  // 5. Embedded Live Ride Booking Panel (بطاقة التوصيل وطلب المشوار)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: RideBookingSheet(isEmbedded: true),
+                  ),
+                  const SizedBox(height: 6),
+
+                  // 6. Unified Collapsible Card: Favorite Places + Saved Routes (تحت بطاقة التوصيل والمشوار)
+                  FavoritesAndRoutesCardWidget(
                     isDark: isDark,
                     onPlaceSelected: (place) {
                       booking.setDropoffLocation(
@@ -337,29 +253,13 @@ class LayoutLuxuryConcierge extends StatelessWidget {
                         isArabic: loc.isArabic,
                       );
                     },
-                  ),
-                  const SizedBox(height: 6),
-
-                  // 5. Saved Routes (المسارات وخطوط السير اليومية المحفوظة)
-                  SavedRoutesWidget(
-                    isDark: isDark,
                     onRouteSelected: (route) {
                       booking.applySavedRoute(route, isArabic: loc.isArabic);
                     },
                   ),
                   const SizedBox(height: 6),
 
-                  // 6. Medium Ad Slot (متوسط)
-                  const AdSlotBannerWidget(slot: 'medium'),
-
-                  // 7. Embedded Live Ride Booking Panel
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: RideBookingSheet(isEmbedded: true),
-                  ),
-                  const SizedBox(height: 6),
-
-                  // 8. Bottom Ad Slot (سفلي)
+                  // 7. Bottom Ad Slot (سفلي)
                   const AdSlotBannerWidget(slot: 'bottom'),
                 ],
               ),

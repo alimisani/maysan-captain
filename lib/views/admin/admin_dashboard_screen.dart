@@ -1533,312 +1533,351 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Master Global Pricing Toggle Card (Mutual Switch)
+              // Master Global Pricing Toggle Card (Mutual Switch) & Foldable Fields
               Consumer<BookingProvider>(
                 builder: (context, booking, _) {
                   final bool isGlobalActive = !booking.vehiclePricingConfig.isVehicleSpecificPricingEnabled;
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: isGlobalActive
-                          ? AuroraTheme.accentEmerald.withValues(alpha: 0.12)
-                          : (isDark ? const Color(0x331E293B) : const Color(0xFFF1F5F9)),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: isGlobalActive
-                            ? AuroraTheme.accentEmerald.withValues(alpha: 0.4)
-                            : (isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1)),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          isGlobalActive ? Icons.check_circle_rounded : Icons.toggle_off_rounded,
-                          color: isGlobalActive ? AuroraTheme.accentEmerald : const Color(0xFF64748B),
-                          size: 22,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'تفعيل نظام التسعير العام الموحد',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                ),
-                              ),
-                              Text(
-                                isGlobalActive
-                                    ? 'مفعّل: يتم تطبيق الأجرة الموحدة وشرائح المسافة العامة أدناه مع إيقاف تسعير المركبات تلقائياً'
-                                    : 'معطّل: تم تفعيل نظام تسعير المركبات المخصص تلقائياً',
-                                style: TextStyle(
-                                  fontSize: 10.5,
-                                  color: isDark ? Colors.white60 : const Color(0xFF64748B),
-                                ),
-                              ),
-                            ],
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: isGlobalActive
+                              ? AuroraTheme.accentEmerald.withValues(alpha: 0.12)
+                              : (isDark ? const Color(0x331E293B) : const Color(0xFFF1F5F9)),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isGlobalActive
+                                ? AuroraTheme.accentEmerald.withValues(alpha: 0.4)
+                                : (isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1)),
                           ),
                         ),
-                        Switch.adaptive(
-                          value: isGlobalActive,
-                          activeThumbColor: AuroraTheme.accentEmerald,
-                          onChanged: (val) async {
-                            await booking.setVehicleSpecificPricingEnabled(!val);
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(val
-                                      ? 'تم تفعيل نظام التسعير العام وإيقاف تسعير المركبات'
-                                      : 'تم تفعيل نظام التسعير المخصص لكل نوع مركبة'),
-                                  backgroundColor: val ? AuroraTheme.accentEmerald : const Color(0xFF3B82F6),
-                                ),
-                              );
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-
-              CustomTextField(
-                controller: _baseFareController,
-                label: 'الأجرة الأساسية للرحلات (د.ع)',
-                hint: '3000',
-                keyboardType: TextInputType.number,
-                prefixIcon: Icons.payments_rounded,
-              ),
-              const SizedBox(height: 14),
-
-              CustomTextField(
-                controller: _perKmController,
-                label: 'سعر الكيلومتر الواحد (د.ع)',
-                hint: '0',
-                keyboardType: TextInputType.number,
-                prefixIcon: Icons.route_rounded,
-              ),
-              const SizedBox(height: 14),
-
-              CustomTextField(
-                controller: _deliveryFareController,
-                label: 'أجرة توصيل الطرود والطلبات (د.ع)',
-                hint: '3000',
-                keyboardType: TextInputType.number,
-                prefixIcon: Icons.local_shipping_rounded,
-              ),
-              const SizedBox(height: 16),
-
-              // Multi-Destination Section inside General Pricing
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0x331E293B) : const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.alt_route_rounded, size: 20, color: AuroraTheme.primaryCyan),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'ميزة تعدد الوجهات والمحطات',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                ),
-                              ),
-                              Text(
-                                'السماح للزبون بإضافة أكثر من مقصد أو محطة توقف في الرحلة الواحدة',
-                                style: TextStyle(fontSize: 10.5, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Switch(
-                          value: _isMultiDestinationsEnabled,
-                          activeThumbColor: AuroraTheme.accentEmerald,
-                          onChanged: (val) => setState(() => _isMultiDestinationsEnabled = val),
-                        ),
-                      ],
-                    ),
-                    if (_isMultiDestinationsEnabled) ...[
-                      const SizedBox(height: 10),
-                      CustomTextField(
-                        controller: _maxDestinationsController,
-                        label: 'الحد الأقصى للوجهات في الرحلة الواحدة (2 إلى 5)',
-                        hint: '5',
-                        keyboardType: TextInputType.number,
-                        prefixIcon: Icons.pin_drop_rounded,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Section: Tiered Distance Pricing (شرائح تسعير المسافات بالمتر)
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0x331E293B) : const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.straighten_rounded, size: 20, color: AuroraTheme.primaryCyan),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'نظام شرائح تسعير المسافة بالمتر (د.ع)',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                ),
-                              ),
-                              Text(
-                                'تسعير مخصص للمسافات القصيرة (من 0 إلى 3000 متر)',
-                                style: TextStyle(fontSize: 10.5, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Switch(
-                          value: _isTieredPricingEnabled,
-                          activeThumbColor: AuroraTheme.accentEmerald,
-                          onChanged: (val) => setState(() => _isTieredPricingEnabled = val),
-                        ),
-                      ],
-                    ),
-                    if (_isTieredPricingEnabled) ...[
-                      const SizedBox(height: 12),
-                      CustomTextField(
-                        controller: _tier0To1000Controller,
-                        label: 'أجرة الشريحة من 0 إلى 1000 متر (د.ع)',
-                        hint: '2000',
-                        keyboardType: TextInputType.number,
-                        prefixIcon: Icons.looks_one_rounded,
-                      ),
-                      const SizedBox(height: 10),
-                      CustomTextField(
-                        controller: _tier1001To1500Controller,
-                        label: 'أجرة الشريحة من 1001 إلى 1500 متر (د.ع)',
-                        hint: '2250',
-                        keyboardType: TextInputType.number,
-                        prefixIcon: Icons.looks_two_rounded,
-                      ),
-                      const SizedBox(height: 10),
-                      CustomTextField(
-                        controller: _tier1501To2000Controller,
-                        label: 'أجرة الشريحة من 1501 إلى 2000 متر (د.ع)',
-                        hint: '2500',
-                        keyboardType: TextInputType.number,
-                        prefixIcon: Icons.looks_3_rounded,
-                      ),
-                      const SizedBox(height: 10),
-                      CustomTextField(
-                        controller: _tier2001To2500Controller,
-                        label: 'أجرة الشريحة من 2001 إلى 2500 متر (د.ع)',
-                        hint: '2750',
-                        keyboardType: TextInputType.number,
-                        prefixIcon: Icons.looks_4_rounded,
-                      ),
-                      const SizedBox(height: 10),
-                      CustomTextField(
-                        controller: _tier2501To3000Controller,
-                        label: 'أجرة الشريحة من 2501 إلى 3000 متر (د.ع)',
-                        hint: '3000',
-                        keyboardType: TextInputType.number,
-                        prefixIcon: Icons.looks_5_rounded,
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Icon(Icons.info_outline_rounded, size: 14, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              'عند تجاوز 3000 متر، يتم تطبيق نظام الأجرة الأساسية وسعر الكيلومتر.',
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                        child: Row(
+                          children: [
+                            Icon(
+                              isGlobalActive ? Icons.check_circle_rounded : Icons.toggle_off_rounded,
+                              color: isGlobalActive ? AuroraTheme.accentEmerald : const Color(0xFF64748B),
+                              size: 22,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'تفعيل نظام التسعير العام الموحد',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  Text(
+                                    isGlobalActive
+                                        ? 'مفعّل: يتم تطبيق الأجرة الموحدة وشرائح المسافة العامة أدناه مع إيقاف تسعير المركبات تلقائياً'
+                                        : 'معطّل: تم تفعيل نظام تسعير المركبات المخصص تلقائياً',
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
+                            Switch.adaptive(
+                              value: isGlobalActive,
+                              activeThumbColor: AuroraTheme.accentEmerald,
+                              onChanged: (val) async {
+                                await booking.setVehicleSpecificPricingEnabled(!val);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(val
+                                          ? 'تم تفعيل نظام التسعير العام وإيقاف تسعير المركبات'
+                                          : 'تم تفعيل نظام التسعير المخصص لكل نوع مركبة'),
+                                      backgroundColor: val ? AuroraTheme.accentEmerald : const Color(0xFF3B82F6),
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Fold / Collapse when General Pricing is disabled
+                      AnimatedCrossFade(
+                firstChild: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    CustomTextField(
+                      controller: _baseFareController,
+                      label: 'الأجرة الأساسية للرحلات (د.ع)',
+                      hint: '3000',
+                      keyboardType: TextInputType.number,
+                      prefixIcon: Icons.payments_rounded,
+                    ),
+                    const SizedBox(height: 14),
+
+                    CustomTextField(
+                      controller: _perKmController,
+                      label: 'سعر الكيلومتر الواحد (د.ع)',
+                      hint: '0',
+                      keyboardType: TextInputType.number,
+                      prefixIcon: Icons.route_rounded,
+                    ),
+                    const SizedBox(height: 14),
+
+                    CustomTextField(
+                      controller: _deliveryFareController,
+                      label: 'أجرة توصيل الطرود والطلبات (د.ع)',
+                      hint: '3000',
+                      keyboardType: TextInputType.number,
+                      prefixIcon: Icons.local_shipping_rounded,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Section 1: Tiered Distance Pricing (شرائح تسعير المسافات بالمتر)
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0x331E293B) : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.straighten_rounded, size: 20, color: AuroraTheme.primaryCyan),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'نظام شرائح تسعير المسافة بالمتر (د.ع)',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                    Text(
+                                      'تسعير مخصص للمسافات القصيرة (من 0 إلى 3000 متر)',
+                                      style: TextStyle(fontSize: 10.5, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Switch(
+                                value: _isTieredPricingEnabled,
+                                activeThumbColor: AuroraTheme.accentEmerald,
+                                onChanged: (val) => setState(() => _isTieredPricingEnabled = val),
+                              ),
+                            ],
                           ),
+                          if (_isTieredPricingEnabled) ...[
+                            const SizedBox(height: 12),
+                            CustomTextField(
+                              controller: _tier0To1000Controller,
+                              label: 'أجرة الشريحة من 0 إلى 1000 متر (د.ع)',
+                              hint: '2000',
+                              keyboardType: TextInputType.number,
+                              prefixIcon: Icons.looks_one_rounded,
+                            ),
+                            const SizedBox(height: 10),
+                            CustomTextField(
+                              controller: _tier1001To1500Controller,
+                              label: 'أجرة الشريحة من 1001 إلى 1500 متر (د.ع)',
+                              hint: '2250',
+                              keyboardType: TextInputType.number,
+                              prefixIcon: Icons.looks_two_rounded,
+                            ),
+                            const SizedBox(height: 10),
+                            CustomTextField(
+                              controller: _tier1501To2000Controller,
+                              label: 'أجرة الشريحة من 1501 إلى 2000 متر (د.ع)',
+                              hint: '2500',
+                              keyboardType: TextInputType.number,
+                              prefixIcon: Icons.looks_3_rounded,
+                            ),
+                            const SizedBox(height: 10),
+                            CustomTextField(
+                              controller: _tier2001To2500Controller,
+                              label: 'أجرة الشريحة من 2001 إلى 2500 متر (د.ع)',
+                              hint: '2750',
+                              keyboardType: TextInputType.number,
+                              prefixIcon: Icons.looks_4_rounded,
+                            ),
+                            const SizedBox(height: 10),
+                            CustomTextField(
+                              controller: _tier2501To3000Controller,
+                              label: 'أجرة الشريحة من 2501 إلى 3000 متر (د.ع)',
+                              hint: '3000',
+                              keyboardType: TextInputType.number,
+                              prefixIcon: Icons.looks_5_rounded,
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Icon(Icons.info_outline_rounded, size: 14, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    'عند تجاوز 3000 متر، يتم تطبيق نظام الأجرة الأساسية وسعر الكيلومتر.',
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ],
                       ),
-                    ],
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Section 2: Multi-Destination (ميزة تعدد الوجهات والمحطات) - تحت نظام شرائح تسعير المسافة بالمتر
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0x331E293B) : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.alt_route_rounded, size: 20, color: AuroraTheme.primaryCyan),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'ميزة تعدد الوجهات والمحطات',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                    Text(
+                                      'السماح للزبون بإضافة أكثر من مقصد أو محطة توقف في الرحلة الواحدة',
+                                      style: TextStyle(fontSize: 10.5, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Switch(
+                                value: _isMultiDestinationsEnabled,
+                                activeThumbColor: AuroraTheme.accentEmerald,
+                                onChanged: (val) => setState(() => _isMultiDestinationsEnabled = val),
+                              ),
+                            ],
+                          ),
+                          if (_isMultiDestinationsEnabled) ...[
+                            const SizedBox(height: 10),
+                            CustomTextField(
+                              controller: _maxDestinationsController,
+                              label: 'الحد الأقصى للوجهات في الرحلة الواحدة (2 إلى 5)',
+                              hint: '5',
+                              keyboardType: TextInputType.number,
+                              prefixIcon: Icons.pin_drop_rounded,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    AuroraButton(
+                      text: 'تحديث التسعير العام',
+                      onPressed: () async {
+                        final base = double.tryParse(_baseFareController.text.trim()) ?? 3000.0;
+                        final perKm = double.tryParse(_perKmController.text.trim()) ?? 1000.0;
+                        final delivery =
+                            double.tryParse(_deliveryFareController.text.trim()) ?? 3000.0;
+                        final maxDest = int.tryParse(_maxDestinationsController.text.trim()) ?? 5;
+                        final tier0 = double.tryParse(_tier0To1000Controller.text.trim()) ?? 2000.0;
+                        final tier1 = double.tryParse(_tier1001To1500Controller.text.trim()) ?? 2250.0;
+                        final tier2 = double.tryParse(_tier1501To2000Controller.text.trim()) ?? 2500.0;
+                        final tier3 = double.tryParse(_tier2001To2500Controller.text.trim()) ?? 2750.0;
+                        final tier4 = double.tryParse(_tier2501To3000Controller.text.trim()) ?? 3000.0;
+
+                        final bookingProvider = context.read<BookingProvider>();
+                        final messenger = ScaffoldMessenger.of(context);
+
+                        await admin.updatePricing(
+                          baseFare: base,
+                          perKmRate: perKm,
+                          deliveryBaseFare: delivery,
+                          isMultiDestinationsEnabled: _isMultiDestinationsEnabled,
+                          maxDestinations: maxDest,
+                          isTieredPricingEnabled: _isTieredPricingEnabled,
+                          tier0To1000: tier0,
+                          tier1001To1500: tier1,
+                          tier1501To2000: tier2,
+                          tier2001To2500: tier3,
+                          tier2501To3000: tier4,
+                        );
+
+                        await bookingProvider.loadPricingSettings();
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content: Text('تم حفظ وتحديث التسعير العام وشرائح المسافة بنجاح'),
+                            backgroundColor: AuroraTheme.accentEmerald,
+                          ),
+                        );
+                      },
+                    ),
                   ],
                 ),
-              ),
-
-              const SizedBox(height: 20),
-
-              AuroraButton(
-                text: 'تحديث التسعير العام',
-                onPressed: () async {
-                  final base = double.tryParse(_baseFareController.text.trim()) ?? 3000.0;
-                  final perKm = double.tryParse(_perKmController.text.trim()) ?? 1000.0;
-                  final delivery =
-                      double.tryParse(_deliveryFareController.text.trim()) ?? 3000.0;
-                  final maxDest = int.tryParse(_maxDestinationsController.text.trim()) ?? 5;
-                  final tier0 = double.tryParse(_tier0To1000Controller.text.trim()) ?? 2000.0;
-                  final tier1 = double.tryParse(_tier1001To1500Controller.text.trim()) ?? 2250.0;
-                  final tier2 = double.tryParse(_tier1501To2000Controller.text.trim()) ?? 2500.0;
-                  final tier3 = double.tryParse(_tier2001To2500Controller.text.trim()) ?? 2750.0;
-                  final tier4 = double.tryParse(_tier2501To3000Controller.text.trim()) ?? 3000.0;
-
-                  final bookingProvider = context.read<BookingProvider>();
-                  final messenger = ScaffoldMessenger.of(context);
-
-                  await admin.updatePricing(
-                    baseFare: base,
-                    perKmRate: perKm,
-                    deliveryBaseFare: delivery,
-                    isMultiDestinationsEnabled: _isMultiDestinationsEnabled,
-                    maxDestinations: maxDest,
-                    isTieredPricingEnabled: _isTieredPricingEnabled,
-                    tier0To1000: tier0,
-                    tier1001To1500: tier1,
-                    tier1501To2000: tier2,
-                    tier2001To2500: tier3,
-                    tier2501To3000: tier4,
-                  );
-
-                  await bookingProvider.loadPricingSettings();
-                  messenger.showSnackBar(
-                    const SnackBar(
-                      content: Text('تم حفظ وتحديث التسعير العام وشرائح المسافة بنجاح'),
-                      backgroundColor: AuroraTheme.accentEmerald,
+                secondChild: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0x221E293B) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isDark ? const Color(0x2238BDF8) : const Color(0xFFE2E8F0),
                     ),
-                  );
-                },
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.lock_clock_rounded, size: 16, color: isDark ? Colors.white54 : const Color(0xFF94A3B8)),
+                      const SizedBox(width: 8),
+                      Text(
+                        'تم طي التسعير العام • قم بتفعيله من المفتاح أعلاه لتعديل أسعاره',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                crossFadeState: isGlobalActive ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+                duration: const Duration(milliseconds: 250),
               ),
+            ],
+          );
+        },
+      ),
             ],
           ),
         ),

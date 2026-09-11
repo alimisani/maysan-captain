@@ -1,17 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../../../core/state/auth_provider.dart';
 import '../../../core/state/booking_provider.dart';
-import '../../../core/theme/aurora_theme.dart';
 import '../driver_quick_sheet.dart';
-import '../location_picker_sheet.dart';
 import '../maysan_map_widget.dart';
 import '../ride_booking_sheet.dart';
 import '../widgets/ad_slot_banner_widget.dart';
-import '../widgets/favorite_places_row_widget.dart';
-import '../widgets/saved_routes_widget.dart';
+import '../widgets/favorites_and_routes_card_widget.dart';
 
 class LayoutClassicGlass extends StatelessWidget {
   final bool isDark;
@@ -52,89 +48,7 @@ class LayoutClassicGlass extends StatelessWidget {
             // 1. Main Ad Slot (كبير بارز)
             const AdSlotBannerWidget(slot: 'main'),
 
-            // 2. Direct Destination Search Bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () async {
-                    final result = await LocationPickerSheet.show(
-                      context,
-                      title: 'مكان الوصول (الوجهة)',
-                      initialLocation: booking.dropoffLocation,
-                      isPickup: false,
-                    );
-                    if (result != null) {
-                      booking.setDropoffLocation(
-                        result['location'] as LatLng,
-                        customAddress: result['address'] as String,
-                        isArabic: loc.isArabic,
-                      );
-                    }
-                  },
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: AuroraTheme.primaryCyan.withValues(alpha: 0.4),
-                        width: 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AuroraTheme.primaryCyan.withValues(alpha: 0.12),
-                          blurRadius: 12,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AuroraTheme.primaryCyan.withValues(alpha: 0.15),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.search_rounded, color: AuroraTheme.primaryCyan, size: 20),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'إلى أين وجهتك القادمة؟',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                booking.dropoffAddress.isNotEmpty && booking.dropoffAddress != 'تحديد الوجهة والمقصد'
-                                    ? booking.dropoffAddress
-                                    : 'انقر لتحديد وجهتك والمحطات...',
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  color: isDark ? Colors.white60 : const Color(0xFF64748B),
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AuroraTheme.primaryCyan),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // 3. Quick 5-Vehicle Row [صالون] [VIP] [تكتك] [توصيل] [بيك آب / حمل]
+            // 2. Quick 5-Vehicle Row [صالون] [VIP] [تكتك] [توصيل] [بيك آب / حمل]
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -183,10 +97,20 @@ class LayoutClassicGlass extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
 
-            // 4. Favorite Places Quick Row (الوجهات والأماكن المفضلة)
-            FavoritePlacesRowWidget(
+            // 3. Medium Ad Slot (متوسط)
+            const AdSlotBannerWidget(slot: 'medium'),
+
+            // 4. Embedded Live Ride Booking Panel (بطاقة التوصيل وطلب المشوار)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: RideBookingSheet(isEmbedded: true),
+            ),
+            const SizedBox(height: 6),
+
+            // 5. Unified Collapsible Card: Favorite Places + Saved Routes (تحت بطاقة التوصيل والمشوار)
+            FavoritesAndRoutesCardWidget(
               isDark: isDark,
               onPlaceSelected: (place) {
                 booking.setDropoffLocation(
@@ -195,29 +119,13 @@ class LayoutClassicGlass extends StatelessWidget {
                   isArabic: loc.isArabic,
                 );
               },
-            ),
-            const SizedBox(height: 6),
-
-            // 5. Saved Routes (المسارات وخطوط السير اليومية المحفوظة)
-            SavedRoutesWidget(
-              isDark: isDark,
               onRouteSelected: (route) {
                 booking.applySavedRoute(route, isArabic: loc.isArabic);
               },
             ),
             const SizedBox(height: 6),
 
-            // 6. Medium Ad Slot (متوسط)
-            const AdSlotBannerWidget(slot: 'medium'),
-
-            // 7. Embedded Live Ride Booking Panel
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: RideBookingSheet(isEmbedded: true),
-            ),
-            const SizedBox(height: 6),
-
-            // 8. Bottom Ad Slot (سفلي)
+            // 6. Bottom Ad Slot (سفلي)
             const AdSlotBannerWidget(slot: 'bottom'),
           ],
         ),

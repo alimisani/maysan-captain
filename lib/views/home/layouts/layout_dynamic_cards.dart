@@ -1,18 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../../../core/state/auth_provider.dart';
 import '../../../core/state/booking_provider.dart';
 import '../driver_quick_sheet.dart';
-import '../location_picker_sheet.dart';
 import '../maysan_map_widget.dart';
 import '../ride_booking_sheet.dart';
 import '../widgets/ad_slot_banner_widget.dart';
-import '../widgets/favorite_places_row_widget.dart';
+import '../widgets/favorites_and_routes_card_widget.dart';
 import '../widgets/home_bottom_nav_bar.dart';
-import '../widgets/saved_routes_widget.dart';
 
 class LayoutDynamicCards extends StatelessWidget {
   final bool isDark;
@@ -58,113 +55,6 @@ class LayoutDynamicCards extends StatelessWidget {
                 children: [
                   // 1. Main Ad Slot (كبير بارز)
                   const AdSlotBannerWidget(slot: 'main'),
-
-                  // 2. Hero Destination Card
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: InkWell(
-                      onTap: () async {
-                        await booking.triggerInstantRideFlow(isArabic: loc.isArabic);
-                        if (context.mounted) {
-                          final result = await LocationPickerSheet.show(
-                            context,
-                            title: 'مكان الوصول (الوجهة)',
-                            initialLocation: booking.dropoffLocation,
-                            isPickup: false,
-                          );
-                          if (result != null) {
-                            booking.setDropoffLocation(
-                              result['location'] as LatLng,
-                              customAddress: result['address'] as String,
-                              isArabic: loc.isArabic,
-                            );
-                          }
-                        }
-                      },
-                      borderRadius: BorderRadius.circular(24),
-                      child: Container(
-                        height: 125,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            begin: Alignment.topRight,
-                            end: Alignment.bottomLeft,
-                            colors: [Color(0xFF064E3B), Color(0xFF0D9488), Color(0xFF042F2C)],
-                          ),
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF064E3B).withValues(alpha: 0.35),
-                              blurRadius: 16,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Stack(
-                          children: [
-                            Positioned(
-                              left: -10,
-                              bottom: -5,
-                              child: Opacity(
-                                opacity: 0.25,
-                                child: Icon(Icons.directions_car_filled_rounded, size: 130, color: Colors.white),
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        const Text(
-                                          'إلى أين تريد الذهاب؟',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 19,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          'حدد وجهتك الآن بلمسة واحدة وابدأ رحلتك...',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.white.withValues(alpha: 0.85),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.all(14),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(18),
-                                      boxShadow: const [
-                                        BoxShadow(
-                                          color: Color(0x22000000),
-                                          blurRadius: 10,
-                                          offset: Offset(0, 3),
-                                        ),
-                                      ],
-                                    ),
-                                    child: const Icon(
-                                      Icons.search_rounded,
-                                      color: Color(0xFF064E3B),
-                                      size: 26,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
 
                   // 2. 4 Service Category Cards
                   Padding(
@@ -324,8 +214,18 @@ class LayoutDynamicCards extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
 
-                  // 4. Favorite Places Quick Row
-                  FavoritePlacesRowWidget(
+                  // 4. Medium Ad Slot (متوسط)
+                  const AdSlotBannerWidget(slot: 'medium'),
+
+                  // 5. Embedded Live Ride Booking Panel (بطاقة التوصيل وطلب المشوار)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: RideBookingSheet(isEmbedded: true),
+                  ),
+                  const SizedBox(height: 6),
+
+                  // 6. Unified Collapsible Card: Favorite Places + Saved Routes (تحت بطاقة التوصيل والمشوار)
+                  FavoritesAndRoutesCardWidget(
                     isDark: isDark,
                     onPlaceSelected: (place) {
                       booking.setDropoffLocation(
@@ -334,29 +234,13 @@ class LayoutDynamicCards extends StatelessWidget {
                         isArabic: loc.isArabic,
                       );
                     },
-                  ),
-                  const SizedBox(height: 6),
-
-                  // 5. Saved Routes (المسارات وخطوط السير اليومية المحفوظة)
-                  SavedRoutesWidget(
-                    isDark: isDark,
                     onRouteSelected: (route) {
                       booking.applySavedRoute(route, isArabic: loc.isArabic);
                     },
                   ),
                   const SizedBox(height: 6),
 
-                  // 6. Medium Ad Slot (متوسط)
-                  const AdSlotBannerWidget(slot: 'medium'),
-
-                  // 7. Embedded Live Ride Booking Panel
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: RideBookingSheet(isEmbedded: true),
-                  ),
-                  const SizedBox(height: 6),
-
-                  // 8. Bottom Ad Slot (سفلي)
+                  // 7. Bottom Ad Slot (سفلي)
                   const AdSlotBannerWidget(slot: 'bottom'),
                 ],
               ),
