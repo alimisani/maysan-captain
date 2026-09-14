@@ -177,61 +177,47 @@ class _AdBannerCarouselWidgetState extends State<AdBannerCarouselWidget> {
                           },
                         ),
 
-                        // Soft Gradient Overlay for Readability
-                        if (banner.title.isNotEmpty || banner.subtitle.isNotEmpty)
-                          Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.transparent,
-                                  Colors.black.withValues(alpha: 0.75),
-                                ],
-                              ),
-                            ),
-                          ),
-
                         // Text & Info Overlay
                         if (banner.title.isNotEmpty || banner.subtitle.isNotEmpty)
                           Positioned(
                             bottom: 12,
                             right: 16,
                             left: 16,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (banner.title.isNotEmpty)
-                                  Text(
-                                    banner.title,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                      shadows: [
-                                        Shadow(color: Colors.black54, blurRadius: 6, offset: Offset(0, 2)),
-                                      ],
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.55),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (banner.title.isNotEmpty)
+                                    Text(
+                                      banner.title,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                if (banner.subtitle.isNotEmpty) ...[
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    banner.subtitle,
-                                    style: TextStyle(
-                                      color: Colors.white.withValues(alpha: 0.9),
-                                      fontSize: 11.5,
-                                      shadows: const [
-                                        Shadow(color: Colors.black54, blurRadius: 4, offset: Offset(0, 1)),
-                                      ],
+                                  if (banner.subtitle.isNotEmpty) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      banner.subtitle,
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(alpha: 0.9),
+                                        fontSize: 11.5,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
+                                  ],
                                 ],
-                              ],
+                              ),
                             ),
                           ),
 

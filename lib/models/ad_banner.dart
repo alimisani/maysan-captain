@@ -213,6 +213,7 @@ class AdPackageConfig {
   final int gold7DaysPrice;
   final int gold30DaysPrice;
   final int exclusive7DaysPrice;
+  final int exclusive30DaysPrice;
   final String termsText;
   final String contactWhatsApp;
 
@@ -224,6 +225,7 @@ class AdPackageConfig {
     this.gold7DaysPrice = 50000,
     this.gold30DaysPrice = 120000,
     this.exclusive7DaysPrice = 75000,
+    this.exclusive30DaysPrice = 180000,
     this.termsText =
         '1. يجب أن يكون محتوى الإعلان لائقاً ومتوافقاً مع القوانين والآداب العامة.\n2. تصميم وبنر الإعلان يتم تزويده بدقة عالية (16:9 أو 16:7).\n3. يتم تفعيل الإعلان فورياً بعد تأكيد التحويل المالي.\n4. لا يمكن استرداد المبلغ بعد انطلاق الحملة الإعلانية.',
     this.contactWhatsApp = '7117648506',
@@ -238,6 +240,7 @@ class AdPackageConfig {
       gold7DaysPrice: (json['gold_7d'] as num?)?.toInt() ?? 50000,
       gold30DaysPrice: (json['gold_30d'] as num?)?.toInt() ?? 120000,
       exclusive7DaysPrice: (json['exclusive_7d'] as num?)?.toInt() ?? 75000,
+      exclusive30DaysPrice: (json['exclusive_30d'] as num?)?.toInt() ?? 180000,
       termsText: json['terms_text'] as String? ??
           '1. يجب أن يكون محتوى الإعلان لائقاً ومتوافقاً مع القوانين والآداب العامة.\n2. تصميم وبنر الإعلان يتم تزويده بدقة عالية.\n3. يتم تفعيل الإعلان فورياً بعد تأكيد التحويل.\n4. لا يمكن استرداد المبلغ بعد انطلاق الحملة.',
       contactWhatsApp: json['contact_whatsapp'] as String? ?? '7117648506',
@@ -253,6 +256,7 @@ class AdPackageConfig {
       'gold_7d': gold7DaysPrice,
       'gold_30d': gold30DaysPrice,
       'exclusive_7d': exclusive7DaysPrice,
+      'exclusive_30d': exclusive30DaysPrice,
       'terms_text': termsText,
       'contact_whatsapp': contactWhatsApp,
     };

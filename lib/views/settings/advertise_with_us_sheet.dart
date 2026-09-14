@@ -180,7 +180,7 @@ class AdvertiseWithUsSheet extends StatelessWidget {
                     title: 'الباقة الحصرية 👑',
                     subtitle: 'احتكار الإعلان الرئيسي بالكامل بدون تدوير',
                     price7: '${fmt.format(config.exclusive7DaysPrice)} د.ع / 7 أيام',
-                    price30: null,
+                    price30: '${fmt.format(config.exclusive30DaysPrice)} د.ع / 30 يوم',
                     color: const Color(0xFF8B5CF6),
                     isDark: isDark,
                     features: const [

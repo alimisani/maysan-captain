@@ -266,21 +266,6 @@ class _AdSlotBannerWidgetState extends State<AdSlotBannerWidget> {
                 ),
               ),
 
-              // Gradient Overlay for Text Readability
-              Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(21),
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.05),
-                      Colors.black.withValues(alpha: 0.70),
-                    ],
-                  ),
-                ),
-              ),
-
               // Top Badges Row (Sponsor / Discount)
               Positioned(
                 top: 8,
@@ -347,37 +332,45 @@ class _AdSlotBannerWidgetState extends State<AdSlotBannerWidget> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (banner.title.isNotEmpty)
-                            Text(
-                              banner.title,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                                shadows: [Shadow(color: Colors.black, blurRadius: 6)],
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          if (banner.subtitle.isNotEmpty)
-                            Text(
-                              banner.subtitle,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.9),
-                                fontSize: 10.5,
-                                shadows: const [Shadow(color: Colors.black, blurRadius: 6)],
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                        ],
-                      ),
-                    ),
+                    if (banner.title.isNotEmpty || banner.subtitle.isNotEmpty)
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.55),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (banner.title.isNotEmpty)
+                                Text(
+                                  banner.title,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              if (banner.subtitle.isNotEmpty)
+                                Text(
+                                  banner.subtitle,
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                    fontSize: 10.5,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else
+                      const Spacer(),
                     const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),

@@ -6678,6 +6678,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final gold7Ctrl = TextEditingController(text: current.gold7DaysPrice.toString());
     final gold30Ctrl = TextEditingController(text: current.gold30DaysPrice.toString());
     final exclusive7Ctrl = TextEditingController(text: current.exclusive7DaysPrice.toString());
+    final exclusive30Ctrl = TextEditingController(text: current.exclusive30DaysPrice.toString());
     final phoneCtrl = TextEditingController(text: current.contactWhatsApp);
     final termsCtrl = TextEditingController(text: current.termsText);
 
@@ -6739,29 +6740,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               const SizedBox(height: 12),
 
               // 4. Exclusive Package
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.3)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('الباقة الحصرية 👑 (احتكار الإعلان الرئيسي)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF8B5CF6))),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: exclusive7Ctrl,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: 'السعر لمدة 7 أيام (د.ع)',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      ),
-                    ),
-                  ],
-                ),
+              _buildPackagePricingSection(
+                title: 'الباقة الحصرية 👑 (احتكار الإعلان الرئيسي)',
+                ctrl7: exclusive7Ctrl,
+                ctrl30: exclusive30Ctrl,
+                color: const Color(0xFF8B5CF6),
               ),
               const SizedBox(height: 12),
 
@@ -6812,6 +6795,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           gold7DaysPrice: int.tryParse(gold7Ctrl.text.trim()) ?? 50000,
                           gold30DaysPrice: int.tryParse(gold30Ctrl.text.trim()) ?? 120000,
                           exclusive7DaysPrice: int.tryParse(exclusive7Ctrl.text.trim()) ?? 75000,
+                          exclusive30DaysPrice: int.tryParse(exclusive30Ctrl.text.trim()) ?? 180000,
                           contactWhatsApp: phoneCtrl.text.trim(),
                           termsText: termsCtrl.text.trim(),
                         );
@@ -6854,31 +6838,71 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: color)),
-          const SizedBox(height: 8),
+          Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: color)),
+          const SizedBox(height: 10),
           Row(
             children: [
               Expanded(
-                child: TextField(
-                  controller: ctrl7,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: 'سعر 7 أيام (د.ع)',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.calendar_today_rounded, size: 11, color: color),
+                        const SizedBox(width: 4),
+                        const Text(
+                          'سعر 7 أيام',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    TextField(
+                      controller: ctrl7,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                      decoration: InputDecoration(
+                        hintText: '0',
+                        suffixText: 'د.ع',
+                        suffixStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        isDense: true,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Expanded(
-                child: TextField(
-                  controller: ctrl30,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: 'سعر 30 يوم (د.ع)',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.date_range_rounded, size: 11, color: color),
+                        const SizedBox(width: 4),
+                        const Text(
+                          'سعر 30 يوماً',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    TextField(
+                      controller: ctrl30,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                      decoration: InputDecoration(
+                        hintText: '0',
+                        suffixText: 'د.ع',
+                        suffixStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        isDense: true,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
