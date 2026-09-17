@@ -7165,6 +7165,32 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildPricingBadge(
+                          'شرائح 3000-5000م (الذروة)',
+                          item.isPeakWindowActive && item.peakStartTime.isNotEmpty
+                              ? '${item.peakStartTime} - ${item.peakEndTime}'
+                              : (item.tier3001To4000 > 0 ? 'محددة (بدون توقيت)' : 'طبيعية (أجرة أساسية)'),
+                          isDark,
+                          color: item.isPeakWindowActive ? const Color(0xFFF59E0B) : (isDark ? Colors.white70 : const Color(0xFF64748B)),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildPricingBadge(
+                          'إضافي 5000-10000م فصاعداً',
+                          item.surcharge5001To6000 > 0 || item.surcharge9001To10000 > 0
+                              ? '+${currencyFormatter.format(item.surcharge5001To6000.toInt())} ~ ${currencyFormatter.format(item.surcharge9001To10000.toInt())} د.ع'
+                              : 'بدون إضافة (أجرة أساسية)',
+                          isDark,
+                          color: item.surcharge5001To6000 > 0 ? const Color(0xFF3B82F6) : Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             );
@@ -7585,6 +7611,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final tier3Ctrl = TextEditingController(text: item.tier2001To2500.toInt().toString());
     final tier4Ctrl = TextEditingController(text: item.tier2501To3000.toInt().toString());
 
+    // 3000-5000m Tiers & Peak Window
+    final tier3001Ctrl = TextEditingController(text: item.tier3001To4000 > 0 ? item.tier3001To4000.toInt().toString() : '');
+    final tier4001Ctrl = TextEditingController(text: item.tier4001To5000 > 0 ? item.tier4001To5000.toInt().toString() : '');
+    bool isPeakWindowActive = item.isPeakWindowActive;
+    final peakStartCtrl = TextEditingController(text: item.peakStartTime);
+    final peakEndCtrl = TextEditingController(text: item.peakEndTime);
+
+    // 5000-10000m Long Distance Surcharges (مبالغ تضاف للأجرة الأساسية)
+    final sur5001Ctrl = TextEditingController(text: item.surcharge5001To6000 > 0 ? item.surcharge5001To6000.toInt().toString() : '');
+    final sur6001Ctrl = TextEditingController(text: item.surcharge6001To7000 > 0 ? item.surcharge6001To7000.toInt().toString() : '');
+    final sur7001Ctrl = TextEditingController(text: item.surcharge7001To8000 > 0 ? item.surcharge7001To8000.toInt().toString() : '');
+    final sur8001Ctrl = TextEditingController(text: item.surcharge8001To9000 > 0 ? item.surcharge8001To9000.toInt().toString() : '');
+    final sur9001Ctrl = TextEditingController(text: item.surcharge9001To10000 > 0 ? item.surcharge9001To10000.toInt().toString() : '');
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -7766,6 +7806,222 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
                     const SizedBox(height: 12),
 
+                    // شرائح المسافة (3000-5000م) - مرتبطة بوقت الذروة
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0x331E293B) : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isPeakWindowActive
+                              ? const Color(0xFFF59E0B).withValues(alpha: 0.5)
+                              : (isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1)),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.schedule_rounded, size: 18, color: Color(0xFFF59E0B)),
+                              const SizedBox(width: 6),
+                              const Expanded(
+                                child: Text(
+                                  'شرائح المسافة (3000-5000م) وتوقيت الذروة',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                ),
+                              ),
+                              Switch.adaptive(
+                                value: isPeakWindowActive,
+                                activeThumbColor: const Color(0xFFF59E0B),
+                                onChanged: (val) => setSheetState(() => isPeakWindowActive = val),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            isPeakWindowActive
+                                ? 'يتم تفعيل التسعيرة أدناه تلقائياً فقط خلال وقت الذروة المحدد، وفي غيره أو عند عدم إدخال مبلغ تُعتمد الأجرة الأساسية الطبيعية.'
+                                : 'خاصية توقيت الذروة معطلة: تُعتمد الأجرة الأساسية الطبيعية كالمعتاد.',
+                            style: TextStyle(fontSize: 10.5, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: tier3001Ctrl,
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    labelText: '3001-4000م (د.ع)',
+                                    hintText: 'مثال: 3500',
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: TextField(
+                                  controller: tier4001Ctrl,
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    labelText: '4001-5000م (د.ع)',
+                                    hintText: 'مثال: 4000',
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (isPeakWindowActive) ...[
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: peakStartCtrl,
+                                    decoration: InputDecoration(
+                                      labelText: 'بدء الذروة (HH:mm)',
+                                      hintText: 'مثال: 08:00',
+                                      prefixIcon: const Icon(Icons.alarm_on_rounded, size: 16),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: TextField(
+                                    controller: peakEndCtrl,
+                                    decoration: InputDecoration(
+                                      labelText: 'نهاية الذروة (HH:mm)',
+                                      hintText: 'مثال: 16:00',
+                                      prefixIcon: const Icon(Icons.alarm_off_rounded, size: 16),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // شرائح المسافات الطويلة (5000م فصاعداً إلى 10000م) - مبالغ إضافية فوق الأجرة الأساسية
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0x331E293B) : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: const Color(0xFF3B82F6).withValues(alpha: 0.5),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: const [
+                              Icon(Icons.add_road_rounded, size: 18, color: Color(0xFF3B82F6)),
+                              SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  'أجرة إضافية للمسافات البعيدة (5000م - 10000م فصاعداً)',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'المبلغ المُدخل هنا يُضاف تلقائياً فوق الأجرة الأساسية لإنصاف الكباتن في المسافات الطويلة، وإذا تُرك فارغاً يبقى صفراً.',
+                            style: TextStyle(fontSize: 10.5, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: sur5001Ctrl,
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    labelText: '5001-6000م (د.ع)',
+                                    hintText: '0',
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: TextField(
+                                  controller: sur6001Ctrl,
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    labelText: '6001-7000م (د.ع)',
+                                    hintText: '0',
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: TextField(
+                                  controller: sur7001Ctrl,
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    labelText: '7001-8000م (د.ع)',
+                                    hintText: '0',
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: sur8001Ctrl,
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    labelText: '8001-9000م (د.ع)',
+                                    hintText: '0',
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: TextField(
+                                  controller: sur9001Ctrl,
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    labelText: '9001-10000م (د.ع)',
+                                    hintText: '0',
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
                     TextField(
                       controller: notesCtrl,
                       maxLines: 2,
@@ -7799,6 +8055,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         final double t3 = double.tryParse(tier3Ctrl.text.trim()) ?? item.tier2001To2500;
                         final double t4 = double.tryParse(tier4Ctrl.text.trim()) ?? item.tier2501To3000;
 
+                        final double t3001 = double.tryParse(tier3001Ctrl.text.trim()) ?? 0.0;
+                        final double t4001 = double.tryParse(tier4001Ctrl.text.trim()) ?? 0.0;
+                        final String pStart = peakStartCtrl.text.trim();
+                        final String pEnd = peakEndCtrl.text.trim();
+
+                        final double s5 = double.tryParse(sur5001Ctrl.text.trim()) ?? 0.0;
+                        final double s6 = double.tryParse(sur6001Ctrl.text.trim()) ?? 0.0;
+                        final double s7 = double.tryParse(sur7001Ctrl.text.trim()) ?? 0.0;
+                        final double s8 = double.tryParse(sur8001Ctrl.text.trim()) ?? 0.0;
+                        final double s9 = double.tryParse(sur9001Ctrl.text.trim()) ?? 0.0;
+
                         final updated = item.copyWith(
                           baseFare: base,
                           perKmRate: 0.0,
@@ -7812,6 +8079,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           tier1501To2000: t2,
                           tier2001To2500: t3,
                           tier2501To3000: t4,
+                          tier3001To4000: t3001,
+                          tier4001To5000: t4001,
+                          isPeakWindowActive: isPeakWindowActive,
+                          peakStartTime: pStart,
+                          peakEndTime: pEnd,
+                          surcharge5001To6000: s5,
+                          surcharge6001To7000: s6,
+                          surcharge7001To8000: s7,
+                          surcharge8001To9000: s8,
+                          surcharge9001To10000: s9,
                         );
 
                         await booking.updateVehiclePricingItem(updated);

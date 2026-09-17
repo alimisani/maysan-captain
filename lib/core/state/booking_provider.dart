@@ -823,16 +823,17 @@ class BookingProvider extends ChangeNotifier {
       calculated = matchedCustomPrice;
     } else if (_vehiclePricingConfig.isVehicleSpecificPricingEnabled) {
       // 1. Vehicle-specific Pricing Engine:
-      // Strictly relies on distance tiers in meters (0-3000m).
-      // If distance exceeds the tiers (> 3000m) or multi-destination:
-      // System adopts the Base Fare (الأجرة الأساسية).
+      // - 0 to 3000m: strictly relies on meter distance tiers.
+      // - 3001 to 5000m: relies on 3000-5000 tiers if configured & active (based on peak time window).
+      //   If time window is inactive or tier price is 0, falls back naturally to Base Fare (الأجرة الأساسية).
+      // - 5001 to 10000m+: Base Fare (x legs) + long distance surcharge (مبلغ يضاف تلقائياً للأجرة الأساسية).
       final vItem = _vehiclePricingConfig.getItem(_selectedVehicleType);
       final double base = vItem.baseFare;
       int totalLegs = 1 + _extraDestinations.length;
       final distanceMeters = (_distanceKm * 1000.0).round();
 
       if (vItem.isTieredPricingEnabled && distanceMeters <= 3000 && _extraDestinations.isEmpty) {
-        // Vehicle's own meter tiers
+        // Vehicle's own 0-3000m meter tiers
         if (distanceMeters <= 1000) {
           calculated = vItem.tier0To1000;
         } else if (distanceMeters <= 1500) {
@@ -844,10 +845,59 @@ class BookingProvider extends ChangeNotifier {
         } else {
           calculated = vItem.tier2501To3000;
         }
+      } else if (distanceMeters > 3000 && distanceMeters <= 5000 && _extraDestinations.isEmpty) {
+        // 3001 - 5000m: check peak time window and tier value
+        bool isPeakNow = false;
+        if (vItem.isPeakWindowActive && vItem.peakStartTime.isNotEmpty && vItem.peakEndTime.isNotEmpty) {
+          final now = DateTime.now();
+          final currentMinutes = now.hour * 60 + now.minute;
+          final startParts = vItem.peakStartTime.split(':');
+          final endParts = vItem.peakEndTime.split(':');
+          if (startParts.length == 2 && endParts.length == 2) {
+            final startMinutes = (int.tryParse(startParts[0]) ?? 0) * 60 + (int.tryParse(startParts[1]) ?? 0);
+            final endMinutes = (int.tryParse(endParts[0]) ?? 0) * 60 + (int.tryParse(endParts[1]) ?? 0);
+            if (startMinutes <= endMinutes) {
+              isPeakNow = currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+            } else {
+              // Crosses midnight
+              isPeakNow = currentMinutes >= startMinutes || currentMinutes <= endMinutes;
+            }
+          }
+        }
+
+        double matchedTier = 0.0;
+        if (isPeakNow) {
+          if (distanceMeters <= 4000 && vItem.tier3001To4000 > 0) {
+            matchedTier = vItem.tier3001To4000;
+          } else if (distanceMeters > 4000 && vItem.tier4001To5000 > 0) {
+            matchedTier = vItem.tier4001To5000;
+          }
+        }
+
+        if (matchedTier > 0) {
+          calculated = matchedTier;
+        } else {
+          // Fallback to normal Base Fare (الأجرة الأساسية)
+          calculated = base * totalLegs;
+        }
       } else {
-        // Exceeds tiers (> 3000m) or multi-destination:
-        // System adopts the Base Fare!
-        calculated = base * totalLegs;
+        // Distance > 5000m or multi-destination:
+        // Base Fare + Long Distance Surcharge for 5000m-10000m+
+        double surcharge = 0.0;
+        if (distanceMeters > 5000 && _extraDestinations.isEmpty) {
+          if (distanceMeters <= 6000) {
+            surcharge = vItem.surcharge5001To6000;
+          } else if (distanceMeters <= 7000) {
+            surcharge = vItem.surcharge6001To7000;
+          } else if (distanceMeters <= 8000) {
+            surcharge = vItem.surcharge7001To8000;
+          } else if (distanceMeters <= 9000) {
+            surcharge = vItem.surcharge8001To9000;
+          } else {
+            surcharge = vItem.surcharge9001To10000;
+          }
+        }
+        calculated = (base * totalLegs) + surcharge;
       }
     } else {
       // 2. Global General Pricing Engine:

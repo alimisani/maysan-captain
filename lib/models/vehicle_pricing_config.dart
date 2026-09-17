@@ -20,6 +20,20 @@ class VehiclePricingItem {
   final double tier2001To2500;
   final double tier2501To3000;
 
+  // شرائح 3000م - 5000م (مرتبطة بسياسة 0-3000 مع إمكانية التفعيل التلقائي حسب وقت الذروة)
+  final double tier3001To4000; // شريحة 3001-4000م (د.ع)
+  final double tier4001To5000; // شريحة 4001-5000م (د.ع)
+  final bool isPeakWindowActive; // هل خاصية توقيت الذروة لشرائح 3000-5000 مفعلة
+  final String peakStartTime; // وقت بدء الذروة مثل "08:00"
+  final String peakEndTime; // وقت نهاية الذروة مثل "16:00"
+
+  // شرائح المسافات الطويلة (5000م فصاعداً إلى 10000م): مبلغ يضاف تلقائياً للأجرة الأساسية
+  final double surcharge5001To6000; // إضافي 5001-6000م (د.ع)
+  final double surcharge6001To7000; // إضافي 6001-7000م (د.ع)
+  final double surcharge7001To8000; // إضافي 7001-8000م (د.ع)
+  final double surcharge8001To9000; // إضافي 8001-9000م (د.ع)
+  final double surcharge9001To10000; // إضافي 9001-10000م (د.ع)
+
   const VehiclePricingItem({
     required this.vehicleType,
     required this.nameAr,
@@ -36,6 +50,16 @@ class VehiclePricingItem {
     this.tier1501To2000 = 2500.0,
     this.tier2001To2500 = 2750.0,
     this.tier2501To3000 = 3000.0,
+    this.tier3001To4000 = 0.0,
+    this.tier4001To5000 = 0.0,
+    this.isPeakWindowActive = false,
+    this.peakStartTime = '',
+    this.peakEndTime = '',
+    this.surcharge5001To6000 = 0.0,
+    this.surcharge6001To7000 = 0.0,
+    this.surcharge7001To8000 = 0.0,
+    this.surcharge8001To9000 = 0.0,
+    this.surcharge9001To10000 = 0.0,
   });
 
   Map<String, dynamic> toJson() => {
@@ -54,6 +78,16 @@ class VehiclePricingItem {
         'tier1501To2000': tier1501To2000,
         'tier2001To2500': tier2001To2500,
         'tier2501To3000': tier2501To3000,
+        'tier3001To4000': tier3001To4000,
+        'tier4001To5000': tier4001To5000,
+        'isPeakWindowActive': isPeakWindowActive,
+        'peakStartTime': peakStartTime,
+        'peakEndTime': peakEndTime,
+        'surcharge5001To6000': surcharge5001To6000,
+        'surcharge6001To7000': surcharge6001To7000,
+        'surcharge7001To8000': surcharge7001To8000,
+        'surcharge8001To9000': surcharge8001To9000,
+        'surcharge9001To10000': surcharge9001To10000,
       };
 
   factory VehiclePricingItem.fromJson(Map<String, dynamic> json) => VehiclePricingItem(
@@ -61,8 +95,8 @@ class VehiclePricingItem {
         nameAr: json['nameAr'] ?? 'صالون',
         nameEn: json['nameEn'] ?? 'Salon',
         baseFare: (json['baseFare'] as num?)?.toDouble() ?? 3000.0,
-        perKmRate: (json['perKmRate'] as num?)?.toDouble() ?? 500.0,
-        minFare: (json['minFare'] as num?)?.toDouble() ?? 2500.0,
+        perKmRate: (json['perKmRate'] as num?)?.toDouble() ?? 0.0,
+        minFare: (json['minFare'] as num?)?.toDouble() ?? 0.0,
         rushMultiplier: (json['rushMultiplier'] as num?)?.toDouble() ?? 1.0,
         policyNotes: json['policyNotes'] ?? '',
         isEnabled: json['isEnabled'] as bool? ?? true,
@@ -72,6 +106,16 @@ class VehiclePricingItem {
         tier1501To2000: (json['tier1501To2000'] as num?)?.toDouble() ?? 2500.0,
         tier2001To2500: (json['tier2001To2500'] as num?)?.toDouble() ?? 2750.0,
         tier2501To3000: (json['tier2501To3000'] as num?)?.toDouble() ?? 3000.0,
+        tier3001To4000: (json['tier3001To4000'] as num?)?.toDouble() ?? 0.0,
+        tier4001To5000: (json['tier4001To5000'] as num?)?.toDouble() ?? 0.0,
+        isPeakWindowActive: json['isPeakWindowActive'] as bool? ?? false,
+        peakStartTime: json['peakStartTime'] ?? '',
+        peakEndTime: json['peakEndTime'] ?? '',
+        surcharge5001To6000: (json['surcharge5001To6000'] as num?)?.toDouble() ?? 0.0,
+        surcharge6001To7000: (json['surcharge6001To7000'] as num?)?.toDouble() ?? 0.0,
+        surcharge7001To8000: (json['surcharge7001To8000'] as num?)?.toDouble() ?? 0.0,
+        surcharge8001To9000: (json['surcharge8001To9000'] as num?)?.toDouble() ?? 0.0,
+        surcharge9001To10000: (json['surcharge9001To10000'] as num?)?.toDouble() ?? 0.0,
       );
 
   VehiclePricingItem copyWith({
@@ -90,6 +134,16 @@ class VehiclePricingItem {
     double? tier1501To2000,
     double? tier2001To2500,
     double? tier2501To3000,
+    double? tier3001To4000,
+    double? tier4001To5000,
+    bool? isPeakWindowActive,
+    String? peakStartTime,
+    String? peakEndTime,
+    double? surcharge5001To6000,
+    double? surcharge6001To7000,
+    double? surcharge7001To8000,
+    double? surcharge8001To9000,
+    double? surcharge9001To10000,
   }) {
     return VehiclePricingItem(
       vehicleType: vehicleType ?? this.vehicleType,
@@ -107,6 +161,16 @@ class VehiclePricingItem {
       tier1501To2000: tier1501To2000 ?? this.tier1501To2000,
       tier2001To2500: tier2001To2500 ?? this.tier2001To2500,
       tier2501To3000: tier2501To3000 ?? this.tier2501To3000,
+      tier3001To4000: tier3001To4000 ?? this.tier3001To4000,
+      tier4001To5000: tier4001To5000 ?? this.tier4001To5000,
+      isPeakWindowActive: isPeakWindowActive ?? this.isPeakWindowActive,
+      peakStartTime: peakStartTime ?? this.peakStartTime,
+      peakEndTime: peakEndTime ?? this.peakEndTime,
+      surcharge5001To6000: surcharge5001To6000 ?? this.surcharge5001To6000,
+      surcharge6001To7000: surcharge6001To7000 ?? this.surcharge6001To7000,
+      surcharge7001To8000: surcharge7001To8000 ?? this.surcharge7001To8000,
+      surcharge8001To9000: surcharge8001To9000 ?? this.surcharge8001To9000,
+      surcharge9001To10000: surcharge9001To10000 ?? this.surcharge9001To10000,
     );
   }
 }
@@ -130,8 +194,8 @@ class VehiclePricingConfig {
           nameAr: 'تاكسي صالون',
           nameEn: 'Taxi Salon',
           baseFare: 3000.0,
-          perKmRate: 500.0,
-          minFare: 2500.0,
+          perKmRate: 0.0,
+          minFare: 0.0,
           rushMultiplier: 1.0,
           policyNotes: 'سيارات الصالون للمشاوير اليومية داخل ميسان وضواحيها بالأجرة المعتمدة',
           isTieredPricingEnabled: true,
@@ -146,9 +210,9 @@ class VehiclePricingConfig {
           nameAr: 'كابتن VIP',
           nameEn: 'Captain VIP',
           baseFare: 5000.0,
-          perKmRate: 750.0,
-          minFare: 4000.0,
-          rushMultiplier: 1.2,
+          perKmRate: 0.0,
+          minFare: 0.0,
+          rushMultiplier: 1.0,
           policyNotes: 'سيارات حديثة ومكيفة مع أفضل الكباتن وتقييمات استثنائية لرجال الأعمال والعوائل',
           isTieredPricingEnabled: true,
           tier0To1000: 3500.0,
@@ -162,8 +226,8 @@ class VehiclePricingConfig {
           nameAr: 'تكتك ميسان',
           nameEn: 'Maysan Tuk-Tuk',
           baseFare: 2000.0,
-          perKmRate: 350.0,
-          minFare: 1500.0,
+          perKmRate: 0.0,
+          minFare: 0.0,
           rushMultiplier: 1.0,
           policyNotes: 'نقل سريع واقتصادي داخل الأسواق والأحياء الشعبية المزدحمة وتفادي الزحام',
           isTieredPricingEnabled: true,
@@ -178,8 +242,8 @@ class VehiclePricingConfig {
           nameAr: 'توصيل طلبات (طرود)',
           nameEn: 'Delivery Packages',
           baseFare: 2500.0,
-          perKmRate: 400.0,
-          minFare: 2000.0,
+          perKmRate: 0.0,
+          minFare: 0.0,
           rushMultiplier: 1.0,
           policyNotes: 'توصيل واستلام الطلبات والطرود والمشتريات والوثائق من الباب إلى الباب بأمان',
           isTieredPricingEnabled: true,
@@ -194,9 +258,9 @@ class VehiclePricingConfig {
           nameAr: 'بيك آب / حمل ونقل',
           nameEn: 'Pickup Cargo',
           baseFare: 6000.0,
-          perKmRate: 900.0,
-          minFare: 5000.0,
-          rushMultiplier: 1.1,
+          perKmRate: 0.0,
+          minFare: 0.0,
+          rushMultiplier: 1.0,
           policyNotes: 'سيارات حمل لنقل الأثاث والبضائع والمستلزمات الثقيلة بأمان وسرعة',
           isTieredPricingEnabled: true,
           tier0To1000: 4500.0,
