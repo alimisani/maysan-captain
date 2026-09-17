@@ -262,7 +262,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     const Icon(
-                                      Icons.account_balance_wallet_rounded,
+                                      Icons.account_balance_wallet,
                                       size: 15,
                                       color: Color(0xFF059669),
                                     ),
@@ -342,7 +342,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           if (booking.isWalletEnabled)
                             _buildQuickBubble(
-                              icon: Icons.account_balance_wallet_rounded,
+                              icon: Icons.account_balance_wallet,
                               label: 'المحفظة',
                               color: const Color(0xFF10B981),
                               onTap: () {

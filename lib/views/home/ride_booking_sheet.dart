@@ -915,7 +915,7 @@ class _RideBookingSheetState extends State<RideBookingSheet> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(Icons.account_balance_wallet_rounded, size: 16, color: Color(0xFF059669)),
+                                const Icon(Icons.account_balance_wallet, size: 16, color: Color(0xFF059669)),
                                 const SizedBox(width: 6),
                                 Text(
                                   'المحفظة الإلكترونية',

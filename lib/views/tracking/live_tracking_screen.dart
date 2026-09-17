@@ -1270,7 +1270,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                           children: [
                             Row(
                               children: [
-                                const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFF059669), size: 22),
+                                const Icon(Icons.account_balance_wallet, color: Color(0xFF059669), size: 22),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
@@ -1370,7 +1370,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                       child: Row(
                         children: [
                           Icon(
-                            order.isPaid ? Icons.check_circle_rounded : Icons.account_balance_wallet_rounded,
+                            order.isPaid ? Icons.check_circle_rounded : Icons.account_balance_wallet,
                             size: 18,
                             color: order.isPaid ? const Color(0xFF10B981) : const Color(0xFF0284C7),
                           ),

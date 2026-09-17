@@ -351,7 +351,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       const SizedBox(width: 8),
                       _buildCircularAdminTab(
                         index: 8,
-                        icon: Icons.account_balance_wallet_rounded,
+                        icon: Icons.account_balance_wallet,
                         title: 'المحفظة',
                         isSelected: _selectedTabIndex == 8,
                         isDark: isDark,
@@ -690,7 +690,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               ),
                             ),
                             Text(
-                              'الرتبة: ${u.role == "driver" ? "كابتن" : (u.role == "admin" ? "مدير عام" : "زبون")} | التقييم: ${u.rating} ⭐',
+                              'الرتبة: ${u.role == "driver" ? "كابتن" : (u.role == "admin" ? "مدير عام" : "زبون")} | التقييم: ${u.rating} ⭐ | الرصيد: ${intl.NumberFormat('#,###').format(u.walletBalance.toInt())} د.ع',
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
@@ -2800,6 +2800,109 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             ),
                           ],
                         ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Wallet Balance Card
+                      Builder(
+                        builder: (ctx) {
+                          final currentUser = admin.users.firstWhere((usr) => usr.id == u.id, orElse: () => u);
+                          final currencyFormatter = intl.NumberFormat('#,###');
+                          final balFormatted = currencyFormatter.format(currentUser.walletBalance.toInt());
+
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: isDark
+                                    ? [const Color(0xFF064E3B).withValues(alpha: 0.5), const Color(0xFF0F172A)]
+                                    : [const Color(0xFFECFDF5), const Color(0xFFF0FDF4)],
+                                begin: Alignment.topRight,
+                                end: Alignment.bottomLeft,
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: const Color(0xFF10B981).withValues(alpha: isDark ? 0.4 : 0.6),
+                                width: 1.2,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(9),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.account_balance_wallet,
+                                    size: 20,
+                                    color: Color(0xFF10B981),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'رصيد المحفظة الإلكترونية',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            balFormatted,
+                                            style: const TextStyle(
+                                              fontSize: 17,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF10B981),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'د.ع',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                ElevatedButton.icon(
+                                  onPressed: () {
+                                    _showUserBalanceDialog(context, admin, currentUser);
+                                    setModalState(() {});
+                                  },
+                                  icon: const Icon(Icons.edit_rounded, size: 14),
+                                  label: const Text(
+                                    'تعديل الرصيد',
+                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF10B981),
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    minimumSize: Size.zero,
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
                       ),
 
                       const SizedBox(height: 12),
@@ -8273,7 +8376,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      Icons.account_balance_wallet_rounded,
+                      Icons.account_balance_wallet,
                       color: config.isEnabled ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF334155)),
                       size: 26,
                     ),
@@ -9270,7 +9373,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
             title: Row(
               children: [
-                const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFF10B981)),
+                const Icon(Icons.account_balance_wallet, color: Color(0xFF10B981)),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Column(

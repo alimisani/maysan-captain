@@ -180,7 +180,7 @@ class _WalletScreenState extends State<WalletScreen> {
                                         shape: BoxShape.circle,
                                       ),
                                       child: const Icon(
-                                        Icons.account_balance_wallet_rounded,
+                                        Icons.account_balance_wallet,
                                         color: Colors.white,
                                         size: 22,
                                       ),
