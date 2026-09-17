@@ -12,7 +12,7 @@ class VehiclePricingItem {
   final String policyNotes; // سياسة وشروط التسعير
   final bool isEnabled; // تفعيل هذا النوع من المركبات
 
-  // Per-Vehicle Meter Distance Tiers (شرائح تسعير المسافة بالمتر الخاصة بكل مركبة)
+  // Per-Vehicle Meter Distance Tiers (شرائح تسعير المسافة بالمتر الخاصة بكل مركبة 0-3000م)
   final bool isTieredPricingEnabled;
   final double tier0To1000;
   final double tier1001To1500;
@@ -20,12 +20,11 @@ class VehiclePricingItem {
   final double tier2001To2500;
   final double tier2501To3000;
 
-  // شرائح 3000م - 5000م (مرتبطة بسياسة 0-3000 مع إمكانية التفعيل التلقائي حسب وقت الذروة)
-  final double tier3001To4000; // شريحة 3001-4000م (د.ع)
-  final double tier4001To5000; // شريحة 4001-5000م (د.ع)
-  final bool isPeakWindowActive; // هل خاصية توقيت الذروة لشرائح 3000-5000 مفعلة
-  final String peakStartTime; // وقت بدء الذروة مثل "08:00"
-  final String peakEndTime; // وقت نهاية الذروة مثل "16:00"
+  // خيار وقت الذروة المخصص (تحديد وقت البداية والنهاية بنظام 24 ساعة ومبلغ يضاف تلقائياً للأجرة)
+  final bool isPeakWindowActive; // هل خاصية وقت الذروة مفعلة
+  final String peakStartTime; // وقت بدء الذروة بنظام 24 ساعة مثل "08:00"
+  final String peakEndTime; // وقت نهاية الذروة بنظام 24 ساعة مثل "16:00"
+  final double peakSurchargeAmount; // مبلغ إضافي يُضاف تلقائياً على أجرة الرحلة خلال فترة الذروة
 
   // شرائح المسافات الطويلة (5000م فصاعداً إلى 10000م): مبلغ يضاف تلقائياً للأجرة الأساسية
   final double surcharge5001To6000; // إضافي 5001-6000م (د.ع)
@@ -50,11 +49,10 @@ class VehiclePricingItem {
     this.tier1501To2000 = 2500.0,
     this.tier2001To2500 = 2750.0,
     this.tier2501To3000 = 3000.0,
-    this.tier3001To4000 = 0.0,
-    this.tier4001To5000 = 0.0,
     this.isPeakWindowActive = false,
     this.peakStartTime = '',
     this.peakEndTime = '',
+    this.peakSurchargeAmount = 0.0,
     this.surcharge5001To6000 = 0.0,
     this.surcharge6001To7000 = 0.0,
     this.surcharge7001To8000 = 0.0,
@@ -78,11 +76,10 @@ class VehiclePricingItem {
         'tier1501To2000': tier1501To2000,
         'tier2001To2500': tier2001To2500,
         'tier2501To3000': tier2501To3000,
-        'tier3001To4000': tier3001To4000,
-        'tier4001To5000': tier4001To5000,
         'isPeakWindowActive': isPeakWindowActive,
         'peakStartTime': peakStartTime,
         'peakEndTime': peakEndTime,
+        'peakSurchargeAmount': peakSurchargeAmount,
         'surcharge5001To6000': surcharge5001To6000,
         'surcharge6001To7000': surcharge6001To7000,
         'surcharge7001To8000': surcharge7001To8000,
@@ -106,11 +103,10 @@ class VehiclePricingItem {
         tier1501To2000: (json['tier1501To2000'] as num?)?.toDouble() ?? 2500.0,
         tier2001To2500: (json['tier2001To2500'] as num?)?.toDouble() ?? 2750.0,
         tier2501To3000: (json['tier2501To3000'] as num?)?.toDouble() ?? 3000.0,
-        tier3001To4000: (json['tier3001To4000'] as num?)?.toDouble() ?? 0.0,
-        tier4001To5000: (json['tier4001To5000'] as num?)?.toDouble() ?? 0.0,
         isPeakWindowActive: json['isPeakWindowActive'] as bool? ?? false,
         peakStartTime: json['peakStartTime'] ?? '',
         peakEndTime: json['peakEndTime'] ?? '',
+        peakSurchargeAmount: (json['peakSurchargeAmount'] as num?)?.toDouble() ?? 0.0,
         surcharge5001To6000: (json['surcharge5001To6000'] as num?)?.toDouble() ?? 0.0,
         surcharge6001To7000: (json['surcharge6001To7000'] as num?)?.toDouble() ?? 0.0,
         surcharge7001To8000: (json['surcharge7001To8000'] as num?)?.toDouble() ?? 0.0,
@@ -134,11 +130,10 @@ class VehiclePricingItem {
     double? tier1501To2000,
     double? tier2001To2500,
     double? tier2501To3000,
-    double? tier3001To4000,
-    double? tier4001To5000,
     bool? isPeakWindowActive,
     String? peakStartTime,
     String? peakEndTime,
+    double? peakSurchargeAmount,
     double? surcharge5001To6000,
     double? surcharge6001To7000,
     double? surcharge7001To8000,
@@ -161,11 +156,10 @@ class VehiclePricingItem {
       tier1501To2000: tier1501To2000 ?? this.tier1501To2000,
       tier2001To2500: tier2001To2500 ?? this.tier2001To2500,
       tier2501To3000: tier2501To3000 ?? this.tier2501To3000,
-      tier3001To4000: tier3001To4000 ?? this.tier3001To4000,
-      tier4001To5000: tier4001To5000 ?? this.tier4001To5000,
       isPeakWindowActive: isPeakWindowActive ?? this.isPeakWindowActive,
       peakStartTime: peakStartTime ?? this.peakStartTime,
       peakEndTime: peakEndTime ?? this.peakEndTime,
+      peakSurchargeAmount: peakSurchargeAmount ?? this.peakSurchargeAmount,
       surcharge5001To6000: surcharge5001To6000 ?? this.surcharge5001To6000,
       surcharge6001To7000: surcharge6001To7000 ?? this.surcharge6001To7000,
       surcharge7001To8000: surcharge7001To8000 ?? this.surcharge7001To8000,

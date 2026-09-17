@@ -7170,10 +7170,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     children: [
                       Expanded(
                         child: _buildPricingBadge(
-                          'شرائح 3000-5000م (الذروة)',
+                          'وقت الذروة (24h) وإضافته',
                           item.isPeakWindowActive && item.peakStartTime.isNotEmpty
-                              ? '${item.peakStartTime} - ${item.peakEndTime}'
-                              : (item.tier3001To4000 > 0 ? 'محددة (بدون توقيت)' : 'طبيعية (أجرة أساسية)'),
+                              ? '${item.peakStartTime} - ${item.peakEndTime} (+${currencyFormatter.format(item.peakSurchargeAmount.toInt())} د.ع)'
+                              : 'معطّل (أجرة عادية)',
                           isDark,
                           color: item.isPeakWindowActive ? const Color(0xFFF59E0B) : (isDark ? Colors.white70 : const Color(0xFF64748B)),
                         ),
@@ -7611,12 +7611,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final tier3Ctrl = TextEditingController(text: item.tier2001To2500.toInt().toString());
     final tier4Ctrl = TextEditingController(text: item.tier2501To3000.toInt().toString());
 
-    // 3000-5000m Tiers & Peak Window
-    final tier3001Ctrl = TextEditingController(text: item.tier3001To4000 > 0 ? item.tier3001To4000.toInt().toString() : '');
-    final tier4001Ctrl = TextEditingController(text: item.tier4001To5000 > 0 ? item.tier4001To5000.toInt().toString() : '');
+    // وقت الذروة المخصص (تحديد وقت البداية والنهاية بنظام 24 ساعة ومبلغ يضاف تلقائياً للأجرة)
     bool isPeakWindowActive = item.isPeakWindowActive;
     final peakStartCtrl = TextEditingController(text: item.peakStartTime);
     final peakEndCtrl = TextEditingController(text: item.peakEndTime);
+    final peakSurchargeCtrl = TextEditingController(text: item.peakSurchargeAmount > 0 ? item.peakSurchargeAmount.toInt().toString() : '');
 
     // 5000-10000m Long Distance Surcharges (مبالغ تضاف للأجرة الأساسية)
     final sur5001Ctrl = TextEditingController(text: item.surcharge5001To6000 > 0 ? item.surcharge5001To6000.toInt().toString() : '');
@@ -7806,7 +7805,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
                     const SizedBox(height: 12),
 
-                    // شرائح المسافة (3000-5000م) - مرتبطة بوقت الذروة
+                    // خيار وقت الذروة المخصص (تحديد وقت البداية والنهاية بنظام 24 ساعة ومبلغ يضاف تلقائياً للأجرة)
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -7823,11 +7822,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.schedule_rounded, size: 18, color: Color(0xFFF59E0B)),
+                              const Icon(Icons.alarm_rounded, size: 18, color: Color(0xFFF59E0B)),
                               const SizedBox(width: 6),
                               const Expanded(
                                 child: Text(
-                                  'شرائح المسافة (3000-5000م) وتوقيت الذروة',
+                                  'تفعيل وقت الذروة ومبلغ إضافي على الرحلة',
                                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                                 ),
                               ),
@@ -7841,41 +7840,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           const SizedBox(height: 4),
                           Text(
                             isPeakWindowActive
-                                ? 'يتم تفعيل التسعيرة أدناه تلقائياً فقط خلال وقت الذروة المحدد، وفي غيره أو عند عدم إدخال مبلغ تُعتمد الأجرة الأساسية الطبيعية.'
-                                : 'خاصية توقيت الذروة معطلة: تُعتمد الأجرة الأساسية الطبيعية كالمعتاد.',
+                                ? 'يتم احتساب مبلغ الذروة المكتوب أدناه وإضافته تلقائياً على أجرة الرحلة فقط خلال الفترة المحددة بنظام 24 ساعة للتوقيت المحلي، وعند عدم تحديد وقت أو إيقاف التفعيل لا تتم أي إضافة.'
+                                : 'خاصية وقت الذروة معطلة: لا تتم إضافة أي مبلغ إضافي وتُعتمد الأجرة الطبيعية.',
                             style: TextStyle(fontSize: 10.5, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
                           ),
-                          const SizedBox(height: 10),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: tier3001Ctrl,
-                                  keyboardType: TextInputType.number,
-                                  decoration: InputDecoration(
-                                    labelText: '3001-4000م (د.ع)',
-                                    hintText: 'مثال: 3500',
-                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: TextField(
-                                  controller: tier4001Ctrl,
-                                  keyboardType: TextInputType.number,
-                                  decoration: InputDecoration(
-                                    labelText: '4001-5000م (د.ع)',
-                                    hintText: 'مثال: 4000',
-                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
                           if (isPeakWindowActive) ...[
+                            const SizedBox(height: 10),
+                            TextField(
+                              controller: peakSurchargeCtrl,
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                labelText: 'مبلغ إضافي يُضاف تلقائياً خلال وقت الذروة (د.ع)',
+                                hintText: 'مثال: 500 أو 1000',
+                                prefixIcon: const Icon(Icons.add_circle_outline_rounded, size: 18, color: Color(0xFFF59E0B)),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                              ),
+                            ),
                             const SizedBox(height: 10),
                             Row(
                               children: [
@@ -7883,8 +7864,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                   child: TextField(
                                     controller: peakStartCtrl,
                                     decoration: InputDecoration(
-                                      labelText: 'بدء الذروة (HH:mm)',
-                                      hintText: 'مثال: 08:00',
+                                      labelText: 'بدء الذروة (نظام 24h)',
+                                      hintText: 'مثال: 08:00 أو 21:00',
                                       prefixIcon: const Icon(Icons.alarm_on_rounded, size: 16),
                                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                                       contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -7896,8 +7877,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                   child: TextField(
                                     controller: peakEndCtrl,
                                     decoration: InputDecoration(
-                                      labelText: 'نهاية الذروة (HH:mm)',
-                                      hintText: 'مثال: 16:00',
+                                      labelText: 'نهاية الذروة (نظام 24h)',
+                                      hintText: 'مثال: 16:00 أو 23:30',
                                       prefixIcon: const Icon(Icons.alarm_off_rounded, size: 16),
                                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                                       contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -8055,10 +8036,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         final double t3 = double.tryParse(tier3Ctrl.text.trim()) ?? item.tier2001To2500;
                         final double t4 = double.tryParse(tier4Ctrl.text.trim()) ?? item.tier2501To3000;
 
-                        final double t3001 = double.tryParse(tier3001Ctrl.text.trim()) ?? 0.0;
-                        final double t4001 = double.tryParse(tier4001Ctrl.text.trim()) ?? 0.0;
                         final String pStart = peakStartCtrl.text.trim();
                         final String pEnd = peakEndCtrl.text.trim();
+                        final double pSurcharge = double.tryParse(peakSurchargeCtrl.text.trim()) ?? 0.0;
 
                         final double s5 = double.tryParse(sur5001Ctrl.text.trim()) ?? 0.0;
                         final double s6 = double.tryParse(sur6001Ctrl.text.trim()) ?? 0.0;
@@ -8079,11 +8059,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           tier1501To2000: t2,
                           tier2001To2500: t3,
                           tier2501To3000: t4,
-                          tier3001To4000: t3001,
-                          tier4001To5000: t4001,
                           isPeakWindowActive: isPeakWindowActive,
                           peakStartTime: pStart,
                           peakEndTime: pEnd,
+                          peakSurchargeAmount: pSurcharge,
                           surcharge5001To6000: s5,
                           surcharge6001To7000: s6,
                           surcharge7001To8000: s7,

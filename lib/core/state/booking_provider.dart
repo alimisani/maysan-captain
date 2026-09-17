@@ -823,10 +823,11 @@ class BookingProvider extends ChangeNotifier {
       calculated = matchedCustomPrice;
     } else if (_vehiclePricingConfig.isVehicleSpecificPricingEnabled) {
       // 1. Vehicle-specific Pricing Engine:
-      // - 0 to 3000m: strictly relies on meter distance tiers.
-      // - 3001 to 5000m: relies on 3000-5000 tiers if configured & active (based on peak time window).
-      //   If time window is inactive or tier price is 0, falls back naturally to Base Fare (الأجرة الأساسية).
-      // - 5001 to 10000m+: Base Fare (x legs) + long distance surcharge (مبلغ يضاف تلقائياً للأجرة الأساسية).
+      // - 0 to 3000m: strictly relies on meter distance tiers (0-1000m, 1001-1500m, etc.).
+      // - If distance exceeds tiers (> 3000m): adopts Base Fare (الأجرة الأساسية x legs).
+      // - Long distance (5000m - 10000m+): adds the defined distance surcharge above base fare.
+      // - Peak Window (وقت الذروة): If current local time is within the 24h peak window,
+      //   automatically adds peakSurchargeAmount to the calculated trip fare.
       final vItem = _vehiclePricingConfig.getItem(_selectedVehicleType);
       final double base = vItem.baseFare;
       int totalLegs = 1 + _extraDestinations.length;
@@ -845,44 +846,9 @@ class BookingProvider extends ChangeNotifier {
         } else {
           calculated = vItem.tier2501To3000;
         }
-      } else if (distanceMeters > 3000 && distanceMeters <= 5000 && _extraDestinations.isEmpty) {
-        // 3001 - 5000m: check peak time window and tier value
-        bool isPeakNow = false;
-        if (vItem.isPeakWindowActive && vItem.peakStartTime.isNotEmpty && vItem.peakEndTime.isNotEmpty) {
-          final now = DateTime.now();
-          final currentMinutes = now.hour * 60 + now.minute;
-          final startParts = vItem.peakStartTime.split(':');
-          final endParts = vItem.peakEndTime.split(':');
-          if (startParts.length == 2 && endParts.length == 2) {
-            final startMinutes = (int.tryParse(startParts[0]) ?? 0) * 60 + (int.tryParse(startParts[1]) ?? 0);
-            final endMinutes = (int.tryParse(endParts[0]) ?? 0) * 60 + (int.tryParse(endParts[1]) ?? 0);
-            if (startMinutes <= endMinutes) {
-              isPeakNow = currentMinutes >= startMinutes && currentMinutes <= endMinutes;
-            } else {
-              // Crosses midnight
-              isPeakNow = currentMinutes >= startMinutes || currentMinutes <= endMinutes;
-            }
-          }
-        }
-
-        double matchedTier = 0.0;
-        if (isPeakNow) {
-          if (distanceMeters <= 4000 && vItem.tier3001To4000 > 0) {
-            matchedTier = vItem.tier3001To4000;
-          } else if (distanceMeters > 4000 && vItem.tier4001To5000 > 0) {
-            matchedTier = vItem.tier4001To5000;
-          }
-        }
-
-        if (matchedTier > 0) {
-          calculated = matchedTier;
-        } else {
-          // Fallback to normal Base Fare (الأجرة الأساسية)
-          calculated = base * totalLegs;
-        }
       } else {
-        // Distance > 5000m or multi-destination:
-        // Base Fare + Long Distance Surcharge for 5000m-10000m+
+        // Distance > 3000m or multi-destination:
+        // Base Fare (الأجرة الأساسية) + Long Distance Surcharge for 5000m-10000m+
         double surcharge = 0.0;
         if (distanceMeters > 5000 && _extraDestinations.isEmpty) {
           if (distanceMeters <= 6000) {
@@ -898,6 +864,31 @@ class BookingProvider extends ChangeNotifier {
           }
         }
         calculated = (base * totalLegs) + surcharge;
+      }
+
+      // Check Peak Time Window (وقت الذروة المخصص) using local 24h time
+      if (vItem.isPeakWindowActive &&
+          vItem.peakSurchargeAmount > 0 &&
+          vItem.peakStartTime.isNotEmpty &&
+          vItem.peakEndTime.isNotEmpty) {
+        final now = DateTime.now();
+        final currentMinutes = now.hour * 60 + now.minute;
+        final startParts = vItem.peakStartTime.split(':');
+        final endParts = vItem.peakEndTime.split(':');
+        if (startParts.length == 2 && endParts.length == 2) {
+          final startMinutes = (int.tryParse(startParts[0].trim()) ?? 0) * 60 + (int.tryParse(startParts[1].trim()) ?? 0);
+          final endMinutes = (int.tryParse(endParts[0].trim()) ?? 0) * 60 + (int.tryParse(endParts[1].trim()) ?? 0);
+          bool isPeakNow = false;
+          if (startMinutes <= endMinutes) {
+            isPeakNow = currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+          } else {
+            // Crosses midnight e.g. 22:00 to 04:00
+            isPeakNow = currentMinutes >= startMinutes || currentMinutes <= endMinutes;
+          }
+          if (isPeakNow) {
+            calculated += vItem.peakSurchargeAmount;
+          }
+        }
       }
     } else {
       // 2. Global General Pricing Engine:

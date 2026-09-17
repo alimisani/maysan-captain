@@ -346,22 +346,62 @@ class LocationService {
     try {
       // Build coordinates string: "lng1,lat1;lng2,lat2;lng3,lat3"
       final coordsParam = waypoints.map((p) => '${p.longitude},${p.latitude}').join(';');
-      final url = Uri.parse(
-        'https://router.project-osrm.org/route/v1/driving/$coordsParam?overview=full&geometries=geojson',
+      // Query driving route
+      final drivingUrl = Uri.parse(
+        'https://router.project-osrm.org/route/v1/driving/$coordsParam?overview=full&geometries=geojson&alternatives=true',
       );
 
-      final response = await http.get(url).timeout(const Duration(seconds: 5));
+      final response = await http.get(drivingUrl).timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final routes = data['routes'] as List?;
 
         if (routes != null && routes.isNotEmpty) {
-          final firstRoute = routes.first;
-          final double distanceMeters = (firstRoute['distance'] as num).toDouble();
-          final double distanceKm = double.parse((distanceMeters / 1000.0).toStringAsFixed(1));
+          // Find the most optimal distance among returned alternative driving routes
+          Map<String, dynamic> bestRoute = routes.first as Map<String, dynamic>;
+          double minDistanceMeters = (bestRoute['distance'] as num).toDouble();
 
-          final geometry = firstRoute['geometry'] as Map<String, dynamic>?;
+          for (final r in routes) {
+            final d = (r['distance'] as num).toDouble();
+            if (d < minDistanceMeters) {
+              minDistanceMeters = d;
+              bestRoute = r as Map<String, dynamic>;
+            }
+          }
+
+          // Calculate straight-line road distance between waypoints to detect extreme highway/detour anomalies
+          double directDistanceKm = 0.0;
+          for (int i = 0; i < waypoints.length - 1; i++) {
+            directDistanceKm += calculateDistance(waypoints[i], waypoints[i + 1]);
+          }
+
+          // In inner cities (like Amarah/Maysan), if OSRM driving engine forces an unrealistic loop
+          // (e.g. driving distance > 2.0x direct distance while walking/local roads are half that),
+          // query foot/inner-city route to see if a much shorter direct city road exists
+          if (minDistanceMeters / 1000.0 > directDistanceKm * 1.8 && directDistanceKm < 15.0) {
+            try {
+              final footUrl = Uri.parse(
+                'https://router.project-osrm.org/route/v1/foot/$coordsParam?overview=full&geometries=geojson',
+              );
+              final footRes = await http.get(footUrl).timeout(const Duration(seconds: 3));
+              if (footRes.statusCode == 200) {
+                final footData = json.decode(footRes.body);
+                final footRoutes = footData['routes'] as List?;
+                if (footRoutes != null && footRoutes.isNotEmpty) {
+                  final footDist = (footRoutes.first['distance'] as num).toDouble();
+                  // If the inner-city street distance is reasonable and much shorter, adopt it
+                  if (footDist < minDistanceMeters && footDist >= directDistanceKm * 1000.0) {
+                    bestRoute = footRoutes.first as Map<String, dynamic>;
+                    minDistanceMeters = footDist;
+                  }
+                }
+              }
+            } catch (_) {}
+          }
+
+          final double distanceKm = double.parse((minDistanceMeters / 1000.0).toStringAsFixed(1));
+          final geometry = bestRoute['geometry'] as Map<String, dynamic>?;
           final coordinates = geometry?['coordinates'] as List?;
 
           if (coordinates != null && coordinates.isNotEmpty) {
@@ -374,7 +414,7 @@ class LocationService {
             return {
               'points': polylinePoints,
               'distanceKm': distanceKm > 0 ? distanceKm : 1.0,
-              'distanceMeters': distanceMeters,
+              'distanceMeters': minDistanceMeters,
             };
           }
         }
