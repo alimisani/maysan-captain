@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../core/services/notification_service.dart';
 import '../../core/services/supabase_service.dart';
 import '../../core/state/auth_provider.dart';
 import '../../core/state/theme_provider.dart';
@@ -44,6 +45,7 @@ class _RatingDialogState extends State<RatingDialog> {
   @override
   void initState() {
     super.initState();
+    NotificationService.dismissLiveTripNotification();
     if (widget.order.customerRating != null) {
       _rating = widget.order.customerRating!;
     }

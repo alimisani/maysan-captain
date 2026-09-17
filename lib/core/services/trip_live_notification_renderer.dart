@@ -20,8 +20,8 @@ class TripLiveNotificationRenderer {
     required double progress, // 0.0 to 1.0
   }) async {
     try {
-      const double width = 760.0;
-      const double height = 270.0;
+      const double width = 860.0;
+      const double height = 320.0;
 
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder, const Rect.fromLTWH(0, 0, width, height));
@@ -29,7 +29,7 @@ class TripLiveNotificationRenderer {
       // 1. Background Card (Sleek Apple / Android 14 Live Activity style)
       final cardRect = RRect.fromRectAndRadius(
         const Rect.fromLTWH(0, 0, width, height),
-        const Radius.circular(28),
+        const Radius.circular(30),
       );
 
       // Card gradient background
@@ -38,65 +38,65 @@ class TripLiveNotificationRenderer {
         const Offset(width, height),
         [
           const Color(0xFFF8FAFC),
-          const Color(0xFFEEF2F6),
+          const Color(0xFFEFF3F8),
         ],
       );
       final bgPaint = Paint()..shader = bgGradient;
       canvas.drawRRect(cardRect, bgPaint);
 
-      // Subtle border stroke
+      // Border stroke
       final borderPaint = Paint()
         ..color = const Color(0xFFCBD5E1)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5;
+        ..strokeWidth = 2.0;
       canvas.drawRRect(cardRect, borderPaint);
 
       // 2. Header Bar: App Name & Live Badge
       _drawText(
         canvas: canvas,
         text: 'كابتن ميسان',
-        offset: const Offset(30, 20),
+        offset: const Offset(32, 22),
         style: const TextStyle(
           color: Color(0xFF0F172A),
-          fontSize: 14,
-          fontWeight: FontWeight.w800,
+          fontSize: 18,
+          fontWeight: FontWeight.w900,
         ),
       );
 
       // Live indicator badge
       final liveBadgeRect = RRect.fromRectAndRadius(
-        const Rect.fromLTWH(120, 18, 64, 22),
-        const Radius.circular(11),
+        const Rect.fromLTWH(145, 20, 80, 26),
+        const Radius.circular(13),
       );
-      final liveBadgePaint = Paint()..color = const Color(0xFF10B981).withValues(alpha: 0.15);
+      final liveBadgePaint = Paint()..color = const Color(0xFF10B981).withValues(alpha: 0.18);
       canvas.drawRRect(liveBadgeRect, liveBadgePaint);
 
       // Green dot
       final dotPaint = Paint()..color = const Color(0xFF10B981);
-      canvas.drawCircle(const Offset(132, 29), 4, dotPaint);
+      canvas.drawCircle(const Offset(160, 33), 5, dotPaint);
 
       _drawText(
         canvas: canvas,
         text: 'مباشر',
-        offset: const Offset(142, 22),
+        offset: const Offset(172, 24),
         style: const TextStyle(
-          color: Color(0xFF059669),
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
+          color: Color(0xFF047857),
+          fontSize: 14,
+          fontWeight: FontWeight.w900,
         ),
       );
 
       // 3. Driver Avatar (Left side)
-      const double avatarCenterX = 68.0;
-      const double avatarCenterY = 100.0;
-      const double avatarRadius = 32.0;
+      const double avatarCenterX = 75.0;
+      const double avatarCenterY = 120.0;
+      const double avatarRadius = 38.0;
 
       // Outer glow / border
       final avatarBorderPaint = Paint()
         ..color = const Color(0xFF0EA5E9)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.5;
-      canvas.drawCircle(const Offset(avatarCenterX, avatarCenterY), avatarRadius + 2, avatarBorderPaint);
+        ..strokeWidth = 3.0;
+      canvas.drawCircle(const Offset(avatarCenterX, avatarCenterY), avatarRadius + 3, avatarBorderPaint);
 
       // Avatar background
       final avatarBgPaint = Paint()
@@ -110,11 +110,11 @@ class TripLiveNotificationRenderer {
       // Driver silhouette / icon
       final avatarIconPaint = Paint()..color = Colors.white;
       // Head
-      canvas.drawCircle(const Offset(avatarCenterX, avatarCenterY - 7), 11, avatarIconPaint);
+      canvas.drawCircle(const Offset(avatarCenterX, avatarCenterY - 9), 13, avatarIconPaint);
       // Body
       final bodyRect = RRect.fromRectAndRadius(
-        Rect.fromCenter(center: const Offset(avatarCenterX, avatarCenterY + 16), width: 34, height: 18),
-        const Radius.circular(9),
+        Rect.fromCenter(center: const Offset(avatarCenterX, avatarCenterY + 18), width: 40, height: 22),
+        const Radius.circular(11),
       );
       canvas.drawRRect(bodyRect, avatarIconPaint);
 
@@ -123,33 +123,48 @@ class TripLiveNotificationRenderer {
       final onlineBorderPaint = Paint()
         ..color = Colors.white
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2;
-      canvas.drawCircle(const Offset(avatarCenterX + 22, avatarCenterY + 22), 6, onlineDotPaint);
-      canvas.drawCircle(const Offset(avatarCenterX + 22, avatarCenterY + 22), 6, onlineBorderPaint);
+        ..strokeWidth = 2.5;
+      canvas.drawCircle(const Offset(avatarCenterX + 26, avatarCenterY + 26), 7, onlineDotPaint);
+      canvas.drawCircle(const Offset(avatarCenterX + 26, avatarCenterY + 26), 7, onlineBorderPaint);
 
-      // 4. Center Section: ETA & Status & Car Info
-      // Headline: "2 دقيقة حتى يصل السائق"
+      // 4. Center Section: Status Headline & Dynamic ETA & Vehicle Info
+      // Headline (Big, Bold, Crystal Clear)
       _drawText(
         canvas: canvas,
-        text: etaText.isNotEmpty ? '$etaText حتى يصل السائق' : statusTitle,
-        offset: const Offset(120, 64),
+        text: statusTitle,
+        offset: const Offset(135, 60),
         style: const TextStyle(
-          color: Color(0xFF1D4ED8),
-          fontSize: 20,
+          color: Color(0xFF1E40AF),
+          fontSize: 27,
           fontWeight: FontWeight.w900,
         ),
       );
 
-      // Vehicle color & model: "أزرق Hyundai Accent"
-      final vehicleText = '${vehicleColor.isNotEmpty ? "$vehicleColor " : ""}$vehicleModel';
+      // Subtitle / ETA line
+      final subtitleText = (etaText.contains('دقيقة') || etaText.contains('دقائق'))
+          ? 'الوصول المتوقع: $etaText'
+          : etaText;
       _drawText(
         canvas: canvas,
-        text: vehicleText.isNotEmpty ? vehicleText : 'سيارة كابتن ميسان معتمدة',
-        offset: const Offset(120, 94),
+        text: subtitleText,
+        offset: const Offset(135, 96),
         style: const TextStyle(
-          color: Color(0xFF475569),
-          fontSize: 14,
-          fontWeight: FontWeight.w700,
+          color: Color(0xFF0284C7),
+          fontSize: 20,
+          fontWeight: FontWeight.w800,
+        ),
+      );
+
+      // Vehicle color & model
+      final vehicleText = vehicleColor.isNotEmpty ? '$vehicleColor $vehicleModel' : vehicleModel;
+      _drawText(
+        canvas: canvas,
+        text: vehicleText.isNotEmpty ? vehicleText : 'مركبة كابتن ميسان معتمدة',
+        offset: const Offset(135, 128),
+        style: const TextStyle(
+          color: Color(0xFF334155),
+          fontSize: 19,
+          fontWeight: FontWeight.w800,
         ),
       );
 
@@ -157,29 +172,30 @@ class TripLiveNotificationRenderer {
       _drawText(
         canvas: canvas,
         text: 'الكابتن: $driverName  ⭐ ${driverRating.toStringAsFixed(1)}',
-        offset: const Offset(120, 118),
+        offset: const Offset(135, 156),
         style: const TextStyle(
-          color: Color(0xFF64748B),
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
+          color: Color(0xFF475569),
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
         ),
       );
 
-      // 5. Authentic Iraqi License Plate (لوحة الأرقام العراقية) - Right side
+      // 5. Authentic Iraqi License Plate (Right side)
+      final effectivePlateNumber = (plateNumber.trim().isEmpty || plateNumber == 'null') ? '00000' : plateNumber;
       _drawIraqiLicensePlate(
         canvas: canvas,
-        rect: const Rect.fromLTWH(550, 60, 180, 72),
-        number: plateNumber.isNotEmpty ? plateNumber : '31606',
-        letter: plateLetter.isNotEmpty ? plateLetter : 'أ',
+        rect: const Rect.fromLTWH(620, 56, 215, 88),
+        number: effectivePlateNumber,
+        letter: plateLetter,
         city: plateCity.isNotEmpty ? plateCity : 'ميسان',
-        type: plateType.isNotEmpty ? plateType : 'خصوصي',
+        type: plateType.isNotEmpty ? plateType : 'عمومي',
       );
 
-      // 6. Real-time Progress Track (شريط تتبع المسار الحي)
+      // 6. Interactive Dynamic Progress Track (Upper and lower synchronization)
       _drawProgressTrack(
         canvas: canvas,
         etaText: etaText.isNotEmpty ? etaText : 'الآن',
-        progress: progress.clamp(0.05, 0.95),
+        progress: progress.clamp(0.04, 0.98),
         width: width,
       );
 
@@ -211,7 +227,7 @@ class TripLiveNotificationRenderer {
     required String type,
   }) {
     // 1. White Plate Background
-    final plateRRect = RRect.fromRectAndRadius(rect, const Radius.circular(8));
+    final plateRRect = RRect.fromRectAndRadius(rect, const Radius.circular(10));
     final plateBgPaint = Paint()..color = Colors.white;
     canvas.drawRRect(plateRRect, plateBgPaint);
 
@@ -219,70 +235,85 @@ class TripLiveNotificationRenderer {
     final plateBorderPaint = Paint()
       ..color = const Color(0xFF0F172A)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5;
+      ..strokeWidth = 3.0;
     canvas.drawRRect(plateRRect, plateBorderPaint);
 
     // 3. Horizontal Divider (separating top numbers from bottom governorate/type)
-    final dividerY = rect.top + (rect.height * 0.58);
+    final dividerY = rect.top + (rect.height * 0.60);
     final dividerPaint = Paint()
       ..color = const Color(0xFF0F172A)
-      ..strokeWidth = 1.8;
+      ..strokeWidth = 2.2;
     canvas.drawLine(Offset(rect.left, dividerY), Offset(rect.right, dividerY), dividerPaint);
 
-    // 4. Vertical Divider in Top Section (separating letter from number)
-    final verticalDividerX = rect.left + (rect.width * 0.32);
-    canvas.drawLine(
-      Offset(verticalDividerX, rect.top),
-      Offset(verticalDividerX, dividerY),
-      dividerPaint,
-    );
+    if (letter.isNotEmpty) {
+      // 4. Vertical Divider in Top Section (separating letter from number)
+      final verticalDividerX = rect.left + (rect.width * 0.32);
+      canvas.drawLine(
+        Offset(verticalDividerX, rect.top),
+        Offset(verticalDividerX, dividerY),
+        dividerPaint,
+      );
 
-    // 5. Letter (Left Top) e.g. "أ"
-    _drawCenterText(
-      canvas: canvas,
-      text: letter,
-      center: Offset(rect.left + (verticalDividerX - rect.left) / 2, rect.top + (dividerY - rect.top) / 2),
-      style: const TextStyle(
-        color: Color(0xFF0F172A),
-        fontSize: 19,
-        fontWeight: FontWeight.w900,
-      ),
-    );
+      // 5. Letter (Left Top) e.g. "أ"
+      _drawCenterText(
+        canvas: canvas,
+        text: letter,
+        center: Offset(rect.left + (verticalDividerX - rect.left) / 2, rect.top + (dividerY - rect.top) / 2),
+        style: const TextStyle(
+          color: Color(0xFF0F172A),
+          fontSize: 26,
+          fontWeight: FontWeight.w900,
+        ),
+      );
 
-    // 6. Registration Number (Right Top) e.g. "31606"
-    _drawCenterText(
-      canvas: canvas,
-      text: number,
-      center: Offset(verticalDividerX + (rect.right - verticalDividerX) / 2, rect.top + (dividerY - rect.top) / 2),
-      style: const TextStyle(
-        color: Color(0xFF0F172A),
-        fontSize: 22,
-        fontWeight: FontWeight.w900,
-        letterSpacing: 2.0,
-      ),
-    );
+      // 6. Registration Number (Right Top) e.g. "12345"
+      _drawCenterText(
+        canvas: canvas,
+        text: number,
+        center: Offset(verticalDividerX + (rect.right - verticalDividerX) / 2, rect.top + (dividerY - rect.top) / 2),
+        style: const TextStyle(
+          color: Color(0xFF0F172A),
+          fontSize: 28,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 2.0,
+        ),
+      );
+    } else {
+      // No letter registered (or 00000): Center registration number across entire top section
+      _drawCenterText(
+        canvas: canvas,
+        text: number,
+        center: Offset(rect.center.dx, rect.top + (dividerY - rect.top) / 2),
+        style: const TextStyle(
+          color: Color(0xFF0F172A),
+          fontSize: 32,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 4.0,
+        ),
+      );
+    }
 
-    // 7. Bottom Section: City (Right) & Category (Left)
+    // 7. Bottom Section: City & Category
     final bottomCenterY = dividerY + (rect.bottom - dividerY) / 2;
 
     _drawCenterText(
       canvas: canvas,
-      text: type, // "خصوصي" or "أجرة"
+      text: type,
       center: Offset(rect.left + rect.width * 0.28, bottomCenterY),
       style: const TextStyle(
         color: Color(0xFF334155),
-        fontSize: 11,
+        fontSize: 15,
         fontWeight: FontWeight.w800,
       ),
     );
 
     _drawCenterText(
       canvas: canvas,
-      text: city, // "ميسان"
+      text: city,
       center: Offset(rect.left + rect.width * 0.72, bottomCenterY),
       style: const TextStyle(
         color: Color(0xFF0F172A),
-        fontSize: 12,
+        fontSize: 16,
         fontWeight: FontWeight.w900,
       ),
     );
@@ -295,14 +326,14 @@ class TripLiveNotificationRenderer {
     required double progress,
     required double width,
   }) {
-    const double trackY = 210.0;
-    const double startX = 140.0;
-    final double endX = width - 40.0;
+    const double trackY = 254.0;
+    const double startX = 180.0;
+    final double endX = width - 45.0;
 
     // ETA pill badge on the far left
     final etaBadgeRect = RRect.fromRectAndRadius(
-      const Rect.fromLTWH(30, trackY - 15, 85, 30),
-      const Radius.circular(15),
+      const Rect.fromLTWH(30, trackY - 19, 130, 38),
+      const Radius.circular(19),
     );
     final etaBadgePaint = Paint()..color = const Color(0xFFDBEAFE);
     canvas.drawRRect(etaBadgeRect, etaBadgePaint);
@@ -310,18 +341,18 @@ class TripLiveNotificationRenderer {
     _drawCenterText(
       canvas: canvas,
       text: etaText,
-      center: const Offset(72, trackY),
+      center: const Offset(95, trackY),
       style: const TextStyle(
         color: Color(0xFF1D4ED8),
-        fontSize: 12,
-        fontWeight: FontWeight.w800,
+        fontSize: 16,
+        fontWeight: FontWeight.w900,
       ),
     );
 
     // Background track line
     final trackBgPaint = Paint()
-      ..color = const Color(0xFFE2E8F0)
-      ..strokeWidth = 6.0
+      ..color = const Color(0xFFCBD5E1)
+      ..strokeWidth = 8.0
       ..strokeCap = StrokeCap.round;
     canvas.drawLine(const Offset(startX, trackY), Offset(endX, trackY), trackBgPaint);
 
@@ -330,23 +361,23 @@ class TripLiveNotificationRenderer {
     final progressShader = ui.Gradient.linear(
       const Offset(startX, trackY),
       Offset(currentCarX, trackY),
-      [const Color(0xFF0EA5E9), const Color(0xFF10B981)],
+      [const Color(0xFF0284C7), const Color(0xFF10B981)],
     );
     final progressPaint = Paint()
       ..shader = progressShader
-      ..strokeWidth = 6.0
+      ..strokeWidth = 8.0
       ..strokeCap = StrokeCap.round;
     canvas.drawLine(const Offset(startX, trackY), Offset(currentCarX, trackY), progressPaint);
 
-    // Destination Pin / Goal Ring on the far right (End Point)
+    // Destination Goal Ring on the far right (End Point)
     final destRingPaint = Paint()
       ..color = const Color(0xFFEA580C)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.5;
-    canvas.drawCircle(Offset(endX, trackY), 8, destRingPaint);
+      ..strokeWidth = 4.0;
+    canvas.drawCircle(Offset(endX, trackY), 10, destRingPaint);
 
     final destInnerDotPaint = Paint()..color = Colors.white;
-    canvas.drawCircle(Offset(endX, trackY), 4, destInnerDotPaint);
+    canvas.drawCircle(Offset(endX, trackY), 5, destInnerDotPaint);
 
     // Stylized moving Taxi / Car Indicator at current progress
     _drawMovingCar(canvas: canvas, center: Offset(currentCarX, trackY));

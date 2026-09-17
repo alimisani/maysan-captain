@@ -146,7 +146,6 @@ class BookingProvider extends ChangeNotifier {
     try {
       final pricing = await _supabaseService.getPricingSettings();
       _baseFare = (pricing['base_fare'] as num?)?.toDouble() ?? 3000.0;
-      _perKmRate = (pricing['per_km_rate'] as num?)?.toDouble() ?? 1000.0;
       _deliveryBaseFare = (pricing['delivery_base_fare'] as num?)?.toDouble() ?? 3000.0;
       _isMultiDestinationsEnabled = pricing['is_multi_destinations_enabled'] as bool? ?? true;
       _maxDestinations = (pricing['max_destinations'] as num?)?.toInt() ?? 5;
@@ -265,7 +264,6 @@ class BookingProvider extends ChangeNotifier {
   double _distanceKm = 2.5;
   double _estimatedFare = 3500.0;
   double _baseFare = 3000.0;
-  double _perKmRate = 500.0;
   double _deliveryBaseFare = 4000.0;
   List<dynamic> _customRoutePricings = [];
 
@@ -310,6 +308,8 @@ class BookingProvider extends ChangeNotifier {
   List<RideOrder> get pendingOrders => _pendingOrders;
 
   String? _lastKnownOrderStatus;
+  double _lastNotifiedProgress = 0.0;
+  DateTime? _lastNotificationTime;
   final Set<String> _notifiedPendingOrderIds = {};
 
   String? _currentUserId;
@@ -822,13 +822,12 @@ class BookingProvider extends ChangeNotifier {
     if (matchedCustomPrice != null) {
       calculated = matchedCustomPrice;
     } else if (_vehiclePricingConfig.isVehicleSpecificPricingEnabled) {
-      // 1. Vehicle-specific Dynamic Pricing Engine
+      // 1. Vehicle-specific Pricing Engine:
+      // Strictly relies on distance tiers in meters (0-3000m).
+      // If distance exceeds the tiers (> 3000m) or multi-destination:
+      // System adopts the Base Fare (الأجرة الأساسية).
       final vItem = _vehiclePricingConfig.getItem(_selectedVehicleType);
       final double base = vItem.baseFare;
-      final double perKm = vItem.perKmRate;
-      final double minF = vItem.minFare;
-      final double rush = vItem.rushMultiplier;
-
       int totalLegs = 1 + _extraDestinations.length;
       final distanceMeters = (_distanceKm * 1000.0).round();
 
@@ -845,28 +844,21 @@ class BookingProvider extends ChangeNotifier {
         } else {
           calculated = vItem.tier2501To3000;
         }
-        calculated *= rush;
       } else {
-        // Above 3000m or multi-destinations
-        double billedKm = _distanceKm.ceilToDouble();
-        if (billedKm < 1.0) billedKm = 1.0;
-
-        double distanceCharge = billedKm * perKm;
-        double rawFare = base + distanceCharge;
-        if (_extraDestinations.isNotEmpty) {
-          rawFare = (rawFare > (base * totalLegs)) ? rawFare : (base * totalLegs);
-        }
-
-        calculated = (rawFare < minF ? minF : rawFare) * rush;
+        // Exceeds tiers (> 3000m) or multi-destination:
+        // System adopts the Base Fare!
+        calculated = base * totalLegs;
       }
     } else {
-      // 2. Global General Pricing Engine (Strictly applies general rates without hidden multipliers)
+      // 2. Global General Pricing Engine:
+      // Strictly relies on distance tiers in meters (0-3000m).
+      // If distance exceeds the tiers (> 3000m) or multi-destination:
+      // System adopts the Base Fare.
       double base = isDelivery ? _deliveryBaseFare : _baseFare;
       int totalLegs = 1 + _extraDestinations.length;
       final distanceMeters = (_distanceKm * 1000.0).round();
 
       if (!isDelivery && _isTieredPricingEnabled && distanceMeters <= 3000 && _extraDestinations.isEmpty) {
-        // Tiered pricing based on exact road meters (0 to 3000m)
         if (distanceMeters <= 1000) {
           calculated = _tier0To1000;
         } else if (distanceMeters <= 1500) {
@@ -878,22 +870,9 @@ class BookingProvider extends ChangeNotifier {
         } else {
           calculated = _tier2501To3000;
         }
-      } else if (_perKmRate > 0) {
-        // Above 3000m or multi-destination or delivery
-        double billedKm = _distanceKm.ceilToDouble();
-        if (billedKm < 1.0) billedKm = 1.0;
-        double fareFromKm = billedKm * _perKmRate;
-        
-        if (_extraDestinations.isNotEmpty) {
-          // Multi-destination trip: apply total distance * perKmRate (minimum base fare * total legs)
-          calculated = (fareFromKm > (base * totalLegs) ? fareFromKm : (base * totalLegs));
-        } else {
-          // Single destination trip:
-          calculated = (fareFromKm < base && fareFromKm > 0 ? fareFromKm : (fareFromKm >= base ? fareFromKm : base));
-        }
       } else {
-        // When perKmRate is 0, each leg adds baseFare
-        calculated = (base * totalLegs);
+        // Exceeds tiers (> 3000m) or multi-destination:
+        calculated = base * totalLegs;
       }
     }
 
@@ -981,78 +960,110 @@ class BookingProvider extends ChangeNotifier {
   Future<void> checkActiveOrder(String userId, bool isDriver) async {
     final order = await _supabaseService.getActiveOrder(userId, isDriver);
 
-    // Trigger local push notification on status changes
     if (order != null) {
-      if (_lastKnownOrderStatus != order.status) {
-        if (!isDriver) {
-          // Passenger notifications & Live Activity drawer card
-          if (order.status == 'fare_proposed') {
+      if (!isDriver) {
+        // Passenger notifications & dynamic Live Activity card
+        if (order.status == 'fare_proposed') {
+          if (_lastKnownOrderStatus != order.status) {
             NotificationService.showFareProposedNotification(
               driverName: order.driverName ?? 'الكابتن',
               proposedFare: order.proposedFare ?? order.finalFare,
-              vehicleInfo: order.vehicleInfo ?? 'سيارة كابتن ميسان',
+              vehicleInfo: order.vehicleInfo ?? 'مركبة كابتن معتمدة | 00000',
             );
-          } else if (order.status == 'accepted' || order.status == 'on_way') {
-            NotificationService.showLiveTripNotification(
-              orderId: order.id,
-              driverName: order.driverName ?? 'الكابتن',
-              driverRating: order.driverRating ?? 5.0,
-              vehicleInfo: order.vehicleInfo ?? 'Hyundai Accent أزرق | 31606 أ ميسان',
-              status: 'accepted',
-              pickupAddress: order.pickupAddress,
-              dropoffAddress: order.dropoffAddress,
-              progress: 0.35,
-              etaText: '2 دقيقة',
-            );
-          } else if (order.status == 'arriving' || order.status == 'arrived') {
-            NotificationService.showDriverArrivedNotification(
-              driverName: order.driverName ?? 'الكابتن',
-            );
-            NotificationService.showLiveTripNotification(
-              orderId: order.id,
-              driverName: order.driverName ?? 'الكابتن',
-              driverRating: order.driverRating ?? 5.0,
-              vehicleInfo: order.vehicleInfo ?? 'Hyundai Accent أزرق | 31606 أ ميسان',
-              status: 'arrived',
-              pickupAddress: order.pickupAddress,
-              dropoffAddress: order.dropoffAddress,
-              progress: 0.55,
-              etaText: 'وصل الكابتن',
-            );
-          } else if (order.status == 'in_progress') {
-            NotificationService.showLiveTripNotification(
-              orderId: order.id,
-              driverName: order.driverName ?? 'الكابتن',
-              driverRating: order.driverRating ?? 5.0,
-              vehicleInfo: order.vehicleInfo ?? 'Hyundai Accent أزرق | 31606 أ ميسان',
-              status: 'in_progress',
-              pickupAddress: order.pickupAddress,
-              dropoffAddress: order.dropoffAddress,
-              progress: 0.85,
-              etaText: 'في الطريق',
-            );
-          } else if (order.status == 'completed') {
-            NotificationService.dismissLiveTripNotification();
+          }
+        } else if (order.status == 'completed') {
+          NotificationService.dismissLiveTripNotification();
+          if (_lastKnownOrderStatus != order.status) {
             NotificationService.showTripCompletedNotification(
               finalFare: order.finalFare,
               isDriver: false,
             );
-          } else if (order.status == 'cancelled') {
-            NotificationService.dismissLiveTripNotification();
           }
+        } else if (order.status == 'cancelled') {
+          NotificationService.dismissLiveTripNotification();
         } else {
-          // Driver notifications
-          if (order.status == 'completed') {
-            NotificationService.showTripCompletedNotification(
-              finalFare: order.finalFare,
-              isDriver: true,
+          // Dynamic in-flight progress calculation
+          double dynamicProgress = 0.20;
+          String eta = '2 دقيقة';
+
+          if (order.status == 'accepted' || order.status == 'on_way') {
+            if (order.driverLat != null && order.driverLng != null) {
+              final d = LocationService.calculateDistance(
+                LatLng(order.driverLat!, order.driverLng!),
+                LatLng(order.pickupLat, order.pickupLng),
+              );
+              final approachRatio = (1.0 - (d / 3.0)).clamp(0.0, 1.0);
+              dynamicProgress = 0.10 + (0.38 * approachRatio);
+              final mins = (d / 0.5).ceil();
+              eta = mins <= 1 ? 'أقل من دقيقة' : '$mins دقيقة للوصول';
+            } else {
+              dynamicProgress = 0.25;
+              eta = '2 دقيقة';
+            }
+          } else if (order.status == 'arriving' || order.status == 'arrived') {
+            dynamicProgress = 0.50;
+            eta = 'وصل الكابتن';
+            if (_lastKnownOrderStatus != order.status) {
+              NotificationService.showDriverArrivedNotification(
+                driverName: order.driverName ?? 'الكابتن',
+              );
+            }
+          } else if (order.status == 'in_progress') {
+            if (order.driverLat != null && order.driverLng != null) {
+              final d = LocationService.calculateDistance(
+                LatLng(order.driverLat!, order.driverLng!),
+                LatLng(order.dropoffLat, order.dropoffLng),
+              );
+              final totalKm = order.distanceKm > 0.2 ? order.distanceKm : 2.0;
+              final tripRatio = (1.0 - (d / totalKm)).clamp(0.0, 1.0);
+              dynamicProgress = 0.50 + (0.48 * tripRatio);
+              final mins = (d / 0.6).ceil();
+              eta = mins <= 1 ? 'أقل من دقيقة' : '$mins دقيقة للوصول';
+            } else {
+              dynamicProgress = 0.75;
+              eta = 'في الطريق';
+            }
+          }
+
+          final statusChanged = _lastKnownOrderStatus != order.status;
+          final progressJumped = (dynamicProgress - _lastNotifiedProgress).abs() >= 0.04;
+          final timeElapsed = _lastNotificationTime == null ||
+              DateTime.now().difference(_lastNotificationTime!).inSeconds >= 12;
+
+          if (statusChanged || progressJumped || timeElapsed) {
+            NotificationService.showLiveTripNotification(
+              orderId: order.id,
+              driverName: order.driverName ?? 'الكابتن',
+              driverRating: order.driverRating ?? 5.0,
+              vehicleInfo: order.vehicleInfo ?? 'مركبة كابتن معتمدة | 00000',
+              status: order.status,
+              pickupAddress: order.pickupAddress,
+              dropoffAddress: order.dropoffAddress,
+              progress: dynamicProgress,
+              etaText: eta,
             );
+            _lastNotifiedProgress = dynamicProgress;
+            _lastNotificationTime = DateTime.now();
           }
         }
-        _lastKnownOrderStatus = order.status;
+      } else {
+        // Driver notifications
+        if (order.status == 'completed' && _lastKnownOrderStatus != order.status) {
+          NotificationService.showTripCompletedNotification(
+            finalFare: order.finalFare,
+            isDriver: true,
+          );
+        }
       }
+      _lastKnownOrderStatus = order.status;
     } else {
+      // Order completed or null: instantly dismiss live notification
+      if (_lastKnownOrderStatus != null) {
+        NotificationService.dismissLiveTripNotification();
+      }
       _lastKnownOrderStatus = null;
+      _lastNotifiedProgress = 0.0;
+      _lastNotificationTime = null;
     }
 
     _activeOrder = order;

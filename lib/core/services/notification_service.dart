@@ -333,15 +333,15 @@ class NotificationService {
       _playCustomSound('sounds/trip_chime.wav');
 
       // 1. Parse vehicle details and Iraqi plate from vehicleInfo
-      String model = 'Hyundai Accent';
-      String color = 'أزرق';
-      String plateNumber = '31606';
-      String plateLetter = 'أ';
+      String model = 'مركبة كابتن';
+      String color = '';
+      String plateNumber = '00000';
+      String plateLetter = '';
       String plateCity = 'ميسان';
-      String plateType = 'خصوصي';
+      String plateType = 'عمومي';
 
       if (vehicleInfo.isNotEmpty) {
-        for (final c in ['أزرق', 'أبيض', 'أسود', 'فضي', 'رصاصي', 'أحمر', 'أصفر', 'ماروني']) {
+        for (final c in ['أزرق', 'أبيض', 'أسود', 'فضي', 'رصاصي', 'أحمر', 'أصفر', 'ماروني', 'رصاصي']) {
           if (vehicleInfo.contains(c)) {
             color = c;
             break;
@@ -350,6 +350,8 @@ class NotificationService {
         final matchNumber = RegExp(r'\b\d{3,6}\b').firstMatch(vehicleInfo);
         if (matchNumber != null) {
           plateNumber = matchNumber.group(0)!;
+        } else {
+          plateNumber = '00000';
         }
         for (final l in ['أ', 'ب', 'ج', 'د', 'هـ', 'و', 'ط', 'ك', 'ل', 'م', 'ن']) {
           if (vehicleInfo.contains(l)) {
@@ -357,8 +359,10 @@ class NotificationService {
             break;
           }
         }
-        if (vehicleInfo.contains('أجرة') || vehicleInfo.contains('تكسي') || vehicleInfo.contains('صالون')) {
-          plateType = 'أجرة';
+        if (vehicleInfo.contains('خصوصي')) {
+          plateType = 'خصوصي';
+        } else {
+          plateType = 'عمومي';
         }
         model = vehicleInfo
             .replaceAll(color, '')
@@ -366,35 +370,43 @@ class NotificationService {
             .replaceAll(plateLetter, '')
             .replaceAll('خصوصي', '')
             .replaceAll('أجرة', '')
+            .replaceAll('عمومي', '')
             .replaceAll('تكسي', '')
+            .replaceAll('صالون', '')
             .replaceAll('|', '')
             .replaceAll('-', '')
             .replaceAll('(', '')
             .replaceAll(')', '')
             .trim();
-        if (model.isEmpty) model = 'Hyundai Accent';
+        if (model.isEmpty) model = 'مركبة كابتن';
       }
 
       // 2. Status specific headings and progress
       String statusTitle = 'الكابتن في الطريق إليك';
-      String defaultEta = '2 دقيقة';
+      String defaultEta = 'خلال دقيقتين';
       double calculatedProgress = progress;
 
       if (status == 'accepted' || status == 'on_way') {
         statusTitle = 'الكابتن في الطريق إليك';
-        defaultEta = '2 دقيقة';
-        calculatedProgress = 0.35;
+        defaultEta = 'خلال دقيقتين';
+        if (calculatedProgress <= 0.0) calculatedProgress = 0.25;
       } else if (status == 'arrived' || status == 'arriving') {
         statusTitle = 'وصل الكابتن إلى موقعك!';
-        defaultEta = 'بانتظارك 🚖';
-        calculatedProgress = 0.55;
+        defaultEta = 'بانتظارك الآن 🚖';
+        calculatedProgress = 0.50;
       } else if (status == 'in_progress') {
-        statusTitle = 'جاري التوجه إلى الوجهة...';
+        statusTitle = 'الرحلة جارية إلى الوجهة...';
         defaultEta = 'في الطريق 🏁';
-        calculatedProgress = 0.85;
+        if (calculatedProgress <= 0.50) calculatedProgress = 0.75;
+      } else if (status == 'completed') {
+        statusTitle = 'وصلت بالسلامة!';
+        defaultEta = 'تم الوصول ✨';
+        calculatedProgress = 1.0;
       }
 
       final effectiveEta = etaText ?? defaultEta;
+      final plateDisplay = plateLetter.isNotEmpty ? '$plateNumber $plateLetter' : plateNumber;
+      final vehicleLine = color.isNotEmpty ? '$color $model' : model;
 
       // 3. Render the Live Activity Notification Card (Image Canvas)
       final imagePath = await TripLiveNotificationRenderer.renderLiveTripCard(
@@ -422,7 +434,7 @@ class NotificationService {
         autoCancel: false,
         showProgress: true,
         maxProgress: 100,
-        progress: (calculatedProgress * 100).toInt(),
+        progress: (calculatedProgress * 100).toInt().clamp(0, 100),
         category: AndroidNotificationCategory.status,
         color: const Color(0xFF0EA5E9),
         subText: 'ميسان كابتن • رحلة مباشرة',
@@ -433,13 +445,13 @@ class NotificationService {
             ? BigPictureStyleInformation(
                 FilePathAndroidBitmap(imagePath),
                 contentTitle: '🚖 $statusTitle ($effectiveEta)',
-                summaryText: '$color $model • [ $plateNumber $plateLetter | $plateCity ]',
+                summaryText: '$vehicleLine • [ $plateDisplay | $plateCity ]',
                 hideExpandedLargeIcon: true,
               )
             : BigTextStyleInformation(
                 '🚖 <b>$statusTitle</b><br/>'
-                '🚗 <b>$color $model</b> • [ $plateNumber $plateLetter | $plateCity $plateType ]<br/>'
-                '⏱️ <b>$effectiveEta حتى يصل السائق</b><br/>'
+                '🚗 <b>$vehicleLine</b> • [ $plateDisplay | $plateCity $plateType ]<br/>'
+                '⏱️ <b>حالة الوصول: $effectiveEta</b><br/>'
                 '👤 الكابتن: $driverName (⭐ ${driverRating.toStringAsFixed(1)})<br/>'
                 '📍 الانطلاق: $pickupAddress ➔ الوجهة: $dropoffAddress',
                 htmlFormatBigText: true,
@@ -463,7 +475,7 @@ class NotificationService {
       await _notificationsPlugin.show(
         liveTripNotificationId,
         '🚖 $statusTitle ($effectiveEta)',
-        '$color $model • [ $plateNumber $plateLetter | $plateCity ] - الكابتن: $driverName',
+        '$vehicleLine • [ $plateDisplay | $plateCity ] - الكابتن: $driverName',
         details,
         payload: 'live_trip_$orderId',
       );

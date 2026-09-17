@@ -7149,38 +7149,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     children: [
                       Expanded(
                         child: _buildPricingBadge(
-                          'الأساس',
+                          'الأجرة الأساسية',
                           '${currencyFormatter.format(item.baseFare.toInt())} د.ع',
                           isDark,
                         ),
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: _buildPricingBadge(
-                          'سعر الكيلو',
-                          '${currencyFormatter.format(item.perKmRate.toInt())} د.ع',
+                          'شرائح المسافة (0-3000م)',
+                          item.isTieredPricingEnabled ? 'مفعّلة بالتطبيق ✨' : 'معطّلة',
                           isDark,
+                          color: item.isTieredPricingEnabled ? const Color(0xFF10B981) : Colors.grey,
                         ),
                       ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: _buildPricingBadge(
-                          'الحد الأدنى',
-                          '${currencyFormatter.format(item.minFare.toInt())} د.ع',
-                          isDark,
-                        ),
-                      ),
-                      if (item.rushMultiplier > 1.0) ...[
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: _buildPricingBadge(
-                            'المضاعف',
-                            '${item.rushMultiplier}x',
-                            isDark,
-                            color: const Color(0xFF8B5CF6),
-                          ),
-                        ),
-                      ],
                     ],
                   ),
                 ],
@@ -7594,9 +7576,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     Color themeColor,
   ) {
     final baseFareCtrl = TextEditingController(text: item.baseFare.toInt().toString());
-    final perKmCtrl = TextEditingController(text: item.perKmRate.toInt().toString());
-    final minFareCtrl = TextEditingController(text: item.minFare.toInt().toString());
-    final rushCtrl = TextEditingController(text: item.rushMultiplier.toString());
     final notesCtrl = TextEditingController(text: item.policyNotes);
     bool isEnabled = item.isEnabled;
     bool isTieredPricingEnabled = item.isTieredPricingEnabled;
@@ -7665,63 +7644,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     ),
                     const Divider(height: 20),
 
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: baseFareCtrl,
-                            keyboardType: TextInputType.number,
-                            decoration: InputDecoration(
-                              labelText: 'الأجرة الأساسية (د.ع)',
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: TextField(
-                            controller: perKmCtrl,
-                            keyboardType: TextInputType.number,
-                            decoration: InputDecoration(
-                              labelText: 'سعر الكيلومتر (د.ع)',
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: minFareCtrl,
-                            keyboardType: TextInputType.number,
-                            decoration: InputDecoration(
-                              labelText: 'الحد الأدنى للأجرة (د.ع)',
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: TextField(
-                            controller: rushCtrl,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            decoration: InputDecoration(
-                              labelText: 'مضاعف الخدمة / الذروة',
-                              hintText: '1.0',
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                            ),
-                          ),
-                        ),
-                      ],
+                    TextField(
+                      controller: baseFareCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'الأجرة الأساسية (د.ع)',
+                        helperText: 'تُعتمد الأجرة الأساسية عند تجاوز المسافة لشرائح المتر (> 3000م)',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        prefixIcon: const Icon(Icons.payments_rounded, color: Color(0xFF10B981)),
+                      ),
                     ),
 
                     const SizedBox(height: 12),
@@ -7860,9 +7792,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     ElevatedButton.icon(
                       onPressed: () async {
                         final double base = double.tryParse(baseFareCtrl.text.trim()) ?? item.baseFare;
-                        final double perKm = double.tryParse(perKmCtrl.text.trim()) ?? item.perKmRate;
-                        final double minF = double.tryParse(minFareCtrl.text.trim()) ?? item.minFare;
-                        final double rush = double.tryParse(rushCtrl.text.trim()) ?? item.rushMultiplier;
                         final String notes = notesCtrl.text.trim();
                         final double t0 = double.tryParse(tier0Ctrl.text.trim()) ?? item.tier0To1000;
                         final double t1 = double.tryParse(tier1Ctrl.text.trim()) ?? item.tier1001To1500;
@@ -7872,9 +7801,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
                         final updated = item.copyWith(
                           baseFare: base,
-                          perKmRate: perKm,
-                          minFare: minF,
-                          rushMultiplier: rush,
+                          perKmRate: 0.0,
+                          minFare: 0.0,
+                          rushMultiplier: 1.0,
                           policyNotes: notes,
                           isEnabled: isEnabled,
                           isTieredPricingEnabled: isTieredPricingEnabled,

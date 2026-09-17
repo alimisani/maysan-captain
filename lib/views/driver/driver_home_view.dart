@@ -422,8 +422,8 @@ class _DriverHomeViewState extends State<DriverHomeView> {
                               (order) => _buildRadarOrderCard(
                                 order: order,
                                 vehicleInfo: vehicle != null
-                                    ? '${vehicle.color != null && vehicle.color!.isNotEmpty ? "${vehicle.color} " : ""}${vehicle.model ?? vehicle.getLocalizedType(loc.isArabic)} | ${vehicle.plateNumber ?? "31606 أ ميسان"}'
-                                    : (loc.isArabic ? 'أزرق Hyundai Accent | 31606 أ ميسان' : 'Blue Hyundai Accent | 31606 A Maysan'),
+                                    ? '${vehicle.color != null && vehicle.color!.isNotEmpty ? "${vehicle.color} " : ""}${vehicle.model ?? vehicle.getLocalizedType(loc.isArabic)} | ${(vehicle.plateNumber != null && vehicle.plateNumber!.trim().isNotEmpty) ? vehicle.plateNumber! : "00000"}'
+                                    : (loc.isArabic ? 'مركبة كابتن معتمدة | 00000' : 'Captain Vehicle | 00000'),
                                 isDark: isDark,
                                 loc: loc,
                                 auth: auth,
