@@ -18,6 +18,7 @@ import '../history/order_history_screen.dart';
 import '../profile/edit_profile_screen.dart';
 import '../settings/settings_screen.dart';
 import '../tracking/live_tracking_screen.dart';
+import '../wallet/wallet_screen.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/user_avatar_widget.dart';
 import '../driver/driver_home_view.dart';
@@ -226,6 +227,60 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
 
+                        // 3.5 Wallet Balance Interactive Badge (Next to Dark/Light Mode Switcher)
+                        if (booking.isWalletEnabled)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 6),
+                            child: InkWell(
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const WalletScreen()),
+                              ),
+                              borderRadius: BorderRadius.circular(20),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: isDark
+                                        ? [const Color(0xFF065F46), const Color(0xFF047857)]
+                                        : [const Color(0xFFD1FAE5), const Color(0xFFA7F3D0)],
+                                  ),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: const Color(0xFF10B981).withValues(alpha: 0.6),
+                                    width: 1.2,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF10B981).withValues(alpha: 0.25),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.account_balance_wallet_rounded,
+                                      size: 15,
+                                      color: Color(0xFF059669),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '${(user?.walletBalance ?? 0.0).toInt()} د.ع',
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w900,
+                                        color: isDark ? Colors.white : const Color(0xFF065F46),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+
                         // 4. Dark/Light Mode Switcher (Far Left)
                         IconButton(
                           style: IconButton.styleFrom(
@@ -283,6 +338,16 @@ class _HomeScreenState extends State<HomeScreen> {
                               onTap: () {
                                 setState(() => _isQuickMenuOpen = false);
                                 Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminDashboardScreen()));
+                              },
+                            ),
+                          if (booking.isWalletEnabled)
+                            _buildQuickBubble(
+                              icon: Icons.account_balance_wallet_rounded,
+                              label: 'المحفظة',
+                              color: const Color(0xFF10B981),
+                              onTap: () {
+                                setState(() => _isQuickMenuOpen = false);
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const WalletScreen()));
                               },
                             ),
                           _buildQuickBubble(

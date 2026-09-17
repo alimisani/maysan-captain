@@ -23,6 +23,7 @@ class RideBookingSheet extends StatefulWidget {
 class _RideBookingSheetState extends State<RideBookingSheet> {
   final TextEditingController _notesController = TextEditingController();
   bool _isExpanded = true;
+  String _selectedPaymentMethod = 'cash'; // 'cash' or 'wallet'
 
   @override
   void dispose() {
@@ -41,10 +42,29 @@ class _RideBookingSheetState extends State<RideBookingSheet> {
       return;
     }
 
+    final user = auth.currentUser!;
+    final isWallet = booking.isWalletEnabled && _selectedPaymentMethod == 'wallet';
+
+    if (isWallet && user.walletBalance < booking.estimatedFare) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'رصيد المحفظة الحالي (${user.walletBalance.toInt()} د.ع) غير كافٍ لتغطية الأجرة (${booking.estimatedFare.toInt()} د.ع). يرجى شحن الرصيد أو اختيار الدفع نقداً.',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: Colors.amber.shade900,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+
     final success = await booking.createOrder(
-      customerId: auth.currentUser!.id,
-      customerName: auth.currentUser!.name,
-      customerPhone: auth.currentUser!.phone ?? '07800000000',
+      customerId: user.id,
+      customerName: user.name,
+      customerPhone: user.phone ?? '07800000000',
+      paymentMethod: isWallet ? 'wallet' : 'cash',
       notes: _notesController.text.trim(),
       packageDetails: booking.isDelivery ? _notesController.text.trim() : null,
     );
@@ -782,7 +802,160 @@ class _RideBookingSheetState extends State<RideBookingSheet> {
             ],
           ),
 
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
+
+          // Payment Method Selector (طريقة الدفع - تظهر فقط عند تفعيل نظام المحفظة)
+          if (booking.isWalletEnabled) ...[
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0x661E293B) : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.payment_rounded, size: 16, color: Color(0xFF10B981)),
+                      const SizedBox(width: 6),
+                      const Text(
+                        'طريقة الدفع',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      const Spacer(),
+                      if (_selectedPaymentMethod == 'wallet')
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            'رصيدك: ${(context.watch<AuthProvider>().currentUser?.walletBalance ?? 0.0).toInt()} د.ع',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF059669),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => setState(() => _selectedPaymentMethod = 'cash'),
+                          borderRadius: BorderRadius.circular(12),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            decoration: BoxDecoration(
+                              color: _selectedPaymentMethod == 'cash'
+                                  ? (isDark ? const Color(0xFF1E293B) : Colors.white)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _selectedPaymentMethod == 'cash'
+                                    ? AuroraTheme.primaryCyan
+                                    : Colors.transparent,
+                                width: 1.5,
+                              ),
+                              boxShadow: _selectedPaymentMethod == 'cash'
+                                  ? const [BoxShadow(color: Color(0x10000000), blurRadius: 4)]
+                                  : null,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.money_rounded, size: 16, color: Color(0xFF10B981)),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'نقداً (كاش)',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: _selectedPaymentMethod == 'cash'
+                                        ? FontWeight.bold
+                                        : FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => setState(() => _selectedPaymentMethod = 'wallet'),
+                          borderRadius: BorderRadius.circular(12),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            decoration: BoxDecoration(
+                              color: _selectedPaymentMethod == 'wallet'
+                                  ? (isDark ? const Color(0xFF1E293B) : Colors.white)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _selectedPaymentMethod == 'wallet'
+                                    ? const Color(0xFF10B981)
+                                    : Colors.transparent,
+                                width: 1.5,
+                              ),
+                              boxShadow: _selectedPaymentMethod == 'wallet'
+                                  ? const [BoxShadow(color: Color(0x10000000), blurRadius: 4)]
+                                  : null,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.account_balance_wallet_rounded, size: 16, color: Color(0xFF059669)),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'المحفظة الإلكترونية',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: _selectedPaymentMethod == 'wallet'
+                                        ? FontWeight.bold
+                                        : FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_selectedPaymentMethod == 'wallet') ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(Icons.shield_rounded, size: 13, color: Color(0xFF10B981)),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            'حماية الزبون مفعلة: لن يتم الدفع إلا بعد وصول الكابتن لموقعك.',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
 
           // Book CTA Button
           AuroraButton(

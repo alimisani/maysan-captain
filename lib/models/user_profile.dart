@@ -20,6 +20,7 @@ class UserProfile {
   final String? referralCode; // Custom or auto code
   final int referralCount; // Successful referrals made
   final int referralBonusDays; // Cumulative bonus days earned
+  final double walletBalance; // رصيد المحفظة الإلكترونية بالدينار العراقي
   final DateTime createdAt;
 
   UserProfile({
@@ -44,6 +45,7 @@ class UserProfile {
     this.referralCode,
     this.referralCount = 0,
     this.referralBonusDays = 0,
+    this.walletBalance = 0.0,
     required this.createdAt,
   });
 
@@ -148,6 +150,9 @@ class UserProfile {
       referralCode: json['referral_code'] as String?,
       referralCount: (json['referral_count'] as num?)?.toInt() ?? 0,
       referralBonusDays: (json['referral_bonus_days'] as num?)?.toInt() ?? 0,
+      walletBalance: (json['wallet_balance'] as num?)?.toDouble() ??
+          (json['walletBalance'] as num?)?.toDouble() ??
+          0.0,
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now()
           : DateTime.now(),
@@ -177,6 +182,7 @@ class UserProfile {
       'referral_code': referralCode,
       'referral_count': referralCount,
       'referral_bonus_days': referralBonusDays,
+      'wallet_balance': walletBalance,
       'created_at': createdAt.toIso8601String(),
     };
   }
@@ -203,6 +209,7 @@ class UserProfile {
     String? referralCode,
     int? referralCount,
     int? referralBonusDays,
+    double? walletBalance,
     DateTime? createdAt,
   }) {
     return UserProfile(
@@ -227,6 +234,7 @@ class UserProfile {
       referralCode: referralCode ?? this.referralCode,
       referralCount: referralCount ?? this.referralCount,
       referralBonusDays: referralBonusDays ?? this.referralBonusDays,
+      walletBalance: walletBalance ?? this.walletBalance,
       createdAt: createdAt ?? this.createdAt,
     );
   }

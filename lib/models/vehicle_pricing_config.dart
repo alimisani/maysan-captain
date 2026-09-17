@@ -20,11 +20,12 @@ class VehiclePricingItem {
   final double tier2001To2500;
   final double tier2501To3000;
 
-  // خيار وقت الذروة المخصص (تحديد وقت البداية والنهاية بنظام 24 ساعة ومبلغ يضاف تلقائياً للأجرة)
+  // خيار وقت الذروة المخصص (تحديد أوقات متعددة بنظام 24 ساعة ومبلغ يضاف تلقائياً للأجرة)
   final bool isPeakWindowActive; // هل خاصية وقت الذروة مفعلة
-  final String peakStartTime; // وقت بدء الذروة بنظام 24 ساعة مثل "08:00"
-  final String peakEndTime; // وقت نهاية الذروة بنظام 24 ساعة مثل "16:00"
+  final String peakStartTime; // وقت بدء الذروة بنظام 24 ساعة مثل "08:00" (للتوافق القديم)
+  final String peakEndTime; // وقت نهاية الذروة بنظام 24 ساعة مثل "16:00" (للتوافق القديم)
   final double peakSurchargeAmount; // مبلغ إضافي يُضاف تلقائياً على أجرة الرحلة خلال فترة الذروة
+  final List<PeakTimeWindow> peakWindows; // فترات الذروة المتعددة
 
   // شرائح المسافات الطويلة (5000م فصاعداً إلى 10000م): مبلغ يضاف تلقائياً للأجرة الأساسية
   final double surcharge5001To6000; // إضافي 5001-6000م (د.ع)
@@ -53,12 +54,58 @@ class VehiclePricingItem {
     this.peakStartTime = '',
     this.peakEndTime = '',
     this.peakSurchargeAmount = 0.0,
+    this.peakWindows = const [],
     this.surcharge5001To6000 = 0.0,
     this.surcharge6001To7000 = 0.0,
     this.surcharge7001To8000 = 0.0,
     this.surcharge8001To9000 = 0.0,
     this.surcharge9001To10000 = 0.0,
   });
+
+  /// All active peak windows, supporting both new multi-window list and legacy start/end fields
+  List<PeakTimeWindow> get effectivePeakWindows {
+    if (peakWindows.isNotEmpty) {
+      return peakWindows;
+    }
+    if (peakStartTime.isNotEmpty && peakEndTime.isNotEmpty) {
+      return [
+        PeakTimeWindow(
+          id: 'default',
+          startTime: peakStartTime,
+          endTime: peakEndTime,
+        ),
+      ];
+    }
+    return const [];
+  }
+
+  /// Check if the given local time is within any of the configured peak windows
+  bool isTimeInPeak(DateTime now) {
+    if (!isPeakWindowActive || peakSurchargeAmount <= 0) return false;
+    final windows = effectivePeakWindows;
+    if (windows.isEmpty) return false;
+
+    final currentMinutes = now.hour * 60 + now.minute;
+    for (final window in windows) {
+      final startParts = window.startTime.split(':');
+      final endParts = window.endTime.split(':');
+      if (startParts.length == 2 && endParts.length == 2) {
+        final startMinutes = (int.tryParse(startParts[0].trim()) ?? 0) * 60 + (int.tryParse(startParts[1].trim()) ?? 0);
+        final endMinutes = (int.tryParse(endParts[0].trim()) ?? 0) * 60 + (int.tryParse(endParts[1].trim()) ?? 0);
+        if (startMinutes <= endMinutes) {
+          if (currentMinutes >= startMinutes && currentMinutes <= endMinutes) {
+            return true;
+          }
+        } else {
+          // Crosses midnight e.g. 22:00 to 04:00
+          if (currentMinutes >= startMinutes || currentMinutes <= endMinutes) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
 
   Map<String, dynamic> toJson() => {
         'vehicleType': vehicleType,
@@ -80,6 +127,7 @@ class VehiclePricingItem {
         'peakStartTime': peakStartTime,
         'peakEndTime': peakEndTime,
         'peakSurchargeAmount': peakSurchargeAmount,
+        'peakWindows': peakWindows.map((w) => w.toJson()).toList(),
         'surcharge5001To6000': surcharge5001To6000,
         'surcharge6001To7000': surcharge6001To7000,
         'surcharge7001To8000': surcharge7001To8000,
@@ -87,32 +135,43 @@ class VehiclePricingItem {
         'surcharge9001To10000': surcharge9001To10000,
       };
 
-  factory VehiclePricingItem.fromJson(Map<String, dynamic> json) => VehiclePricingItem(
-        vehicleType: json['vehicleType'] ?? 'salon',
-        nameAr: json['nameAr'] ?? 'صالون',
-        nameEn: json['nameEn'] ?? 'Salon',
-        baseFare: (json['baseFare'] as num?)?.toDouble() ?? 3000.0,
-        perKmRate: (json['perKmRate'] as num?)?.toDouble() ?? 0.0,
-        minFare: (json['minFare'] as num?)?.toDouble() ?? 0.0,
-        rushMultiplier: (json['rushMultiplier'] as num?)?.toDouble() ?? 1.0,
-        policyNotes: json['policyNotes'] ?? '',
-        isEnabled: json['isEnabled'] as bool? ?? true,
-        isTieredPricingEnabled: json['isTieredPricingEnabled'] as bool? ?? true,
-        tier0To1000: (json['tier0To1000'] as num?)?.toDouble() ?? 2000.0,
-        tier1001To1500: (json['tier1001To1500'] as num?)?.toDouble() ?? 2250.0,
-        tier1501To2000: (json['tier1501To2000'] as num?)?.toDouble() ?? 2500.0,
-        tier2001To2500: (json['tier2001To2500'] as num?)?.toDouble() ?? 2750.0,
-        tier2501To3000: (json['tier2501To3000'] as num?)?.toDouble() ?? 3000.0,
-        isPeakWindowActive: json['isPeakWindowActive'] as bool? ?? false,
-        peakStartTime: json['peakStartTime'] ?? '',
-        peakEndTime: json['peakEndTime'] ?? '',
-        peakSurchargeAmount: (json['peakSurchargeAmount'] as num?)?.toDouble() ?? 0.0,
-        surcharge5001To6000: (json['surcharge5001To6000'] as num?)?.toDouble() ?? 0.0,
-        surcharge6001To7000: (json['surcharge6001To7000'] as num?)?.toDouble() ?? 0.0,
-        surcharge7001To8000: (json['surcharge7001To8000'] as num?)?.toDouble() ?? 0.0,
-        surcharge8001To9000: (json['surcharge8001To9000'] as num?)?.toDouble() ?? 0.0,
-        surcharge9001To10000: (json['surcharge9001To10000'] as num?)?.toDouble() ?? 0.0,
-      );
+  factory VehiclePricingItem.fromJson(Map<String, dynamic> json) {
+    List<PeakTimeWindow> loadedWindows = [];
+    if (json['peakWindows'] is List) {
+      loadedWindows = (json['peakWindows'] as List)
+          .whereType<Map<String, dynamic>>()
+          .map((m) => PeakTimeWindow.fromJson(m))
+          .toList();
+    }
+
+    return VehiclePricingItem(
+      vehicleType: json['vehicleType'] ?? 'salon',
+      nameAr: json['nameAr'] ?? 'صالون',
+      nameEn: json['nameEn'] ?? 'Salon',
+      baseFare: (json['baseFare'] as num?)?.toDouble() ?? 3000.0,
+      perKmRate: (json['perKmRate'] as num?)?.toDouble() ?? 0.0,
+      minFare: (json['minFare'] as num?)?.toDouble() ?? 0.0,
+      rushMultiplier: (json['rushMultiplier'] as num?)?.toDouble() ?? 1.0,
+      policyNotes: json['policyNotes'] ?? '',
+      isEnabled: json['isEnabled'] as bool? ?? true,
+      isTieredPricingEnabled: json['isTieredPricingEnabled'] as bool? ?? true,
+      tier0To1000: (json['tier0To1000'] as num?)?.toDouble() ?? 2000.0,
+      tier1001To1500: (json['tier1001To1500'] as num?)?.toDouble() ?? 2250.0,
+      tier1501To2000: (json['tier1501To2000'] as num?)?.toDouble() ?? 2500.0,
+      tier2001To2500: (json['tier2001To2500'] as num?)?.toDouble() ?? 2750.0,
+      tier2501To3000: (json['tier2501To3000'] as num?)?.toDouble() ?? 3000.0,
+      isPeakWindowActive: json['isPeakWindowActive'] as bool? ?? false,
+      peakStartTime: json['peakStartTime'] ?? '',
+      peakEndTime: json['peakEndTime'] ?? '',
+      peakSurchargeAmount: (json['peakSurchargeAmount'] as num?)?.toDouble() ?? 0.0,
+      peakWindows: loadedWindows,
+      surcharge5001To6000: (json['surcharge5001To6000'] as num?)?.toDouble() ?? 0.0,
+      surcharge6001To7000: (json['surcharge6001To7000'] as num?)?.toDouble() ?? 0.0,
+      surcharge7001To8000: (json['surcharge7001To8000'] as num?)?.toDouble() ?? 0.0,
+      surcharge8001To9000: (json['surcharge8001To9000'] as num?)?.toDouble() ?? 0.0,
+      surcharge9001To10000: (json['surcharge9001To10000'] as num?)?.toDouble() ?? 0.0,
+    );
+  }
 
   VehiclePricingItem copyWith({
     String? vehicleType,
@@ -134,6 +193,7 @@ class VehiclePricingItem {
     String? peakStartTime,
     String? peakEndTime,
     double? peakSurchargeAmount,
+    List<PeakTimeWindow>? peakWindows,
     double? surcharge5001To6000,
     double? surcharge6001To7000,
     double? surcharge7001To8000,
@@ -160,11 +220,49 @@ class VehiclePricingItem {
       peakStartTime: peakStartTime ?? this.peakStartTime,
       peakEndTime: peakEndTime ?? this.peakEndTime,
       peakSurchargeAmount: peakSurchargeAmount ?? this.peakSurchargeAmount,
+      peakWindows: peakWindows ?? this.peakWindows,
       surcharge5001To6000: surcharge5001To6000 ?? this.surcharge5001To6000,
       surcharge6001To7000: surcharge6001To7000 ?? this.surcharge6001To7000,
       surcharge7001To8000: surcharge7001To8000 ?? this.surcharge7001To8000,
       surcharge8001To9000: surcharge8001To9000 ?? this.surcharge8001To9000,
       surcharge9001To10000: surcharge9001To10000 ?? this.surcharge9001To10000,
+    );
+  }
+}
+
+/// A specific peak time window interval (e.g. 08:00 - 11:00)
+class PeakTimeWindow {
+  final String id;
+  final String startTime; // "08:00"
+  final String endTime; // "11:00"
+
+  const PeakTimeWindow({
+    required this.id,
+    required this.startTime,
+    required this.endTime,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'startTime': startTime,
+        'endTime': endTime,
+      };
+
+  factory PeakTimeWindow.fromJson(Map<String, dynamic> json) => PeakTimeWindow(
+        id: json['id'] as String? ?? 'w_${DateTime.now().microsecondsSinceEpoch}',
+        startTime: json['startTime'] as String? ?? '08:00',
+        endTime: json['endTime'] as String? ?? '10:00',
+      );
+
+  PeakTimeWindow copyWith({
+    String? id,
+    String? startTime,
+    String? endTime,
+  }) {
+    return PeakTimeWindow(
+      id: id ?? this.id,
+      startTime: startTime ?? this.startTime,
+      endTime: endTime ?? this.endTime,
     );
   }
 }

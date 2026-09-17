@@ -1174,6 +1174,224 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                     ],
                   ),
 
+                  // Electronic Wallet Payment Card for Customer (مع حماية الزبون من الدفع قبل الوصول)
+                  if (!isDriver && order.paymentMethod == 'wallet') ...[
+                    const SizedBox(height: 12),
+                    if (order.isPaid)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFF10B981)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 22),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'تم دفع الأجرة بنجاح عبر المحفظة الإلكترونية ✅',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF059669)),
+                                  ),
+                                  Text(
+                                    'تم خصم ${currencyFormatter.format(order.finalFare.toInt())} د.ع وتسجيلها لدى الكابتن',
+                                    style: TextStyle(fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF475569)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else if (order.status == 'pending' || order.status == 'accepted' || order.status == 'on_way')
+                      // Protected state: Captain is still on the way
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF38BDF8).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.4)),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0284C7).withValues(alpha: 0.2),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.shield_rounded, color: Color(0xFF0284C7), size: 20),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    '🛡️ حماية الزبون مفعلة',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: Color(0xFF0284C7)),
+                                  ),
+                                  Text(
+                                    'يُتاح دفع الأجرة (${currencyFormatter.format(order.finalFare.toInt())} د.ع) فور وصول الكابتن لموقعك وبدء الرحلة لضمان أمان أموالك.',
+                                    style: TextStyle(fontSize: 11, color: isDark ? Colors.white70 : const Color(0xFF475569)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      // Captain arrived or in progress or completed -> Customer can pay now!
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: isDark
+                                ? [const Color(0xFF064E3B), const Color(0xFF0F172A)]
+                                : [const Color(0xFFD1FAE5), Colors.white],
+                          ),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: const Color(0xFF10B981), width: 1.5),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFF059669), size: 22),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    order.status == 'arrived'
+                                        ? 'وصل الكابتن لموقعك! يُمكنك دفع الأجرة الآن أو عند نهاية الرحلة:'
+                                        : 'يمكنك تسديد الأجرة من رصيد محفظتك الآن:',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12.5,
+                                      color: isDark ? Colors.white : const Color(0xFF065F46),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF059669),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              ),
+                              icon: const Icon(Icons.payment_rounded, size: 20),
+                              label: Text(
+                                'دفع الأجرة الآن من المحفظة (${currencyFormatter.format(order.finalFare.toInt())} د.ع)',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                              ),
+                              onPressed: () async {
+                                if (auth.currentUser == null) return;
+                                final confirmed = await showDialog<bool>(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                    title: const Text('تأكيد دفع الأجرة من المحفظة', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    content: Text(
+                                      'هل ترغب بخصم مبلغ (${currencyFormatter.format(order.finalFare.toInt())} د.ع) من رصيد محفظتك وتسديدها للرحلة؟',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(ctx, false),
+                                        child: const Text('إلغاء'),
+                                      ),
+                                      ElevatedButton(
+                                        style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF059669)),
+                                        onPressed: () => Navigator.pop(ctx, true),
+                                        child: const Text('تأكيد الدفع', style: TextStyle(color: Colors.white)),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (confirmed == true) {
+                                  final ok = await booking.payActiveOrderWithWallet(customerId: auth.currentUser!.id);
+                                  if (ok) {
+                                    await auth.refreshCurrentUser();
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('تم دفع الأجرة بنجاح من المحفظة! شكراً لك.'),
+                                          backgroundColor: Color(0xFF10B981),
+                                          behavior: SnackBarBehavior.floating,
+                                        ),
+                                      );
+                                    }
+                                  } else if (context.mounted && booking.errorMessage != null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(booking.errorMessage!),
+                                        backgroundColor: Colors.redAccent,
+                                        behavior: SnackBarBehavior.floating,
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+
+                  // Driver Payment Method Badge (لوصول إشعار للكابتن بطريقة الدفع)
+                  if (isDriver && order.paymentMethod == 'wallet') ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: order.isPaid
+                            ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                            : const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: order.isPaid ? const Color(0xFF10B981) : const Color(0xFF38BDF8),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            order.isPaid ? Icons.check_circle_rounded : Icons.account_balance_wallet_rounded,
+                            size: 18,
+                            color: order.isPaid ? const Color(0xFF10B981) : const Color(0xFF0284C7),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              order.isPaid
+                                  ? 'طريقة الدفع: محفظة إلكترونية (تم استلام الأجرة برصيدك ✅)'
+                                  : 'طريقة الدفع: محفظة إلكترونية (سيقوم الزبون بالدفع عبر التطبيق)',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: order.isPaid ? const Color(0xFF059669) : const Color(0xFF0284C7),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
                   // Passenger Navigation & Sharing Action Button
                   if (!isDriver && order.driverId != null && order.status != 'completed') ...[
                     const SizedBox(height: 12),

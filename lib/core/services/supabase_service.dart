@@ -10,6 +10,7 @@ import '../../models/ad_banner.dart';
 import '../../models/favorite_place.dart';
 import '../../models/saved_route.dart';
 import '../../models/vehicle_pricing_config.dart';
+import '../../models/wallet_config.dart';
 
 class SupabaseService {
   static final SupabaseService _instance = SupabaseService._internal();
@@ -411,6 +412,7 @@ class SupabaseService {
     bool isRoundTrip = false,
     int stopDurationMinutes = 0,
     double stopFee = 0.0,
+    String paymentMethod = 'cash',
     String? notes,
     String? packageDetails,
   }) async {
@@ -440,6 +442,8 @@ class SupabaseService {
         'is_round_trip': isRoundTrip,
         'stop_duration_minutes': stopDurationMinutes,
         'stop_fee': stopFee,
+        'payment_method': paymentMethod,
+        'is_paid': false,
         'notes': notes,
         'package_details': packageDetails,
         'destinations': destinations,
@@ -2112,6 +2116,116 @@ class SupabaseService {
       await saveAllSavedRoutes(userId, list);
     } catch (e) {
       debugPrint('Delete saved route error: $e');
+      rethrow;
+    }
+  }
+
+  // ==========================================
+  // --- WALLET & E-PAYMENT SERVICES ---
+  // ==========================================
+
+  Future<WalletConfig> getWalletSettings() async {
+    try {
+      final res = await client
+          .from('app_settings')
+          .select('value')
+          .eq('key', 'wallet_settings')
+          .limit(1);
+      if (res.isNotEmpty && res.first['value'] != null) {
+        final val = res.first['value'];
+        if (val is Map<String, dynamic>) {
+          return WalletConfig.fromJson(val);
+        } else if (val is String) {
+          return WalletConfig.fromJsonString(val);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error getting wallet settings: $e');
+    }
+    return WalletConfig.defaultConfig();
+  }
+
+  Future<void> updateWalletSettings(WalletConfig config) async {
+    try {
+      await client.from('app_settings').upsert({
+        'key': 'wallet_settings',
+        'value': config.toJson(),
+      });
+    } catch (e) {
+      debugPrint('Error updating wallet settings: $e');
+      rethrow;
+    }
+  }
+
+  Future<bool> adminAdjustUserBalance({
+    required String userId,
+    required double deltaAmount,
+    String? reason,
+  }) async {
+    try {
+      final user = await getProfileById(userId);
+      if (user == null) return false;
+      final newBal = (user.walletBalance + deltaAmount).clamp(0.0, 999999999.0);
+      await client.from('profiles').update({'wallet_balance': newBal}).eq('id', userId);
+      return true;
+    } catch (e) {
+      debugPrint('Error adjusting user balance: $e');
+      return false;
+    }
+  }
+
+  Future<bool> adminSetUserBalance({
+    required String userId,
+    required double newBalance,
+    String? reason,
+  }) async {
+    try {
+      final clamped = newBalance.clamp(0.0, 999999999.0);
+      await client.from('profiles').update({'wallet_balance': clamped}).eq('id', userId);
+      return true;
+    } catch (e) {
+      debugPrint('Error setting user balance: $e');
+      return false;
+    }
+  }
+
+  Future<bool> payOrderWithWallet({
+    required String orderId,
+    required String customerId,
+    String? driverId,
+    required double amount,
+  }) async {
+    try {
+      final customer = await getProfileById(customerId);
+      if (customer == null) {
+        throw Exception('حساب الزبون غير موجود');
+      }
+      if (customer.walletBalance < amount) {
+        throw Exception('رصيد المحفظة غير كافٍ لإتمام الدفع');
+      }
+
+      // Deduct from customer
+      final newCustBal = (customer.walletBalance - amount).clamp(0.0, 999999999.0);
+      await client.from('profiles').update({'wallet_balance': newCustBal}).eq('id', customerId);
+
+      // Credit to driver if assigned
+      if (driverId != null && driverId.isNotEmpty) {
+        final driver = await getProfileById(driverId);
+        if (driver != null) {
+          final newDriverBal = driver.walletBalance + amount;
+          await client.from('profiles').update({'wallet_balance': newDriverBal}).eq('id', driverId);
+        }
+      }
+
+      // Mark order as paid
+      await client.from('rides_and_deliveries').update({
+        'payment_method': 'wallet',
+        'is_paid': true,
+      }).eq('id', orderId);
+
+      return true;
+    } catch (e) {
+      debugPrint('Pay with wallet error: $e');
       rethrow;
     }
   }

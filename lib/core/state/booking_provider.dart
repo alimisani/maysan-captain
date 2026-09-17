@@ -14,6 +14,7 @@ import '../../models/ad_banner.dart';
 import '../../models/favorite_place.dart';
 import '../../models/saved_route.dart';
 import '../../models/vehicle_pricing_config.dart';
+import '../../models/wallet_config.dart';
 
 class BookingProvider extends ChangeNotifier {
   final SupabaseService _supabaseService = SupabaseService();
@@ -21,6 +22,11 @@ class BookingProvider extends ChangeNotifier {
   // Vehicle-specific Dynamic Pricing Config
   VehiclePricingConfig _vehiclePricingConfig = VehiclePricingConfig.defaultConfig();
   VehiclePricingConfig get vehiclePricingConfig => _vehiclePricingConfig;
+
+  // Digital Wallet Configuration & Payment System
+  WalletConfig _walletConfig = WalletConfig.defaultConfig();
+  WalletConfig get walletConfig => _walletConfig;
+  bool get isWalletEnabled => _walletConfig.isEnabled;
 
   // Stop on Way & Round Trip State
   bool _isRoundTrip = false;
@@ -866,28 +872,11 @@ class BookingProvider extends ChangeNotifier {
         calculated = (base * totalLegs) + surcharge;
       }
 
-      // Check Peak Time Window (وقت الذروة المخصص) using local 24h time
-      if (vItem.isPeakWindowActive &&
-          vItem.peakSurchargeAmount > 0 &&
-          vItem.peakStartTime.isNotEmpty &&
-          vItem.peakEndTime.isNotEmpty) {
-        final now = DateTime.now();
-        final currentMinutes = now.hour * 60 + now.minute;
-        final startParts = vItem.peakStartTime.split(':');
-        final endParts = vItem.peakEndTime.split(':');
-        if (startParts.length == 2 && endParts.length == 2) {
-          final startMinutes = (int.tryParse(startParts[0].trim()) ?? 0) * 60 + (int.tryParse(startParts[1].trim()) ?? 0);
-          final endMinutes = (int.tryParse(endParts[0].trim()) ?? 0) * 60 + (int.tryParse(endParts[1].trim()) ?? 0);
-          bool isPeakNow = false;
-          if (startMinutes <= endMinutes) {
-            isPeakNow = currentMinutes >= startMinutes && currentMinutes <= endMinutes;
-          } else {
-            // Crosses midnight e.g. 22:00 to 04:00
-            isPeakNow = currentMinutes >= startMinutes || currentMinutes <= endMinutes;
-          }
-          if (isPeakNow) {
-            calculated += vItem.peakSurchargeAmount;
-          }
+      // Check Peak Time Windows (أوقات الذروة المتعددة) using local 24h time
+      // * قاعدة هامة: عندما تكون المسافة المحددة 7000 متر فصاعداً (>= 7.0 كم) لن تطبق سياسة وقت الذروة على الرحلة إطلاقاً
+      if (distanceMeters < 7000 && vItem.isPeakWindowActive && vItem.peakSurchargeAmount > 0) {
+        if (vItem.isTimeInPeak(DateTime.now())) {
+          calculated += vItem.peakSurchargeAmount;
         }
       }
     } else {
@@ -937,6 +926,7 @@ class BookingProvider extends ChangeNotifier {
     required String customerId,
     required String customerName,
     required String customerPhone,
+    String paymentMethod = 'cash',
     String? notes,
     String? packageDetails,
   }) async {
@@ -982,6 +972,7 @@ class BookingProvider extends ChangeNotifier {
         isRoundTrip: _isRoundTrip,
         stopDurationMinutes: selectedStopOption.minutes,
         stopFee: selectedStopOption.fee,
+        paymentMethod: paymentMethod,
         notes: notes,
         packageDetails: packageDetails,
       );
@@ -993,6 +984,42 @@ class BookingProvider extends ChangeNotifier {
     } catch (e) {
       _isLoading = false;
       _errorMessage = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<void> loadWalletSettings() async {
+    try {
+      _walletConfig = await _supabaseService.getWalletSettings();
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<bool> payActiveOrderWithWallet({required String customerId}) async {
+    if (_activeOrder == null) return false;
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      final success = await _supabaseService.payOrderWithWallet(
+        orderId: _activeOrder!.id,
+        customerId: customerId,
+        driverId: _activeOrder!.driverId,
+        amount: _activeOrder!.finalFare,
+      );
+      if (success) {
+        _activeOrder = _activeOrder!.copyWith(
+          paymentMethod: 'wallet',
+          isPaid: true,
+        );
+      }
+      _isLoading = false;
+      notifyListeners();
+      return success;
+    } catch (e) {
+      _isLoading = false;
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
       notifyListeners();
       return false;
     }
@@ -1108,9 +1135,10 @@ class BookingProvider extends ChangeNotifier {
     }
 
     _activeOrder = order;
-    // Periodic light sync for UI layout theme and ad banners
+    // Periodic light sync for UI layout theme, ad banners, and wallet settings
     loadUiLayoutTheme();
     loadBanners();
+    loadWalletSettings();
     
     // If driver has an active order, load the route for the map
     if (order != null && isDriver) {

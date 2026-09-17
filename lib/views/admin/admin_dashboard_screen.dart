@@ -17,6 +17,7 @@ import '../../models/custom_route_pricing.dart';
 import '../../models/user_profile.dart';
 import '../../models/ad_banner.dart';
 import '../../models/vehicle_pricing_config.dart';
+import '../../models/wallet_config.dart';
 import '../widgets/aurora_background.dart';
 import '../widgets/aurora_button.dart';
 import '../widgets/custom_text_field.dart';
@@ -83,6 +84,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   // Search & Filter state for Users & Orders
   final TextEditingController _userSearchController = TextEditingController();
   String _userFilter = 'all'; // 'all', 'user', 'driver'
+
+  final TextEditingController _walletUserSearchController = TextEditingController();
+  String _walletUserRoleFilter = 'all'; // 'all', 'user', 'driver'
 
   final TextEditingController _orderSearchController = TextEditingController();
   String _orderFilter = 'all'; // 'all', 'ride', 'delivery'
@@ -196,6 +200,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     _silverAmbassadorTargetController.dispose();
     _goldAmbassadorTargetController.dispose();
     _userSearchController.dispose();
+    _walletUserSearchController.dispose();
     _orderSearchController.dispose();
     super.dispose();
   }
@@ -343,6 +348,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         isSelected: _selectedTabIndex == 7,
                         isDark: isDark,
                       ),
+                      const SizedBox(width: 8),
+                      _buildCircularAdminTab(
+                        index: 8,
+                        icon: Icons.account_balance_wallet_rounded,
+                        title: 'المحفظة',
+                        isSelected: _selectedTabIndex == 8,
+                        isDark: isDark,
+                      ),
                     ],
                   ),
                 ),
@@ -363,6 +376,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           _buildReferralRewardsTab(admin, loc, isDark),
                           _buildUiLayoutTab(admin, loc, isDark),
                           _buildAdBannersTab(admin, loc, isDark),
+                          _buildWalletAdminTab(admin, loc, isDark),
                         ],
                       ),
               ),
@@ -7611,11 +7625,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final tier3Ctrl = TextEditingController(text: item.tier2001To2500.toInt().toString());
     final tier4Ctrl = TextEditingController(text: item.tier2501To3000.toInt().toString());
 
-    // وقت الذروة المخصص (تحديد وقت البداية والنهاية بنظام 24 ساعة ومبلغ يضاف تلقائياً للأجرة)
+    // وقت الذروة المخصص (تحديد أوقات متعددة بنظام 24 ساعة ومبلغ يضاف تلقائياً للأجرة)
     bool isPeakWindowActive = item.isPeakWindowActive;
-    final peakStartCtrl = TextEditingController(text: item.peakStartTime);
-    final peakEndCtrl = TextEditingController(text: item.peakEndTime);
     final peakSurchargeCtrl = TextEditingController(text: item.peakSurchargeAmount > 0 ? item.peakSurchargeAmount.toInt().toString() : '');
+    final List<Map<String, TextEditingController>> peakWindowCtrls = [];
+    final currentWindows = item.effectivePeakWindows;
+    if (currentWindows.isNotEmpty) {
+      for (final w in currentWindows) {
+        peakWindowCtrls.add({
+          'id': TextEditingController(text: w.id),
+          'start': TextEditingController(text: w.startTime),
+          'end': TextEditingController(text: w.endTime),
+        });
+      }
+    } else {
+      peakWindowCtrls.add({
+        'id': TextEditingController(text: 'w_1'),
+        'start': TextEditingController(text: item.peakStartTime.isNotEmpty ? item.peakStartTime : '08:00'),
+        'end': TextEditingController(text: item.peakEndTime.isNotEmpty ? item.peakEndTime : '11:00'),
+      });
+    }
 
     // 5000-10000m Long Distance Surcharges (مبالغ تضاف للأجرة الأساسية)
     final sur5001Ctrl = TextEditingController(text: item.surcharge5001To6000 > 0 ? item.surcharge5001To6000.toInt().toString() : '');
@@ -7858,34 +7887,100 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               ),
                             ),
                             const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: TextField(
-                                    controller: peakStartCtrl,
-                                    decoration: InputDecoration(
-                                      labelText: 'بدء الذروة (نظام 24h)',
-                                      hintText: 'مثال: 08:00 أو 21:00',
-                                      prefixIcon: const Icon(Icons.alarm_on_rounded, size: 16),
-                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                                    ),
+                            ...peakWindowCtrls.asMap().entries.map((entry) {
+                              final index = entry.key;
+                              final w = entry.value;
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0x33000000) : Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1),
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: TextField(
-                                    controller: peakEndCtrl,
-                                    decoration: InputDecoration(
-                                      labelText: 'نهاية الذروة (نظام 24h)',
-                                      hintText: 'مثال: 16:00 أو 23:30',
-                                      prefixIcon: const Icon(Icons.alarm_off_rounded, size: 16),
-                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextField(
+                                        controller: w['start'],
+                                        decoration: InputDecoration(
+                                          labelText: 'بدء الذروة ${index + 1} (24h)',
+                                          hintText: '08:00',
+                                          prefixIcon: const Icon(Icons.alarm_on_rounded, size: 16),
+                                          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: TextField(
+                                        controller: w['end'],
+                                        decoration: InputDecoration(
+                                          labelText: 'نهاية الذروة ${index + 1} (24h)',
+                                          hintText: '11:00',
+                                          prefixIcon: const Icon(Icons.alarm_off_rounded, size: 16),
+                                          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                        ),
+                                      ),
+                                    ),
+                                    if (peakWindowCtrls.length > 1) ...[
+                                      const SizedBox(width: 4),
+                                      IconButton(
+                                        icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
+                                        tooltip: 'حذف فترة الذروة',
+                                        onPressed: () {
+                                          setSheetState(() {
+                                            peakWindowCtrls.removeAt(index);
+                                          });
+                                        },
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              );
+                            }),
+                            const SizedBox(height: 4),
+                            OutlinedButton.icon(
+                              onPressed: () {
+                                setSheetState(() {
+                                  peakWindowCtrls.add({
+                                    'id': TextEditingController(text: 'w_${DateTime.now().microsecondsSinceEpoch}'),
+                                    'start': TextEditingController(text: '17:00'),
+                                    'end': TextEditingController(text: '20:00'),
+                                  });
+                                });
+                              },
+                              icon: const Icon(Icons.add_rounded, size: 18),
+                              label: const Text('+ إضافة فترة ذروة أخرى', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFFF59E0B),
+                                side: const BorderSide(color: Color(0xFFF59E0B)),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Row(
+                                children: [
+                                  Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFFF59E0B)),
+                                  SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      'تنبيه: عندما تكون مسافة المشوار 7000 متر فصاعداً (>= 7.0 كم) لن تطبق سياسة وقت الذروة إطلاقاً إنصافاً للمسافات البعيدة.',
+                                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: Color(0xFFD97706)),
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ],
                         ],
@@ -8036,8 +8131,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         final double t3 = double.tryParse(tier3Ctrl.text.trim()) ?? item.tier2001To2500;
                         final double t4 = double.tryParse(tier4Ctrl.text.trim()) ?? item.tier2501To3000;
 
-                        final String pStart = peakStartCtrl.text.trim();
-                        final String pEnd = peakEndCtrl.text.trim();
+                        final List<PeakTimeWindow> savedWindows = peakWindowCtrls
+                            .where((m) => m['start']!.text.trim().isNotEmpty && m['end']!.text.trim().isNotEmpty)
+                            .map((m) => PeakTimeWindow(
+                                  id: m['id']!.text.trim(),
+                                  startTime: m['start']!.text.trim(),
+                                  endTime: m['end']!.text.trim(),
+                                ))
+                            .toList();
+                        final String pStart = savedWindows.isNotEmpty ? savedWindows.first.startTime : '';
+                        final String pEnd = savedWindows.isNotEmpty ? savedWindows.first.endTime : '';
                         final double pSurcharge = double.tryParse(peakSurchargeCtrl.text.trim()) ?? 0.0;
 
                         final double s5 = double.tryParse(sur5001Ctrl.text.trim()) ?? 0.0;
@@ -8063,6 +8166,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           peakStartTime: pStart,
                           peakEndTime: pEnd,
                           peakSurchargeAmount: pSurcharge,
+                          peakWindows: savedWindows,
                           surcharge5001To6000: s5,
                           surcharge6001To7000: s6,
                           surcharge7001To8000: s7,
@@ -8097,6 +8201,1308 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           },
         );
       },
+    );
+  }
+
+  // ==========================================
+  // --- WALLET & E-PAYMENT ADMIN TAB ---
+  // ==========================================
+
+  Widget _buildWalletAdminTab(AdminProvider admin, AppLocalizations loc, bool isDark) {
+    final config = admin.walletConfig;
+    final users = admin.users;
+
+    final double totalBalances = users.fold(0.0, (sum, u) => sum + u.walletBalance);
+    final int usersWithBalance = users.where((u) => u.walletBalance > 0).length;
+    final int activePaymentMethods = config.paymentMethods.where((m) => m.isEnabled).length;
+
+    // Filter users for the balance list
+    final query = _walletUserSearchController.text.trim().toLowerCase();
+    final filteredUsers = users.where((u) {
+      final matchesRole = _walletUserRoleFilter == 'all'
+          ? true
+          : (_walletUserRoleFilter == 'driver' ? u.role == 'driver' : u.role == 'user');
+      final matchesQuery = query.isEmpty ||
+          u.name.toLowerCase().contains(query) ||
+          (u.phone ?? '').contains(query);
+      return matchesRole && matchesQuery;
+    }).toList();
+
+    final currencyFormatter = intl.NumberFormat('#,###');
+
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      physics: const BouncingScrollPhysics(),
+      children: [
+        // 1. Master Control Card
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: config.isEnabled
+                  ? [const Color(0xFF0F766E), const Color(0xFF047857)]
+                  : (isDark
+                      ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
+                      : [const Color(0xFFF1F5F9), const Color(0xFFE2E8F0)]),
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: config.isEnabled
+                  ? const Color(0xFF10B981)
+                  : (isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1)),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: (config.isEnabled ? const Color(0xFF10B981) : Colors.black).withValues(alpha: 0.15),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: config.isEnabled ? 0.2 : 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.account_balance_wallet_rounded,
+                      color: config.isEnabled ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF334155)),
+                      size: 26,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'نظام المحفظة والدفع الإلكتروني',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: config.isEnabled ? Colors.white : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          config.isEnabled
+                              ? 'النظام مفعل ونشط لجميع الزبائن والكباتن'
+                              : 'النظام معطل حالياً (مخفي تماماً عن التطبيق)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: config.isEnabled ? Colors.white.withValues(alpha: 0.85) : const Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Switch.adaptive(
+                    value: config.isEnabled,
+                    activeThumbColor: Colors.white,
+                    activeTrackColor: const Color(0xFF34D399),
+                    onChanged: (val) async {
+                      await admin.toggleWalletSystem(val);
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            val
+                                ? 'تم تفعيل نظام المحفظة والدفع الإلكتروني في التطبيق'
+                                : 'تم إيقاف نظام المحفظة وإخفائه من واجهات التطبيق',
+                          ),
+                          backgroundColor: val ? AuroraTheme.accentEmerald : Colors.orange,
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: config.isEnabled ? 0.2 : 0.05),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      config.isEnabled ? Icons.check_circle_outline_rounded : Icons.info_outline_rounded,
+                      size: 16,
+                      color: config.isEnabled ? Colors.white70 : const Color(0xFF64748B),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        config.isEnabled
+                            ? 'يظهر رصيد المحفظة بجانب زر المظهر، وتتاح للمستخدمين إمكانية اختيار الدفع بالمحفظة وشحن الرصيد.'
+                            : 'عند التعطيل، يختفي إطار رصيد المحفظة وكل خيارات الدفع الإلكتروني عن الزبائن والكباتن تلقائياً.',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: config.isEnabled ? Colors.white.withValues(alpha: 0.9) : const Color(0xFF64748B),
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // KPI Stats Row
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildWalletKpi(
+                      title: 'إجمالي الأرصدة',
+                      value: '${currencyFormatter.format(totalBalances.toInt())} د.ع',
+                      icon: Icons.savings_rounded,
+                      color: const Color(0xFF10B981),
+                      isDark: isDark,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildWalletKpi(
+                      title: 'مشتركين برصيد',
+                      value: '$usersWithBalance',
+                      icon: Icons.people_alt_rounded,
+                      color: const Color(0xFF38BDF8),
+                      isDark: isDark,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildWalletKpi(
+                      title: 'وسائل دفع نشطة',
+                      value: '$activePaymentMethods',
+                      icon: Icons.credit_card_rounded,
+                      color: const Color(0xFFA855F7),
+                      isDark: isDark,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // 2. Payment Methods Card
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: isDark ? const Color(0x3338BDF8) : const Color(0xFFE2E8F0)),
+            boxShadow: const [
+              BoxShadow(color: Color(0x0C000000), blurRadius: 10, offset: Offset(0, 3)),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AuroraTheme.primaryCyan.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.credit_card_rounded, color: AuroraTheme.primaryCyan, size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'وسائل الدفع المعتمدة للشحن',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                      ),
+                    ],
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () => _showAddEditPaymentMethodDialog(context, admin),
+                    icon: const Icon(Icons.add_rounded, size: 16),
+                    label: const Text('إضافة وسيلة', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AuroraTheme.primaryCyan,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'الوسائل المتاحة حالياً تظهر للزبائن لتحويل المبالغ إليها وشحن محافظهم (زين كاش، سوبر كي، وغيرها)',
+                style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+              ),
+              const SizedBox(height: 14),
+
+              if (config.paymentMethods.isEmpty)
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  alignment: Alignment.center,
+                  child: const Text('لا توجد وسائل دفع مضافة حالياً. اضغط على إضافة وسيلة بالأعلى.'),
+                )
+              else
+                ...config.paymentMethods.map((method) {
+                  final bool isZain = method.name.contains('زين');
+                  final bool isSuperQi = method.name.contains('سوبر');
+                  final Color methodColor = isZain
+                      ? const Color(0xFF10B981)
+                      : (isSuperQi ? const Color(0xFF38BDF8) : const Color(0xFFA855F7));
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: method.isEnabled
+                            ? methodColor.withValues(alpha: 0.35)
+                            : (isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: methodColor.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(Icons.account_balance_rounded, color: methodColor, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    method.name,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: method.isEnabled
+                                          ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                                          : Colors.grey.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      method.isEnabled ? 'مفعلة للشحن' : 'معطلة مؤقتاً',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: method.isEnabled ? const Color(0xFF10B981) : Colors.grey,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Text(
+                                    'رقم الحساب: ${method.accountNumber}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontFamily: 'monospace',
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? Colors.white70 : const Color(0xFF334155),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  InkWell(
+                                    onTap: () {
+                                      Clipboard.setData(ClipboardData(text: method.accountNumber));
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('تم نسخ رقم حساب ${method.name}'),
+                                          duration: const Duration(seconds: 1),
+                                        ),
+                                      );
+                                    },
+                                    child: const Icon(Icons.copy_rounded, size: 14, color: AuroraTheme.primaryCyan),
+                                  ),
+                                ],
+                              ),
+                              if (method.accountHolder.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  'المستفيد: ${method.accountHolder}',
+                                  style: TextStyle(fontSize: 11, color: isDark ? Colors.white54 : const Color(0xFF64748B)),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        Switch.adaptive(
+                          value: method.isEnabled,
+                          activeThumbColor: methodColor,
+                          activeTrackColor: methodColor.withValues(alpha: 0.4),
+                          onChanged: (val) async {
+                            final updatedMethods = config.paymentMethods.map((m) {
+                              if (m.id == method.id) {
+                                return m.copyWith(isEnabled: val);
+                              }
+                              return m;
+                            }).toList();
+                            await admin.updateWalletConfig(config.copyWith(paymentMethods: updatedMethods));
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.edit_outlined, size: 18, color: Colors.blueAccent),
+                          tooltip: 'تعديل',
+                          onPressed: () => _showAddEditPaymentMethodDialog(context, admin, existing: method),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.redAccent),
+                          tooltip: 'حذف',
+                          onPressed: () async {
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                title: const Text('تأكيد الحذف', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                                content: Text('هل أنت متأكد من حذف وسيلة الدفع (${method.name}) نهائياً؟'),
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                                    onPressed: () => Navigator.pop(ctx, true),
+                                    child: const Text('حذف', style: TextStyle(color: Colors.white)),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (confirm == true) {
+                              final updatedMethods = config.paymentMethods.where((m) => m.id != method.id).toList();
+                              await admin.updateWalletConfig(config.copyWith(paymentMethods: updatedMethods));
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // 3. Recharge Settings & Packages Card
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: isDark ? const Color(0x3338BDF8) : const Color(0xFFE2E8F0)),
+            boxShadow: const [
+              BoxShadow(color: Color(0x0C000000), blurRadius: 10, offset: Offset(0, 3)),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.price_change_rounded, color: Color(0xFFF59E0B), size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'تعليمات الشحن وباقات المبالغ المقترحة',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'تظهر هذه الباقات في واجهة المحفظة للزبائن ليختاروا المبلغ المطلوب تحويله للدعم الفني',
+                style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+              ),
+              const SizedBox(height: 14),
+
+              // Preset Packages
+              Text(
+                'الباقات المقترحة للشحن (د.ع):',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : const Color(0xFF334155)),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ...config.rechargePackages.map((amount) {
+                    return Chip(
+                      label: Text(
+                        '${currencyFormatter.format(amount)} د.ع',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                      ),
+                      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                      deleteIcon: const Icon(Icons.close_rounded, size: 16),
+                      onDeleted: () async {
+                        final updatedPackages = config.rechargePackages.where((a) => a != amount).toList();
+                        await admin.updateWalletConfig(config.copyWith(rechargePackages: updatedPackages));
+                      },
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1)),
+                      ),
+                    );
+                  }),
+                  ActionChip(
+                    avatar: const Icon(Icons.add_rounded, size: 16, color: AuroraTheme.primaryCyan),
+                    label: const Text('+ إضافة باقة', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AuroraTheme.primaryCyan)),
+                    backgroundColor: AuroraTheme.primaryCyan.withValues(alpha: 0.1),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: const BorderSide(color: AuroraTheme.primaryCyan),
+                    ),
+                    onPressed: () => _showAddRechargePackageDialog(context, admin),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Recharge Instructions
+              Text(
+                'رسالة وتعليمات شحن المحفظة (تظهر للمستخدمين):',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : const Color(0xFF334155)),
+              ),
+              const SizedBox(height: 6),
+              TextFormField(
+                initialValue: config.adminMessage,
+                maxLines: 2,
+                style: TextStyle(fontSize: 12, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                  hintText: 'اكتب تعليمات الشحن هنا...',
+                ),
+                onChanged: (val) {
+                  admin.updateWalletConfig(config.copyWith(adminMessage: val));
+                },
+              ),
+              const SizedBox(height: 12),
+
+              // Support Phone
+              Text(
+                'رقم هاتف واتساب الدعم الفني لشحن الرصيد:',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : const Color(0xFF334155)),
+              ),
+              const SizedBox(height: 6),
+              TextFormField(
+                initialValue: config.supportPhone,
+                keyboardType: TextInputType.phone,
+                style: TextStyle(fontSize: 13, fontFamily: 'monospace', color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.phone_rounded, size: 18, color: Color(0xFF10B981)),
+                  filled: true,
+                  fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                  hintText: 'مثال: 9647721655570',
+                ),
+                onChanged: (val) {
+                  admin.updateWalletConfig(config.copyWith(supportPhone: val));
+                },
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // 4. User Balances Management Card
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: isDark ? const Color(0x3338BDF8) : const Color(0xFFE2E8F0)),
+            boxShadow: const [
+              BoxShadow(color: Color(0x0C000000), blurRadius: 10, offset: Offset(0, 3)),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.manage_accounts_rounded, color: Color(0xFF10B981), size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'إدارة وشحن رصيد الزبائن والكباتن',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
+                        ),
+                        Text(
+                          'إضافة رصيد عند استلام الحوالة أو خصم أو تسوية رصيد',
+                          style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // Search Box
+              TextField(
+                controller: _walletUserSearchController,
+                onChanged: (_) => setState(() {}),
+                style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                decoration: InputDecoration(
+                  hintText: 'ابحث بالاسم أو برقم الهاتف...',
+                  prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                  suffixIcon: _walletUserSearchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear_rounded, size: 18),
+                          onPressed: () {
+                            _walletUserSearchController.clear();
+                            setState(() {});
+                          },
+                        )
+                      : null,
+                  filled: true,
+                  fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(color: isDark ? Colors.white10 : const Color(0xFFCBD5E1)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // Role Filter Chips
+              Row(
+                children: [
+                  _buildWalletRoleChip('الكل (${users.length})', 'all', isDark),
+                  const SizedBox(width: 6),
+                  _buildWalletRoleChip(
+                    'الكباتن (${users.where((u) => u.role == 'driver').length})',
+                    'driver',
+                    isDark,
+                  ),
+                  const SizedBox(width: 6),
+                  _buildWalletRoleChip(
+                    'الزبائن (${users.where((u) => u.role == 'user').length})',
+                    'user',
+                    isDark,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Users List
+              if (filteredUsers.isEmpty)
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  alignment: Alignment.center,
+                  child: Text(
+                    'لا يوجد مستخدمين مطابقين للبحث',
+                    style: TextStyle(color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                  ),
+                )
+              else
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: filteredUsers.length > 25 ? 25 : filteredUsers.length,
+                  separatorBuilder: (_, __) => const Divider(height: 12),
+                  itemBuilder: (context, index) {
+                    final user = filteredUsers[index];
+                    final bool isDriver = user.role == 'driver';
+
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF0F172A).withValues(alpha: 0.5) : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 20,
+                            backgroundColor: isDriver
+                                ? const Color(0xFFF59E0B).withValues(alpha: 0.2)
+                                : const Color(0xFF38BDF8).withValues(alpha: 0.2),
+                            child: Icon(
+                              isDriver ? Icons.local_taxi_rounded : Icons.person_rounded,
+                              color: isDriver ? const Color(0xFFF59E0B) : const Color(0xFF38BDF8),
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        user.name.isNotEmpty ? user.name : 'بدون اسم',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                      decoration: BoxDecoration(
+                                        color: isDriver
+                                            ? const Color(0xFFF59E0B).withValues(alpha: 0.15)
+                                            : const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        isDriver ? 'كابتن' : 'زبون',
+                                        style: TextStyle(
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDriver ? const Color(0xFFF59E0B) : const Color(0xFF38BDF8),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  user.phone ?? 'بدون رقم هاتف',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                                    fontFamily: 'monospace',
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+
+                          // Balance Badge
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: user.walletBalance > 0
+                                  ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                                  : (isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: user.walletBalance > 0
+                                    ? const Color(0xFF10B981).withValues(alpha: 0.4)
+                                    : Colors.transparent,
+                              ),
+                            ),
+                            child: Text(
+                              '${currencyFormatter.format(user.walletBalance.toInt())} د.ع',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: user.walletBalance > 0
+                                    ? const Color(0xFF10B981)
+                                    : (isDark ? Colors.white60 : const Color(0xFF64748B)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+
+                          // Adjust Button
+                          ElevatedButton(
+                            onPressed: () => _showUserBalanceDialog(context, admin, user),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF10B981),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            child: const Text('تعديل 💰', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              if (filteredUsers.length > 25)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Center(
+                    child: Text(
+                      'يتم عرض أول 25 مستخدم. استخدم البحث للوصول لأي مستخدم محدد.',
+                      style: TextStyle(fontSize: 10.5, color: isDark ? Colors.white54 : const Color(0xFF64748B)),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 30),
+      ],
+    );
+  }
+
+  Widget _buildWalletKpi({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+    required bool isDark,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A).withValues(alpha: 0.8) : Colors.white.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: TextStyle(fontSize: 10, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWalletRoleChip(String label, String role, bool isDark) {
+    final isSelected = _walletUserRoleFilter == role;
+    return ChoiceChip(
+      label: Text(label, style: TextStyle(fontSize: 11, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+      selected: isSelected,
+      onSelected: (_) => setState(() => _walletUserRoleFilter = role),
+      selectedColor: AuroraTheme.primaryCyan,
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+      labelStyle: TextStyle(color: isSelected ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF334155))),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    );
+  }
+
+  // Dialog to Add or Edit Payment Method
+  void _showAddEditPaymentMethodDialog(
+    BuildContext context,
+    AdminProvider admin, {
+    WalletPaymentMethod? existing,
+  }) {
+    final nameCtrl = TextEditingController(text: existing?.name ?? '');
+    final accountCtrl = TextEditingController(text: existing?.accountNumber ?? '');
+    final holderCtrl = TextEditingController(text: existing?.accountHolder ?? '');
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: Row(
+          children: [
+            Icon(existing != null ? Icons.edit_rounded : Icons.add_card_rounded, color: AuroraTheme.primaryCyan),
+            const SizedBox(width: 8),
+            Text(
+              existing != null ? 'تعديل وسيلة الدفع' : 'إضافة وسيلة دفع جديدة',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('اسم وسيلة الدفع (بالعربية فقط):', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              TextField(
+                controller: nameCtrl,
+                decoration: InputDecoration(
+                  hintText: 'مثال: زين كاش، سوبر كي، مصرف الرافدين...',
+                  filled: true,
+                  fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text('رقم الحساب / المحفظة:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              TextField(
+                controller: accountCtrl,
+                keyboardType: TextInputType.phone,
+                style: const TextStyle(fontFamily: 'monospace'),
+                decoration: InputDecoration(
+                  hintText: 'مثال: 07721655570',
+                  filled: true,
+                  fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text('اسم صاحب الحساب أو تعليمات التحويل:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              TextField(
+                controller: holderCtrl,
+                decoration: InputDecoration(
+                  hintText: 'مثال: شركة ميسان تك / فرع العمارة',
+                  filled: true,
+                  fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AuroraTheme.primaryCyan,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () async {
+              final name = nameCtrl.text.trim();
+              final account = accountCtrl.text.trim();
+              final holder = holderCtrl.text.trim();
+
+              if (name.isEmpty || account.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('يرجى كتابة اسم الوسيلة ورقم الحساب')),
+                );
+                return;
+              }
+
+              final config = admin.walletConfig;
+              List<WalletPaymentMethod> updatedList = List.from(config.paymentMethods);
+
+              if (existing != null) {
+                final idx = updatedList.indexWhere((m) => m.id == existing.id);
+                if (idx != -1) {
+                  updatedList[idx] = existing.copyWith(
+                    name: name,
+                    accountNumber: account,
+                    accountHolder: holder,
+                  );
+                }
+              } else {
+                updatedList.add(
+                  WalletPaymentMethod(
+                    id: const Uuid().v4(),
+                    name: name,
+                    accountNumber: account,
+                    accountHolder: holder,
+                    isEnabled: true,
+                  ),
+                );
+              }
+
+              await admin.updateWalletConfig(config.copyWith(paymentMethods: updatedList));
+              if (context.mounted) {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(existing != null ? 'تم تحديث وسيلة الدفع' : 'تمت إضافة وسيلة الدفع بنجاح'),
+                    backgroundColor: AuroraTheme.accentEmerald,
+                  ),
+                );
+              }
+            },
+            child: const Text('حفظ الوسيلة'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Dialog to Add Recharge Package
+  void _showAddRechargePackageDialog(BuildContext context, AdminProvider admin) {
+    final amountCtrl = TextEditingController();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: const Text('إضافة باقة شحن جديدة', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('المبلغ المقترح بالدينار العراقي (د.ع):', style: TextStyle(fontSize: 12)),
+            const SizedBox(height: 8),
+            TextField(
+              controller: amountCtrl,
+              keyboardType: TextInputType.number,
+              autofocus: true,
+              decoration: InputDecoration(
+                hintText: 'مثال: 30000',
+                filled: true,
+                fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                suffixText: 'د.ع',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AuroraTheme.primaryCyan,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () async {
+              final int? val = int.tryParse(amountCtrl.text.trim());
+              if (val == null || val <= 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('يرجى إدخال مبلغ صحيح')),
+                );
+                return;
+              }
+
+              final config = admin.walletConfig;
+              if (config.rechargePackages.contains(val)) {
+                Navigator.pop(ctx);
+                return;
+              }
+
+              final updated = List<int>.from(config.rechargePackages)..add(val);
+              updated.sort();
+              await admin.updateWalletConfig(config.copyWith(rechargePackages: updated));
+              if (context.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('إضافة'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Dialog to Adjust User Wallet Balance
+  void _showUserBalanceDialog(BuildContext context, AdminProvider admin, UserProfile user) {
+    int mode = 0; // 0 = Add (+), 1 = Deduct (-), 2 = Set exact (=)
+    final amountCtrl = TextEditingController();
+    final reasonCtrl = TextEditingController();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final currencyFormatter = intl.NumberFormat('#,###');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final double? enteredVal = double.tryParse(amountCtrl.text.trim());
+          double resultingBalance = user.walletBalance;
+          if (enteredVal != null && enteredVal > 0) {
+            if (mode == 0) {
+              resultingBalance = user.walletBalance + enteredVal;
+            } else if (mode == 1) {
+              resultingBalance = (user.walletBalance - enteredVal).clamp(0.0, 999999999.0);
+            } else {
+              resultingBalance = enteredVal;
+            }
+          }
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+            title: Row(
+              children: [
+                const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFF10B981)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'تعديل رصيد: ${user.name}',
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        'الرصيد الحالي: ${currencyFormatter.format(user.walletBalance.toInt())} د.ع (${user.role == "driver" ? "كابتن" : "زبون"})',
+                        style: const TextStyle(fontSize: 11, color: Color(0xFF10B981), fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Mode Selector
+                  Row(
+                    children: [
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => setDialogState(() => mode = 0),
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            decoration: BoxDecoration(
+                              color: mode == 0 ? const Color(0xFF10B981) : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9)),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '+ إضافة رصيد',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: mode == 0 ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF334155)),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => setDialogState(() => mode = 1),
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            decoration: BoxDecoration(
+                              color: mode == 1 ? Colors.redAccent : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9)),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '- خصم رصيد',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: mode == 1 ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF334155)),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => setDialogState(() => mode = 2),
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            decoration: BoxDecoration(
+                              color: mode == 2 ? const Color(0xFF38BDF8) : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9)),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '= ضبط مباشر',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: mode == 2 ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF334155)),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Amount Field
+                  Text(
+                    mode == 0
+                        ? 'المبلغ المراد إضافته (د.ع):'
+                        : (mode == 1 ? 'المبلغ المراد خصمه (د.ع):' : 'الرصيد الجديد المحدد (د.ع):'),
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: amountCtrl,
+                    keyboardType: TextInputType.number,
+                    onChanged: (_) => setDialogState(() {}),
+                    decoration: InputDecoration(
+                      hintText: 'مثال: 10000',
+                      filled: true,
+                      fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                      suffixText: 'د.ع',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Quick Amount Chips
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [1000, 5000, 10000, 25000, 50000].map((amt) {
+                      return InkWell(
+                        onTap: () {
+                          amountCtrl.text = amt.toString();
+                          setDialogState(() {});
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            '+${currencyFormatter.format(amt)}',
+                            style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Reason Note
+                  const Text('ملاحظة أو سبب الحركة (اختياري):', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: reasonCtrl,
+                    decoration: InputDecoration(
+                      hintText: 'مثال: تحويل زين كاش، مكافأة تشجيعية...',
+                      filled: true,
+                      fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Result Preview Box
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('الرصيد بعد التعديل:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        Text(
+                          '${currencyFormatter.format(resultingBalance.toInt())} د.ع',
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: mode == 1 ? Colors.redAccent : const Color(0xFF10B981),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () async {
+                  final double? amount = double.tryParse(amountCtrl.text.trim());
+                  if (amount == null || amount <= 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('يرجى إدخال مبلغ صحيح أكبر من الصفر')),
+                    );
+                    return;
+                  }
+
+                  final reason = reasonCtrl.text.trim();
+                  bool ok = false;
+
+                  if (mode == 0) {
+                    ok = await admin.adminAdjustUserBalance(user.id, amount, reason: reason.isNotEmpty ? reason : 'إضافة رصيد بواسطة المدير');
+                  } else if (mode == 1) {
+                    ok = await admin.adminAdjustUserBalance(user.id, -amount, reason: reason.isNotEmpty ? reason : 'خصم رصيد بواسطة المدير');
+                  } else {
+                    ok = await admin.adminSetUserBalance(user.id, amount, reason: reason.isNotEmpty ? reason : 'ضبط رصيد بواسطة المدير');
+                  }
+
+                  if (context.mounted) {
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(ok ? 'تم تعديل رصيد ${user.name} بنجاح' : 'حدث خطأ أثناء تعديل الرصيد'),
+                        backgroundColor: ok ? AuroraTheme.accentEmerald : Colors.redAccent,
+                      ),
+                    );
+                  }
+                },
+                child: const Text('تأكيد وحفظ الرصيد'),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

@@ -5,6 +5,7 @@ import '../../models/vehicle.dart';
 import '../../models/ride_order.dart';
 import '../../models/custom_route_pricing.dart';
 import '../../models/ad_banner.dart';
+import '../../models/wallet_config.dart';
 
 class AdminProvider extends ChangeNotifier {
   final SupabaseService _supabaseService = SupabaseService();
@@ -49,6 +50,7 @@ class AdminProvider extends ChangeNotifier {
 
   int _orderTimeoutMinutes = 3;
   AdPackageConfig _adPackagesConfig = const AdPackageConfig();
+  WalletConfig _walletConfig = WalletConfig.defaultConfig();
 
   bool _isLoading = false;
   String? _errorMessage;
@@ -68,6 +70,8 @@ class AdminProvider extends ChangeNotifier {
   List<AdBanner> get banners => _banners;
   int get orderTimeoutMinutes => _orderTimeoutMinutes;
   AdPackageConfig get adPackagesConfig => _adPackagesConfig;
+  WalletConfig get walletConfig => _walletConfig;
+  bool get isWalletEnabled => _walletConfig.isEnabled;
 
   bool get isTieredPricingEnabled => _isTieredPricingEnabled;
   double get tier0To1000 => _tier0To1000;
@@ -134,6 +138,7 @@ class AdminProvider extends ChangeNotifier {
         _supabaseService.getAllBanners(),
         _supabaseService.getOrderTimeoutMinutes(),
         _supabaseService.getAdPackagesPricing(),
+        _supabaseService.getWalletSettings(),
       ]);
 
       final rawUsers = results[0] as List<UserProfile>;
@@ -197,6 +202,7 @@ class AdminProvider extends ChangeNotifier {
       _banners = results[11] as List<AdBanner>;
       _orderTimeoutMinutes = results[12] as int;
       _adPackagesConfig = results[13] as AdPackageConfig;
+      _walletConfig = results[14] as WalletConfig;
 
       _isLoading = false;
       notifyListeners();
@@ -287,16 +293,76 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> deleteBanner(String bannerId) async {
+  Future<void> deleteBanner(String id) async {
     try {
-      await _supabaseService.deleteBanner(bannerId);
-      _banners.removeWhere((b) => b.id == bannerId);
+      await _supabaseService.deleteBanner(id);
+      _banners.removeWhere((b) => b.id == id);
       notifyListeners();
     } catch (e) {
       _errorMessage = e.toString();
       notifyListeners();
-      rethrow;
     }
+  }
+
+  // ==========================================
+  // --- WALLET & E-PAYMENT ADMIN ACTIONS ---
+  // ==========================================
+
+  Future<void> updateWalletConfig(WalletConfig config) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      await _supabaseService.updateWalletSettings(config);
+      _walletConfig = config;
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _isLoading = false;
+      _errorMessage = e.toString();
+      notifyListeners();
+    }
+  }
+
+  Future<void> toggleWalletSystem(bool enabled) async {
+    final updated = _walletConfig.copyWith(isEnabled: enabled);
+    await updateWalletConfig(updated);
+  }
+
+  Future<bool> adminAdjustUserBalance(String userId, double deltaAmount, {String? reason}) async {
+    final success = await _supabaseService.adminAdjustUserBalance(
+      userId: userId,
+      deltaAmount: deltaAmount,
+      reason: reason,
+    );
+    if (success) {
+      final idx = _users.indexWhere((u) => u.id == userId);
+      if (idx != -1) {
+        final currentBal = _users[idx].walletBalance;
+        _users[idx] = _users[idx].copyWith(
+          walletBalance: (currentBal + deltaAmount).clamp(0.0, 999999999.0),
+        );
+        notifyListeners();
+      }
+    }
+    return success;
+  }
+
+  Future<bool> adminSetUserBalance(String userId, double newBalance, {String? reason}) async {
+    final success = await _supabaseService.adminSetUserBalance(
+      userId: userId,
+      newBalance: newBalance,
+      reason: reason,
+    );
+    if (success) {
+      final idx = _users.indexWhere((u) => u.id == userId);
+      if (idx != -1) {
+        _users[idx] = _users[idx].copyWith(
+          walletBalance: newBalance.clamp(0.0, 999999999.0),
+        );
+        notifyListeners();
+      }
+    }
+    return success;
   }
 
   Future<void> updateMapStyle(String newStyle) async {
@@ -694,3 +760,4 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 }
+

@@ -35,6 +35,8 @@ class RideOrder {
   final bool isRoundTrip; // رحلة ذهاب وإياب
   final int stopDurationMinutes; // مدة التوقف في الطريق بالدقائق
   final double stopFee; // تكلفة التوقف المضافة
+  final String paymentMethod; // 'cash' or 'wallet'
+  final bool isPaid; // هل تم دفع الأجرة
   final DateTime createdAt;
   final DateTime? completedAt;
 
@@ -75,12 +77,15 @@ class RideOrder {
     this.isRoundTrip = false,
     this.stopDurationMinutes = 0,
     this.stopFee = 0.0,
+    this.paymentMethod = 'cash',
+    this.isPaid = false,
     required this.createdAt,
     this.completedAt,
   });
 
   bool get isRide => type == 'ride';
   bool get isDelivery => type == 'delivery';
+  bool get isPaidWithWallet => paymentMethod == 'wallet';
   bool get isPending => status == 'pending';
   bool get isFareProposed => status == 'fare_proposed';
   bool get isDriverAssigned => status == 'driver_assigned';
@@ -130,6 +135,8 @@ class RideOrder {
     bool? isRoundTrip,
     int? stopDurationMinutes,
     double? stopFee,
+    String? paymentMethod,
+    bool? isPaid,
     DateTime? createdAt,
     DateTime? completedAt,
   }) {
@@ -170,6 +177,8 @@ class RideOrder {
       isRoundTrip: isRoundTrip ?? this.isRoundTrip,
       stopDurationMinutes: stopDurationMinutes ?? this.stopDurationMinutes,
       stopFee: stopFee ?? this.stopFee,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
+      isPaid: isPaid ?? this.isPaid,
       createdAt: createdAt ?? this.createdAt,
       completedAt: completedAt ?? this.completedAt,
     );
@@ -237,6 +246,8 @@ class RideOrder {
       isRoundTrip: json['is_round_trip'] == true,
       stopDurationMinutes: (json['stop_duration_minutes'] as num?)?.toInt() ?? 0,
       stopFee: (json['stop_fee'] as num?)?.toDouble() ?? 0.0,
+      paymentMethod: json['payment_method'] as String? ?? 'cash',
+      isPaid: json['is_paid'] == true,
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now()
           : DateTime.now(),
@@ -284,6 +295,8 @@ class RideOrder {
       'is_round_trip': isRoundTrip,
       'stop_duration_minutes': stopDurationMinutes,
       'stop_fee': stopFee,
+      'payment_method': paymentMethod,
+      'is_paid': isPaid,
       'created_at': createdAt.toIso8601String(),
       'completed_at': completedAt?.toIso8601String(),
     };
