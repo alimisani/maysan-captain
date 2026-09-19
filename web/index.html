@@ -4,7 +4,10 @@
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
-  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="description" content="تطبيق كابتن ميسان لتوصيل الركاب والطلبات في محافظة ميسان وأقضيتها ونواحيها">
   <meta name="theme-color" content="#0ea5e9">
@@ -26,6 +29,24 @@
 
   <title>كابتن ميسان | Maysan Captain</title>
   <link rel="manifest" href="manifest.json">
+
+  <script>
+    // Immediately unregister all Service Workers and delete all CacheStorage
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for (var i = 0; i < registrations.length; i++) {
+          registrations[i].unregister();
+        }
+      });
+    }
+    if ('caches' in window) {
+      caches.keys().then(function(names) {
+        for (var i = 0; i < names.length; i++) {
+          caches.delete(names[i]);
+        }
+      });
+    }
+  </script>
 
   <style>
     body {
@@ -84,14 +105,11 @@
   </div>
 
   <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function(registrations) {
-        for (let registration of registrations) {
-          registration.update();
-        }
-      });
-    }
+    // Dynamically inject flutter_bootstrap.js with cache-busting timestamp
+    var script = document.createElement('script');
+    script.src = 'flutter_bootstrap.js?t=' + new Date().getTime();
+    script.async = true;
+    document.body.appendChild(script);
   </script>
-  <script src="flutter_bootstrap.js?v=23" async></script>
 </body>
 </html>
