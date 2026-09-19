@@ -31,21 +31,45 @@
   <link rel="manifest" href="manifest.json">
 
   <script>
-    // Immediately unregister all Service Workers and delete all CacheStorage
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function(registrations) {
-        for (var i = 0; i < registrations.length; i++) {
-          registrations[i].unregister();
-        }
-      });
-    }
-    if ('caches' in window) {
+    // 1. Immediately delete all caches stored by previous service workers
+    if (typeof caches !== 'undefined') {
       caches.keys().then(function(names) {
         for (var i = 0; i < names.length; i++) {
           caches.delete(names[i]);
         }
       });
     }
+
+    // 2. Force unregister every existing service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for (var i = 0; i < registrations.length; i++) {
+          registrations[i].unregister();
+        }
+      });
+      navigator.serviceWorker.addEventListener('controllerchange', function() {
+        window.location.reload();
+      });
+    }
+
+    // 3. Check version.json and force refresh if new build detected
+    fetch('version.json?t=' + Date.now(), { cache: 'no-store' })
+      .then(function(res) { return res.json(); })
+      .then(function(info) {
+        var currentBuild = (info && info.build_number) ? info.build_number : '23';
+        var storedBuild = localStorage.getItem('pwa_build_number');
+        if (storedBuild && storedBuild !== currentBuild) {
+          localStorage.setItem('pwa_build_number', currentBuild);
+          if (typeof caches !== 'undefined') {
+            caches.keys().then(function(names) {
+              names.forEach(function(n) { caches.delete(n); });
+            });
+          }
+          window.location.reload(true);
+        } else {
+          localStorage.setItem('pwa_build_number', currentBuild);
+        }
+      }).catch(function() {});
   </script>
 
   <style>
