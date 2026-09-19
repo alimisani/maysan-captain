@@ -18,7 +18,34 @@
         "headers": [
           {
             "key": "Cache-Control",
-            "value": "max-age=0, no-cache, no-store, must-revalidate"
+            "value": "no-cache, no-store, must-revalidate, max-age=0"
+          }
+        ]
+      },
+      {
+        "source": "flutter_bootstrap.js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate, max-age=0"
+          }
+        ]
+      },
+      {
+        "source": "main.dart.js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate, max-age=0"
+          }
+        ]
+      },
+      {
+        "source": "version.json",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate, max-age=0"
           }
         ]
       },
@@ -27,7 +54,7 @@
         "headers": [
           {
             "key": "Cache-Control",
-            "value": "max-age=0, no-cache, no-store, must-revalidate"
+            "value": "no-cache, no-store, must-revalidate, max-age=0"
           }
         ]
       },
@@ -36,16 +63,16 @@
         "headers": [
           {
             "key": "Cache-Control",
-            "value": "max-age=0, no-cache, no-store, must-revalidate"
+            "value": "no-cache, no-store, must-revalidate, max-age=0"
           }
         ]
       },
       {
-        "source": "**/*.@(js|css|wasm|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf)",
+        "source": "**/*.@(wasm|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf)",
         "headers": [
           {
             "key": "Cache-Control",
-            "value": "max-age=31536000"
+            "value": "max-age=86400"
           }
         ]
       }

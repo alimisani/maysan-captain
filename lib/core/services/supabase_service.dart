@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
@@ -415,6 +416,7 @@ class SupabaseService {
     String paymentMethod = 'cash',
     String? notes,
     String? packageDetails,
+    String? requestedVehicleType,
   }) async {
     try {
       final id = const Uuid().v4();
@@ -446,6 +448,8 @@ class SupabaseService {
         'is_paid': false,
         'notes': notes,
         'package_details': packageDetails,
+        if (requestedVehicleType != null) 'requested_vehicle_type': requestedVehicleType,
+        if (requestedVehicleType != null) 'vehicle_type': requestedVehicleType,
         'destinations': destinations,
         'created_at': DateTime.now().toIso8601String(),
       };
@@ -455,6 +459,8 @@ class SupabaseService {
       } catch (insertError) {
         debugPrint('Insert order with all fields failed: $insertError. Attempting fallback...');
         final fallbackData = Map<String, dynamic>.from(data);
+        fallbackData.remove('requested_vehicle_type');
+        fallbackData.remove('vehicle_type');
         fallbackData.remove('is_round_trip');
         fallbackData.remove('stop_duration_minutes');
         fallbackData.remove('stop_fee');
@@ -635,17 +641,46 @@ class SupabaseService {
     }
   }
 
-  // Get available pending orders for drivers in Maysan
+  // Get available pending orders for drivers in Maysan (with auto-cancellation of expired orders)
   Future<List<RideOrder>> getPendingOrders() async {
     try {
+      final timeoutMinutes = await getOrderTimeoutMinutes();
       final res = await client
           .from('rides_and_deliveries')
           .select()
           .eq('status', 'pending')
           .order('created_at', ascending: false)
-          .limit(30);
+          .limit(40);
 
-      return (res as List).map((e) => RideOrder.fromJson(e as Map<String, dynamic>)).toList();
+      final now = DateTime.now();
+      final List<RideOrder> validOrders = [];
+      final List<String> expiredIds = [];
+
+      for (final item in (res as List)) {
+        final order = RideOrder.fromJson(item as Map<String, dynamic>);
+        final diffMinutes = now.difference(order.createdAt).inMinutes;
+        if (diffMinutes >= timeoutMinutes) {
+          expiredIds.add(order.id);
+        } else {
+          validOrders.add(order);
+        }
+      }
+
+      // Automatically cancel expired orders in database so they never appear again
+      if (expiredIds.isNotEmpty) {
+        unawaited(
+          client
+              .from('rides_and_deliveries')
+              .update({
+                'status': 'cancelled',
+                'notes': 'تم إلغاء الطلب تلقائياً لانتهاء مهلة انتظار الكابتن ($timeoutMinutes دقيقة)',
+              })
+              .inFilter('id', expiredIds)
+              .then((_) => null, onError: (err) => debugPrint('Auto-cancel expired orders error: $err')),
+        );
+      }
+
+      return validOrders;
     } catch (e) {
       debugPrint('Error fetching pending orders: $e');
       return [];

@@ -76,7 +76,7 @@ class AppLocalizations {
       'iqd': 'د.ع',
       'km': 'كم',
       'distance': 'المسافة التقريبية',
-      'bookNow': 'طلب المشوار الآن',
+      'bookNow': 'طلب رحلة الآن',
       'requestDelivery': 'طلب التوصيل الآن',
       'packageNotes': 'ملاحظات الطلب أو وصف الطرد',
       'packageNotesHint': 'اكتب أي ملاحظات للوجهة أو وصف الشحنة...',

@@ -1,16 +1,18 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/state/auth_provider.dart';
 import '../../core/state/theme_provider.dart';
 import '../../core/theme/aurora_theme.dart';
+import '../home/home_screen.dart';
 import '../widgets/aurora_background.dart';
 import '../widgets/aurora_button.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/glass_card.dart';
 
 class VehicleRegistrationScreen extends StatefulWidget {
-  const VehicleRegistrationScreen({super.key});
+  final bool isFirstTime;
+  const VehicleRegistrationScreen({super.key, this.isFirstTime = false});
 
   @override
   State<VehicleRegistrationScreen> createState() =>
@@ -63,7 +65,15 @@ class _VehicleRegistrationScreenState extends State<VehicleRegistrationScreen> {
             backgroundColor: AuroraTheme.accentEmerald,
           ),
         );
-        Navigator.pop(context);
+        if (widget.isFirstTime) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+            (route) => false,
+          );
+        } else {
+          Navigator.pop(context);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -92,7 +102,10 @@ class _VehicleRegistrationScreenState extends State<VehicleRegistrationScreen> {
     final loc = AppLocalizations.of(context);
     final isDark = context.watch<ThemeProvider>().isDark;
     return Scaffold(
-      appBar: AppBar(title: Text(loc.translate('registerVehicle'))),
+      appBar: AppBar(
+        title: Text(loc.translate('registerVehicle')),
+        automaticallyImplyLeading: !widget.isFirstTime,
+      ),
       body: AuroraBackground(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),

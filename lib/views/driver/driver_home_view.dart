@@ -14,7 +14,9 @@ import '../history/order_history_screen.dart';
 import '../profile/edit_profile_screen.dart';
 import '../settings/settings_screen.dart';
 import '../tracking/live_tracking_screen.dart';
+import '../../core/services/supabase_service.dart';
 import 'driver_dashboard_screen.dart';
+import 'driver_fee_payment_dialog.dart';
 import 'vehicle_registration_screen.dart';
 
 class DriverHomeView extends StatefulWidget {
@@ -37,6 +39,8 @@ class _DriverHomeViewState extends State<DriverHomeView> {
   bool _isOnline = true;
   int _navIndex = 0;
   Timer? _radarTimer;
+  final Map<String, double> _customFares = {};
+  final Set<String> _editingOrders = {};
 
   @override
   void initState() {
@@ -377,19 +381,18 @@ class _DriverHomeViewState extends State<DriverHomeView> {
                                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                               ),
                               const Spacer(),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(12),
+                              if (booking.pendingOrders.isNotEmpty)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    '${booking.pendingOrders.length} متاح الآن',
+                                    style: const TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold),
+                                  ),
                                 ),
-                                child: Text(
-                                  booking.pendingOrders.isNotEmpty
-                                      ? '${booking.pendingOrders.length} متاح الآن'
-                                      : 'تحديث لحظي',
-                                  style: const TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold),
-                                ),
-                              ),
                             ],
                           ),
                           const SizedBox(height: 14),
@@ -709,73 +712,432 @@ class _DriverHomeViewState extends State<DriverHomeView> {
           ),
           const SizedBox(height: 10),
 
-          // Fare Info
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('الأجرة المقترحة من الإدارة:', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-              Text(
-                '${currencyFormatter.format(order.initialFare.toInt())} د.ع',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF10B981)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
+          // Fare Info & Adjustment
+          Builder(
+            builder: (context) {
+              final customFare = _customFares[order.id] ?? order.initialFare;
+              final isFareModified = (customFare - order.initialFare).abs() > 1;
+              final isEditing = _editingOrders.contains(order.id);
 
-          // 1-Tap Accept Button
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF10B981),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              padding: const EdgeInsets.symmetric(vertical: 10),
-            ),
-            onPressed: () async {
-              try {
-                // If driver was in break mode, auto-switch to online
-                if (!_isOnline) {
-                  setState(() => _isOnline = true);
-                  if (auth.currentUser != null) {
-                    booking.startDriverLocationBroadcast(
-                      driverId: auth.currentUser!.id,
-                      driverName: auth.currentUser!.name,
-                      vehicleType: auth.currentVehicle?.vehicleType ?? 'salon',
-                    );
-                  }
-                }
+              return Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isFareModified
+                            ? const Color(0xFFF59E0B)
+                            : (isDark ? const Color(0x3338BDF8) : const Color(0xFFE2E8F0)),
+                        width: isFareModified ? 1.5 : 1.0,
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'الأجرة المقترحة من الإدارة:',
+                                  style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
+                                ),
+                                Text(
+                                  '${currencyFormatter.format(order.initialFare.toInt())} د.ع',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: isFareModified ? Colors.grey : const Color(0xFF10B981),
+                                    decoration: isFareModified ? TextDecoration.lineThrough : null,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            InkWell(
+                              onTap: () {
+                                setState(() {
+                                  if (isEditing) {
+                                    _editingOrders.remove(order.id);
+                                  } else {
+                                    _editingOrders.add(order.id);
+                                  }
+                                });
+                              },
+                              borderRadius: BorderRadius.circular(10),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: (isFareModified ? const Color(0xFFF59E0B) : const Color(0xFF10B981))
+                                      .withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: isFareModified ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      isFareModified
+                                          ? 'عرضك: ${currencyFormatter.format(customFare.toInt())} د.ع'
+                                          : 'تعديل الأجرة ✏️',
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: isFareModified ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Icon(
+                                      isEditing ? Icons.close_rounded : Icons.tune_rounded,
+                                      size: 14,
+                                      color: isFareModified ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (isEditing || isFareModified) ...[
+                          const Divider(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              IconButton.filledTonal(
+                                onPressed: customFare > 1000
+                                    ? () {
+                                        setState(() {
+                                          _customFares[order.id] = (customFare - 500).clamp(1000, 999000);
+                                        });
+                                      }
+                                    : null,
+                                icon: const Icon(Icons.remove_rounded, size: 18),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                                  foregroundColor: const Color(0xFFEF4444),
+                                  minimumSize: const Size(36, 36),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      '${currencyFormatter.format(customFare.toInt())} د.ع',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w900,
+                                        color: Color(0xFFF59E0B),
+                                      ),
+                                    ),
+                                    const Text(
+                                      'الأجرة المقترحة للزبون',
+                                      style: TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton.filledTonal(
+                                onPressed: () {
+                                  setState(() {
+                                    _customFares[order.id] = customFare + 500;
+                                  });
+                                },
+                                icon: const Icon(Icons.add_rounded, size: 18),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: const Color(0xFF10B981).withValues(alpha: 0.15),
+                                  foregroundColor: const Color(0xFF10B981),
+                                  minimumSize: const Size(36, 36),
+                                ),
+                              ),
+                              if (isFareModified) ...[
+                                const SizedBox(width: 8),
+                                TextButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _customFares.remove(order.id);
+                                      _editingOrders.remove(order.id);
+                                    });
+                                  },
+                                  child: const Text('إلغاء', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
 
-                final success = await booking.driverAcceptOrder(
-                  orderId: order.id,
-                  driverId: auth.currentUser!.id,
-                  driverName: auth.currentUser!.name,
-                  driverPhone: auth.currentUser!.phone ?? '',
-                  driverRating: auth.currentUser!.rating,
-                  vehicleInfo: vehicleInfo,
-                  agreedFare: order.initialFare,
-                );
-                if (success) {
-                  NotificationService.playTripChime();
-                  if (mounted) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const LiveTrackingScreen()),
-                    );
-                  }
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('خطأ في قبول الطلب: $e'), backgroundColor: Colors.red),
-                  );
-                }
-              }
+                  // Action Buttons:
+                  if (isFareModified) ...[
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFF59E0B),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        padding: const EdgeInsets.symmetric(vertical: 11),
+                      ),
+                      onPressed: () async {
+                        await _handleProposeFare(order, customFare, auth, booking, vehicleInfo);
+                      },
+                      child: Text(
+                        'إرسال عرض الأجرة للزبون (${currencyFormatter.format(customFare.toInt())} د.ع)',
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 12.5),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        side: const BorderSide(color: Color(0xFF10B981)),
+                      ),
+                      onPressed: () async {
+                        await _handleAcceptOrder(order, order.initialFare, auth, booking, vehicleInfo);
+                      },
+                      child: Text(
+                        'قبول بالأجرة المحددة (${currencyFormatter.format(order.initialFare.toInt())} د.ع)',
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF10B981), fontSize: 11.5),
+                      ),
+                    ),
+                  ] else ...[
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF10B981),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        padding: const EdgeInsets.symmetric(vertical: 11),
+                      ),
+                      onPressed: () async {
+                        await _handleAcceptOrder(order, order.initialFare, auth, booking, vehicleInfo);
+                      },
+                      child: Text(
+                        'قبول الطلب بالأجرة المحددة (${currencyFormatter.format(order.initialFare.toInt())} د.ع)',
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 12.5),
+                      ),
+                    ),
+                  ],
+                ],
+              );
             },
-            child: Text(
-              'قبول الطلب بالأجرة المحددة (${currencyFormatter.format(order.initialFare.toInt())} د.ع)',
-              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 12.5),
-            ),
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _handleAcceptOrder(
+    RideOrder order,
+    double fare,
+    AuthProvider auth,
+    BookingProvider booking,
+    String vehicleInfo,
+  ) async {
+    try {
+      if (auth.currentUser != null) {
+        final isLocked = await DriverFeePaymentDialog.isDriverLocked(auth.currentUser!);
+        if (isLocked && mounted) {
+          DriverFeePaymentDialog.show(context, driver: auth.currentUser!);
+          return;
+        }
+      }
+
+      if (!_isOnline) {
+        setState(() => _isOnline = true);
+        if (auth.currentUser != null) {
+          booking.startDriverLocationBroadcast(
+            driverId: auth.currentUser!.id,
+            driverName: auth.currentUser!.name,
+            vehicleType: auth.currentVehicle?.vehicleType ?? 'salon',
+          );
+        }
+      }
+
+      final success = await booking.driverAcceptOrder(
+        orderId: order.id,
+        driverId: auth.currentUser!.id,
+        driverName: auth.currentUser!.name,
+        driverPhone: auth.currentUser!.phone ?? '',
+        driverRating: auth.currentUser!.rating,
+        vehicleInfo: vehicleInfo,
+        agreedFare: fare,
+      );
+      if (success) {
+        NotificationService.playTripChime();
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const LiveTrackingScreen()),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطأ في قبول الطلب: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleProposeFare(
+    RideOrder order,
+    double proposedFare,
+    AuthProvider auth,
+    BookingProvider booking,
+    String vehicleInfo,
+  ) async {
+    try {
+      if (auth.currentUser != null) {
+        final isLocked = await DriverFeePaymentDialog.isDriverLocked(auth.currentUser!);
+        if (isLocked && mounted) {
+          DriverFeePaymentDialog.show(context, driver: auth.currentUser!);
+          return;
+        }
+      }
+
+      if (!_isOnline) {
+        setState(() => _isOnline = true);
+        if (auth.currentUser != null) {
+          booking.startDriverLocationBroadcast(
+            driverId: auth.currentUser!.id,
+            driverName: auth.currentUser!.name,
+            vehicleType: auth.currentVehicle?.vehicleType ?? 'salon',
+          );
+        }
+      }
+
+      await SupabaseService().proposeDriverFare(
+        orderId: order.id,
+        driverId: auth.currentUser!.id,
+        driverName: auth.currentUser!.name,
+        driverPhone: auth.currentUser!.phone ?? '',
+        driverRating: auth.currentUser!.rating,
+        vehicleInfo: vehicleInfo,
+        proposedFare: proposedFare,
+      );
+
+      if (mounted) {
+        _showWaitingForPassengerDialog(context, order.id, proposedFare);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطأ في إرسال عرض الأجرة: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  void _showWaitingForPassengerDialog(BuildContext context, String orderId, double proposedFare) {
+    Timer? pollTimer;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final auth = context.read<AuthProvider>();
+    final booking = context.read<BookingProvider>();
+    final currencyFormatter = intl.NumberFormat('#,###');
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dlgContext) {
+        pollTimer = Timer.periodic(const Duration(milliseconds: 1500), (timer) async {
+          final updatedOrder = await SupabaseService().getOrderById(orderId);
+          if (updatedOrder == null) return;
+
+          // 1. Passenger Accepted the Proposed Fare!
+          if (updatedOrder.status == 'accepted' && updatedOrder.driverId == auth.currentUser?.id) {
+            timer.cancel();
+            if (dlgContext.mounted) Navigator.pop(dlgContext);
+            booking.setActiveOrder(updatedOrder);
+            NotificationService.playTripChime();
+
+            if (context.mounted) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LiveTrackingScreen()),
+              );
+            }
+          }
+          // 2. Passenger Declined the Proposed Fare or Cancelled
+          else if (updatedOrder.status == 'cancelled' ||
+              (updatedOrder.status == 'pending' && updatedOrder.driverId == null)) {
+            timer.cancel();
+            if (dlgContext.mounted) Navigator.pop(dlgContext);
+            booking.fetchPendingOrders();
+
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('تم رفض الأجرة المقترحة من قبل الزبون، عاد الطلب للائحة'),
+                  backgroundColor: AuroraTheme.accentRose,
+                ),
+              );
+            }
+          }
+        });
+
+        return PopScope(
+          canPop: false,
+          child: AlertDialog(
+            backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            content: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AuroraTheme.accentAmber.withValues(alpha: 0.15),
+                    ),
+                    child: const CircularProgressIndicator(
+                      strokeWidth: 3,
+                      valueColor: AlwaysStoppedAnimation<Color>(AuroraTheme.accentAmber),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'بانتظار موافقة الزبون على الأجرة...',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'تم إرسال عرض الأجرة (${currencyFormatter.format(proposedFare.toInt())} د.ع) إلى الزبون.\nستفتح نافذة التتبع تلقائياً فور موافقته.',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () async {
+                  pollTimer?.cancel();
+                  Navigator.pop(dlgContext);
+                  try {
+                    await SupabaseService().client
+                        .from('rides_and_deliveries')
+                        .update({'proposed_fare': null, 'driver_id': null, 'driver_name': null})
+                        .eq('id', orderId);
+                  } catch (_) {}
+                  booking.fetchPendingOrders();
+                },
+                child: const Text('إلغاء العرض والعودة', style: TextStyle(color: Colors.grey)),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

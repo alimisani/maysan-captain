@@ -28,6 +28,10 @@ class BookingProvider extends ChangeNotifier {
   WalletConfig get walletConfig => _walletConfig;
   bool get isWalletEnabled => _walletConfig.isEnabled;
 
+  // Active Driver Registered Vehicle Type for Targeted Order Dispatch
+  String? _currentDriverVehicleType;
+  String? get currentDriverVehicleType => _currentDriverVehicleType;
+
   // Stop on Way & Round Trip State
   bool _isRoundTrip = false;
   String _selectedStopId = 'none';
@@ -622,6 +626,7 @@ class BookingProvider extends ChangeNotifier {
     required String driverName,
     required String vehicleType,
   }) {
+    _currentDriverVehicleType = vehicleType;
     BackgroundOrderService.startDriverService(
       driverId: driverId,
       driverName: driverName,
@@ -974,7 +979,14 @@ class BookingProvider extends ChangeNotifier {
         stopFee: selectedStopOption.fee,
         paymentMethod: paymentMethod,
         notes: notes,
-        packageDetails: packageDetails,
+        packageDetails: _serviceType == 'delivery'
+            ? (packageDetails != null && packageDetails.isNotEmpty
+                ? '$packageDetails | vehicle_type:delivery'
+                : 'vehicle_type:delivery')
+            : (packageDetails != null && packageDetails.isNotEmpty
+                ? '$packageDetails | vehicle_type:$_selectedVehicleType'
+                : 'vehicle_type:$_selectedVehicleType'),
+        requestedVehicleType: _serviceType == 'delivery' ? 'delivery' : _selectedVehicleType,
       );
 
       _activeOrder = order;
@@ -1189,23 +1201,34 @@ class BookingProvider extends ChangeNotifier {
     }
   }
 
-  // Driver: fetch available pending requests with push notification for new ones
-  Future<void> fetchPendingOrders({bool notifyNew = true}) async {
+  // Driver: fetch available pending requests with push notification for new ones (filtered by vehicle type)
+  Future<void> fetchPendingOrders({bool notifyNew = true, String? driverVehicleType}) async {
+    if (driverVehicleType != null && driverVehicleType.isNotEmpty) {
+      _currentDriverVehicleType = driverVehicleType;
+    }
     final rawOrders = await _supabaseService.getPendingOrders();
     final currentUid = _currentUserId ?? _supabaseService.client.auth.currentUser?.id;
 
-    // Filter out any orders where this driver was rejected by the customer
-    if (currentUid != null) {
-      _pendingOrders = rawOrders.where((o) => !o.rejectedDriverIds.contains(currentUid)).toList();
-    } else {
-      _pendingOrders = rawOrders;
-    }
+    // Filter out orders where this driver was rejected, or orders that don't match driver's vehicle type
+    _pendingOrders = rawOrders.where((o) {
+      if (currentUid != null && o.rejectedDriverIds.contains(currentUid)) {
+        return false;
+      }
+      if (_isDriverRole && _currentDriverVehicleType != null && _currentDriverVehicleType!.isNotEmpty) {
+        return o.matchesDriverVehicle(_currentDriverVehicleType);
+      }
+      return true;
+    }).toList();
 
-    // Only notify if user is an active registered driver, AND NOT the customer who created the order!
+    // Only notify if user is an active registered driver, NOT own order, AND order matches driver's vehicle!
     if (notifyNew && _isDriverRole && currentUid != null) {
       for (final order in _pendingOrders) {
         final isOwnOrder = order.customerId == currentUid;
-        if (!isOwnOrder && !_notifiedPendingOrderIds.contains(order.id)) {
+        final matchesVehicle = _currentDriverVehicleType == null ||
+            _currentDriverVehicleType!.isEmpty ||
+            order.matchesDriverVehicle(_currentDriverVehicleType);
+
+        if (!isOwnOrder && matchesVehicle && !_notifiedPendingOrderIds.contains(order.id)) {
           _notifiedPendingOrderIds.add(order.id);
           NotificationService.showNewOrderNotification(
             orderNumber: order.orderNumber,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../../../core/state/booking_provider.dart';
 import '../../../core/theme/aurora_theme.dart';
@@ -27,6 +28,28 @@ class FavoritesAndRoutesCardWidget extends StatefulWidget {
 class _FavoritesAndRoutesCardWidgetState extends State<FavoritesAndRoutesCardWidget>
     with SingleTickerProviderStateMixin {
   bool _isExpanded = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExpandedState();
+  }
+
+  Future<void> _loadExpandedState() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getBool('card_favorites_expanded');
+    if (saved != null && mounted) {
+      setState(() => _isExpanded = saved);
+    }
+  }
+
+  void _toggleExpanded() async {
+    setState(() {
+      _isExpanded = !_isExpanded;
+    });
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('card_favorites_expanded', _isExpanded);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,11 +84,7 @@ class _FavoritesAndRoutesCardWidgetState extends State<FavoritesAndRoutesCardWid
           children: [
             // Header with toggle collapse/expand
             InkWell(
-              onTap: () {
-                setState(() {
-                  _isExpanded = !_isExpanded;
-                });
-              },
+              onTap: _toggleExpanded,
               borderRadius: BorderRadius.circular(22),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

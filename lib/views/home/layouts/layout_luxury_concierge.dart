@@ -124,7 +124,7 @@ class LayoutLuxuryConcierge extends StatelessWidget {
                                       Icon(Icons.directions_car_filled_rounded, color: Colors.white, size: 28),
                                       SizedBox(height: 4),
                                       Text(
-                                        'طلب مشوار\nالآن',
+                                        'طلب رحلة\nالآن',
                                         textAlign: TextAlign.center,
                                         style: TextStyle(
                                           color: Colors.white,

@@ -29,6 +29,7 @@ class RideOrder {
   final String status; // 'pending', 'fare_proposed', 'accepted', 'on_way', 'arrived', 'in_progress', 'completed', 'cancelled'
   final String? notes;
   final String? packageDetails;
+  final String? requestedVehicleType; // نوع المركبة المطلوب من الزبون: salon, vip, tuk_tuk, delivery, pickup
   final List<Map<String, dynamic>> destinations;
   final List<String> rejectedDriverIds;
   final Map<String, int> driverRejectionCounts;
@@ -71,6 +72,7 @@ class RideOrder {
     this.status = 'pending',
     this.notes,
     this.packageDetails,
+    this.requestedVehicleType,
     this.destinations = const [],
     this.rejectedDriverIds = const [],
     this.driverRejectionCounts = const {},
@@ -97,6 +99,32 @@ class RideOrder {
   bool get isCancelled => status == 'cancelled';
   bool get isActive => !isCompleted && !isCancelled;
   bool get isReviewed => customerRating != null;
+
+  /// فحص تطابق نوع المركبة المطلوب مع مركبة الكابتن المسجلة
+  bool matchesDriverVehicle(String? driverVehicleType) {
+    if (requestedVehicleType == null || requestedVehicleType!.isEmpty) {
+      return true; // طلبات عامة سابقة بدون نوع مركبة تظهر للجميع
+    }
+    final req = requestedVehicleType!.toLowerCase().trim();
+    final dType = (driverVehicleType ?? 'salon').toLowerCase().trim();
+
+    if (req == 'salon' || req == 'taxi' || req == 'private') {
+      return dType == 'salon' || dType == 'taxi' || dType == 'private';
+    }
+    if (req == 'vip') {
+      return dType == 'vip';
+    }
+    if (req == 'tuk_tuk' || req == 'toktok' || req == 'stotah') {
+      return dType == 'tuk_tuk' || dType == 'toktok' || dType == 'stotah';
+    }
+    if (req == 'motorcycle' || req == 'delivery') {
+      return dType == 'motorcycle' || dType == 'delivery';
+    }
+    if (req == 'pickup') {
+      return dType == 'pickup';
+    }
+    return req == dType;
+  }
 
   RideOrder copyWith({
     String? id,
@@ -209,6 +237,26 @@ class RideOrder {
       return [];
     }
 
+    String? parseRequestedVehicle() {
+      if (json['requested_vehicle_type'] != null && json['requested_vehicle_type'].toString().isNotEmpty) {
+        return json['requested_vehicle_type'].toString();
+      }
+      if (json['vehicle_type'] != null && json['vehicle_type'].toString().isNotEmpty) {
+        return json['vehicle_type'].toString();
+      }
+      final pkg = json['package_details']?.toString();
+      if (pkg != null && pkg.contains('vehicle_type:')) {
+        final match = RegExp(r'vehicle_type:([a-zA-Z0-9_-]+)').firstMatch(pkg);
+        if (match != null) return match.group(1);
+      }
+      final nts = json['notes']?.toString();
+      if (nts != null && nts.contains('vehicle_type:')) {
+        final match = RegExp(r'vehicle_type:([a-zA-Z0-9_-]+)').firstMatch(nts);
+        if (match != null) return match.group(1);
+      }
+      return null;
+    }
+
     return RideOrder(
       id: json['id']?.toString() ?? '',
       orderNumber: json['order_number'] as String? ?? 'ORD-000',
@@ -240,6 +288,7 @@ class RideOrder {
       status: json['status'] as String? ?? 'pending',
       notes: json['notes'] as String?,
       packageDetails: json['package_details'] as String?,
+      requestedVehicleType: parseRequestedVehicle(),
       destinations: parseDestinations(),
       rejectedDriverIds: parseRejectedDrivers(),
       driverRejectionCounts: parseRejectionCounts(),
@@ -289,6 +338,7 @@ class RideOrder {
       'status': status,
       'notes': notes,
       'package_details': packageDetails,
+      'requested_vehicle_type': requestedVehicleType,
       'destinations': destinations,
       'rejected_driver_ids': rejectedDriverIds,
       'driver_rejection_counts': driverRejectionCounts,

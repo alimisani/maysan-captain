@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' as intl;
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/state/auth_provider.dart';
 import '../../core/state/booking_provider.dart';
 import '../../core/state/theme_provider.dart';
 import '../../core/theme/aurora_theme.dart';
-import '../../models/vehicle_pricing_config.dart';
 import '../tracking/live_tracking_screen.dart';
 import '../widgets/aurora_button.dart';
 import 'location_picker_sheet.dart';
@@ -24,6 +24,26 @@ class _RideBookingSheetState extends State<RideBookingSheet> {
   final TextEditingController _notesController = TextEditingController();
   bool _isExpanded = true;
   String _selectedPaymentMethod = 'cash'; // 'cash' or 'wallet'
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExpandedState();
+  }
+
+  Future<void> _loadExpandedState() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getBool('card_booking_expanded');
+    if (saved != null && mounted) {
+      setState(() => _isExpanded = saved);
+    }
+  }
+
+  Future<void> _setExpanded(bool value) async {
+    setState(() => _isExpanded = value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('card_booking_expanded', value);
+  }
 
   @override
   void dispose() {
@@ -149,7 +169,7 @@ class _RideBookingSheetState extends State<RideBookingSheet> {
 
     if (!_isExpanded) {
       return InkWell(
-        onTap: () => setState(() => _isExpanded = true),
+        onTap: () => _setExpanded(true),
         borderRadius: BorderRadius.circular(24),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -262,7 +282,7 @@ class _RideBookingSheetState extends State<RideBookingSheet> {
               ),
               // Hide Button (Show Full Map)
               InkWell(
-                onTap: () => setState(() => _isExpanded = false),
+                onTap: () => _setExpanded(false),
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1012,10 +1032,10 @@ class _RideBookingSheetState extends State<RideBookingSheet> {
                 Flexible(
                   child: ListView.separated(
                     shrinkWrap: true,
-                    itemCount: WaypointStopOption.defaultOptions.length,
+                    itemCount: booking.allStopOptions.length,
                     separatorBuilder: (_, __) => const Divider(height: 1),
                     itemBuilder: (context, index) {
-                      final option = WaypointStopOption.defaultOptions[index];
+                      final option = booking.allStopOptions[index];
                       final isSelected = booking.selectedStopOption.id == option.id;
 
                       return ListTile(

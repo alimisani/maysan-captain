@@ -6,6 +6,7 @@ import '../../core/services/supabase_service.dart';
 import '../../core/state/auth_provider.dart';
 import '../../core/state/theme_provider.dart';
 import '../../core/theme/aurora_theme.dart';
+import '../driver/vehicle_registration_screen.dart';
 import '../home/home_screen.dart';
 import '../widgets/aurora_background.dart';
 import '../widgets/aurora_button.dart';
@@ -85,11 +86,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
 
     if (success && mounted) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-        (route) => false,
-      );
+      if (_selectedRole == 'driver') {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const VehicleRegistrationScreen(isFirstTime: true),
+          ),
+          (route) => false,
+        );
+      } else {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          (route) => false,
+        );
+      }
     } else if (mounted && auth.errorMessage != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

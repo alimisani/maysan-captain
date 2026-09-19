@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' as intl;
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/services/location_service.dart';
@@ -31,6 +32,20 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
   bool _isCardExpanded = true;
   bool _hasAutoShownRating = false;
   RideOrder? _lastKnownOrder;
+
+  Future<void> _loadExpandedState() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getBool('card_tracking_expanded');
+    if (saved != null && mounted) {
+      setState(() => _isCardExpanded = saved);
+    }
+  }
+
+  Future<void> _setCardExpanded(bool value) async {
+    setState(() => _isCardExpanded = value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('card_tracking_expanded', value);
+  }
 
   void _checkAutoShowRating(RideOrder order, bool isDriver) {
     if (order.status == 'completed' && !isDriver && !_hasAutoShownRating && order.driverId != null) {
@@ -267,6 +282,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
   @override
   void initState() {
     super.initState();
+    _loadExpandedState();
     _startLiveTrackingSync();
   }
 
@@ -508,7 +524,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
             right: 16,
             child: !_isCardExpanded
                 ? InkWell(
-                    onTap: () => setState(() => _isCardExpanded = true),
+                    onTap: () => _setCardExpanded(true),
                     borderRadius: BorderRadius.circular(24),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -614,7 +630,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                             ),
                             // Hide Button (Show Full Map)
                             InkWell(
-                              onTap: () => setState(() => _isCardExpanded = false),
+                              onTap: () => _setCardExpanded(false),
                               borderRadius: BorderRadius.circular(12),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

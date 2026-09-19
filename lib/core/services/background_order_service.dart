@@ -5,6 +5,7 @@ import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../models/ride_order.dart';
 import '../constants/app_constants.dart';
 import 'notification_service.dart';
 
@@ -154,6 +155,11 @@ void onStartBackgroundService(ServiceInstance service) async {
 
           // Only notify if order is from a customer and not already notified
           if (customerId != driverId && !notifiedOrderIds.contains(orderId)) {
+            final order = RideOrder.fromJson(map);
+            if (!order.matchesDriverVehicle(vehicleType)) {
+              continue;
+            }
+
             notifiedOrderIds.add(orderId);
 
             await NotificationService.showNewOrderNotification(
