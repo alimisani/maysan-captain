@@ -808,46 +808,63 @@ class _DriverHomeViewState extends State<DriverHomeView> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               IconButton.filledTonal(
-                                onPressed: customFare > 1000
+                                onPressed: customFare > 250
                                     ? () {
                                         setState(() {
-                                          _customFares[order.id] = (customFare - 500).clamp(1000, 999000);
+                                          _customFares[order.id] = (customFare - 250).clamp(250, 999000);
                                         });
                                       }
                                     : null,
                                 icon: const Icon(Icons.remove_rounded, size: 18),
+                                tooltip: 'إنقاص 250 د.ع',
                                 style: IconButton.styleFrom(
                                   backgroundColor: const Color(0xFFEF4444).withValues(alpha: 0.15),
                                   foregroundColor: const Color(0xFFEF4444),
                                   minimumSize: const Size(36, 36),
                                 ),
                               ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
-                                child: Column(
-                                  children: [
-                                    Text(
-                                      '${currencyFormatter.format(customFare.toInt())} د.ع',
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w900,
-                                        color: Color(0xFFF59E0B),
+                              InkWell(
+                                onTap: () => _showManualFareInputDialog(context, order, customFare),
+                                borderRadius: BorderRadius.circular(12),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                                  child: Column(
+                                    children: [
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            '${currencyFormatter.format(customFare.toInt())} د.ع',
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w900,
+                                              color: Color(0xFFF59E0B),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          const Icon(Icons.edit_note_rounded, size: 18, color: Color(0xFFF59E0B)),
+                                        ],
                                       ),
-                                    ),
-                                    const Text(
-                                      'الأجرة المقترحة للزبون',
-                                      style: TextStyle(fontSize: 10, color: Color(0xFF64748B)),
-                                    ),
-                                  ],
+                                      const Text(
+                                        'انقر للتعديل اليدوي ✏️',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Color(0xFF64748B),
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                               IconButton.filledTonal(
                                 onPressed: () {
                                   setState(() {
-                                    _customFares[order.id] = customFare + 500;
+                                    _customFares[order.id] = customFare + 250;
                                   });
                                 },
                                 icon: const Icon(Icons.add_rounded, size: 18),
+                                tooltip: 'زيادة 250 د.ع',
                                 style: IconButton.styleFrom(
                                   backgroundColor: const Color(0xFF10B981).withValues(alpha: 0.15),
                                   foregroundColor: const Color(0xFF10B981),
@@ -927,6 +944,103 @@ class _DriverHomeViewState extends State<DriverHomeView> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showManualFareInputDialog(BuildContext context, RideOrder order, double initialValue) {
+    final controller = TextEditingController(text: initialValue.toInt().toString());
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final currencyFormatter = intl.NumberFormat('#,###');
+
+    showDialog(
+      context: context,
+      builder: (dlgContext) {
+        return AlertDialog(
+          backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: const [
+              Icon(Icons.edit_note_rounded, color: Color(0xFFF59E0B)),
+              SizedBox(width: 8),
+              Text(
+                'تعديل الأجرة يدوياً',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'الأجرة المحددة من الزبون: ${currencyFormatter.format(order.initialFare.toInt())} د.ع',
+                style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : Colors.black54),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                autofocus: true,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Color(0xFFF59E0B)),
+                decoration: InputDecoration(
+                  suffixText: 'د.ع',
+                  hintText: 'أدخل الأجرة المقترحة',
+                  filled: true,
+                  fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFFF59E0B), width: 1.5),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 8,
+                children: [250, 500, 1000].map((addAmount) {
+                  return ActionChip(
+                    label: Text('+$addAmount د.ع', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                    side: const BorderSide(color: Color(0x33F59E0B)),
+                    onPressed: () {
+                      final current = double.tryParse(controller.text.trim()) ?? initialValue;
+                      controller.text = (current + addAmount).toInt().toString();
+                    },
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dlgContext),
+              child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFF59E0B),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () {
+                final parsed = double.tryParse(controller.text.trim());
+                if (parsed != null && parsed >= 250) {
+                  setState(() {
+                    _customFares[order.id] = parsed;
+                    _editingOrders.add(order.id);
+                  });
+                  Navigator.pop(dlgContext);
+                }
+              },
+              child: const Text('تأكيد الأجرة', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
     );
   }
 

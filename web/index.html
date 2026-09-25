@@ -56,7 +56,7 @@
     fetch('version.json?t=' + Date.now(), { cache: 'no-store' })
       .then(function(res) { return res.json(); })
       .then(function(info) {
-        var currentBuild = (info && info.build_number) ? info.build_number : '23';
+        var currentBuild = (info && info.build_number) ? info.build_number : '24';
         var storedBuild = localStorage.getItem('pwa_build_number');
         if (storedBuild && storedBuild !== currentBuild) {
           localStorage.setItem('pwa_build_number', currentBuild);
