@@ -9,6 +9,8 @@ import '../widgets/aurora_background.dart';
 import '../widgets/aurora_button.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/glass_card.dart';
+import '../../core/services/supabase_service.dart';
+import 'driver_documents_screen.dart';
 
 class VehicleRegistrationScreen extends StatefulWidget {
   final bool isFirstTime;
@@ -58,21 +60,77 @@ class _VehicleRegistrationScreenState extends State<VehicleRegistrationScreen> {
         model: _modelController.text.trim(),
         color: _colorController.text.trim(),
       );
+
+      final settings = await SupabaseService().getDriverVerificationSettings();
+      final isVerificationEnabled = settings['is_enabled'] as bool? ?? false;
+
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppLocalizations.of(context).translate('success')),
-            backgroundColor: AuroraTheme.accentEmerald,
-          ),
-        );
         if (widget.isFirstTime) {
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
-            (route) => false,
-          );
+          if (isVerificationEnabled) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('تم حفظ بيانات المركبة بنجاح! يرجى الآن إرفاق مستمسكاتك لتوثيق واعتماد الحساب.'),
+                backgroundColor: AuroraTheme.accentEmerald,
+              ),
+            );
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const DriverDocumentsScreen(isFirstTime: true),
+              ),
+              (route) => false,
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(AppLocalizations.of(context).translate('success')),
+                backgroundColor: AuroraTheme.accentEmerald,
+              ),
+            );
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const HomeScreen()),
+              (route) => false,
+            );
+          }
         } else {
-          Navigator.pop(context);
+          // Editing existing vehicle:
+          if (isVerificationEnabled) {
+            await SupabaseService().notifyAdminVehicleUpdated(
+              driverId: auth.currentUser!.id,
+              driverName: auth.currentUser!.name,
+              driverPhone: auth.currentUser!.phone ?? '',
+              model: _modelController.text.trim(),
+              plateNumber: _plateController.text.trim(),
+              color: _colorController.text.trim(),
+              vehicleType: _selectedType,
+            );
+
+            if (!mounted) return;
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('تم تحديث بيانات المركبة. يتطلب النظام إعادة رفع مستمسكاتك لاعتمادها من الإدارة.'),
+                backgroundColor: AuroraTheme.accentEmerald,
+                duration: Duration(seconds: 4),
+              ),
+            );
+
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const DriverDocumentsScreen(isReVerification: true),
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(AppLocalizations.of(context).translate('success')),
+                backgroundColor: AuroraTheme.accentEmerald,
+              ),
+            );
+            Navigator.pop(context);
+          }
         }
       }
     } catch (e) {

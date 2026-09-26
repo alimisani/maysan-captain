@@ -18,6 +18,7 @@ import 'driver_documents_screen.dart';
 import 'driver_fee_payment_dialog.dart';
 import 'vehicle_registration_screen.dart';
 import '../settings/settings_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class DriverDashboardScreen extends StatefulWidget {
   const DriverDashboardScreen({super.key});
@@ -578,6 +579,47 @@ class _OrderCardState extends State<_OrderCard> {
     );
   }
 
+  Future<void> _openExternalMapRoute(String type) async {
+    try {
+      final order = widget.order;
+      if (type == 'google') {
+        String waypointsParam = '';
+        final intermediateStops = order.destinations.where((d) => d['is_final'] != true).toList();
+        if (intermediateStops.isNotEmpty) {
+          final coords = intermediateStops.map((d) => '${d['lat']},${d['lng']}').join('%7C');
+          waypointsParam = '&waypoints=$coords';
+        }
+        final routeUrl = Uri.parse(
+          'https://www.google.com/maps/dir/?api=1&origin=${order.pickupLat},${order.pickupLng}&destination=${order.dropoffLat},${order.dropoffLng}$waypointsParam&travelmode=driving',
+        );
+        final navIntent = Uri.parse('google.navigation:q=${order.dropoffLat},${order.dropoffLng}&mode=d');
+        if (await canLaunchUrl(routeUrl)) {
+          await launchUrl(routeUrl, mode: LaunchMode.externalApplication);
+        } else if (await canLaunchUrl(navIntent)) {
+          await launchUrl(navIntent, mode: LaunchMode.externalApplication);
+        } else {
+          await launchUrl(routeUrl, mode: LaunchMode.platformDefault);
+        }
+      } else if (type == 'waze') {
+        final wazeNative = Uri.parse('waze://?ll=${order.dropoffLat},${order.dropoffLng}&navigate=yes');
+        final wazeWeb = Uri.parse('https://www.waze.com/ul?ll=${order.dropoffLat},${order.dropoffLng}&navigate=yes');
+        if (await canLaunchUrl(wazeNative)) {
+          await launchUrl(wazeNative, mode: LaunchMode.externalNonBrowserApplication);
+        } else if (await canLaunchUrl(wazeWeb)) {
+          await launchUrl(wazeWeb, mode: LaunchMode.externalApplication);
+        } else {
+          await launchUrl(wazeWeb, mode: LaunchMode.platformDefault);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('تعذر فتح الخريطة: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   Future<void> _handleAccept() async {
     final auth = context.read<AuthProvider>();
     final booking = context.read<BookingProvider>();
@@ -761,6 +803,86 @@ class _OrderCardState extends State<_OrderCard> {
               ),
             ),
           ],
+
+          // External Map Route Inspection (Google Maps & Waze)
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDark ? const Color(0x3338BDF8) : const Color(0xFFBAE6FD),
+                width: 1.0,
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.alt_route_rounded, size: 15, color: Color(0xFF0284C7)),
+                const SizedBox(width: 6),
+                Text(
+                  loc.isArabic ? 'معاينة المسار:' : 'Route:',
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                InkWell(
+                  onTap: () => _openExternalMapRoute('google'),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF4285F4).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFF4285F4), width: 0.8),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.map_rounded, size: 13, color: Color(0xFF4285F4)),
+                        SizedBox(width: 4),
+                        Text(
+                          'Google Maps',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF4285F4),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                InkWell(
+                  onTap: () => _openExternalMapRoute('waze'),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0284C7).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFF0284C7), width: 0.8),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.directions_car_rounded, size: 13, color: Color(0xFF0284C7)),
+                        SizedBox(width: 4),
+                        Text(
+                          'Waze',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0284C7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
 
           const Divider(height: 24),
 

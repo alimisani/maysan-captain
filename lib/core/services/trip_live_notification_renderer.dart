@@ -14,9 +14,9 @@ class TripLiveNotificationRenderer {
     required String vehicleModel,
     required String vehicleColor,
     required String plateNumber,
-    required String plateLetter,
-    required String plateCity,
-    required String plateType,
+    String plateLetter = '',
+    String plateCity = 'ميسان',
+    String plateType = 'عمومي',
     required double progress, // 0.0 to 1.0
   }) async {
     try {
@@ -180,15 +180,12 @@ class TripLiveNotificationRenderer {
         ),
       );
 
-      // 5. Authentic Iraqi License Plate (Right side)
+      // 5. White Rectangular License Plate (Right side) - Pure plate number
       final effectivePlateNumber = (plateNumber.trim().isEmpty || plateNumber == 'null') ? '00000' : plateNumber;
       _drawIraqiLicensePlate(
         canvas: canvas,
         rect: const Rect.fromLTWH(620, 56, 215, 88),
         number: effectivePlateNumber,
-        letter: plateLetter,
-        city: plateCity.isNotEmpty ? plateCity : 'ميسان',
-        type: plateType.isNotEmpty ? plateType : 'عمومي',
       );
 
       // 6. Interactive Dynamic Progress Track (Upper and lower synchronization)
@@ -217,14 +214,11 @@ class TripLiveNotificationRenderer {
     }
   }
 
-  /// Draws a photorealistic Iraqi registration license plate
+  /// Draws a clean rectangular white plate displaying ONLY the vehicle plate number
   static void _drawIraqiLicensePlate({
     required Canvas canvas,
     required Rect rect,
     required String number,
-    required String letter,
-    required String city,
-    required String type,
   }) {
     // 1. White Plate Background
     final plateRRect = RRect.fromRectAndRadius(rect, const Radius.circular(10));
@@ -238,83 +232,25 @@ class TripLiveNotificationRenderer {
       ..strokeWidth = 3.0;
     canvas.drawRRect(plateRRect, plateBorderPaint);
 
-    // 3. Horizontal Divider (separating top numbers from bottom governorate/type)
-    final dividerY = rect.top + (rect.height * 0.60);
-    final dividerPaint = Paint()
-      ..color = const Color(0xFF0F172A)
-      ..strokeWidth = 2.2;
-    canvas.drawLine(Offset(rect.left, dividerY), Offset(rect.right, dividerY), dividerPaint);
+    // Inner subtle border line
+    final innerRect = rect.deflate(4.0);
+    final innerRRect = RRect.fromRectAndRadius(innerRect, const Radius.circular(7));
+    final innerBorderPaint = Paint()
+      ..color = const Color(0xFF334155).withValues(alpha: 0.25)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+    canvas.drawRRect(innerRRect, innerBorderPaint);
 
-    if (letter.isNotEmpty) {
-      // 4. Vertical Divider in Top Section (separating letter from number)
-      final verticalDividerX = rect.left + (rect.width * 0.32);
-      canvas.drawLine(
-        Offset(verticalDividerX, rect.top),
-        Offset(verticalDividerX, dividerY),
-        dividerPaint,
-      );
-
-      // 5. Letter (Left Top) e.g. "أ"
-      _drawCenterText(
-        canvas: canvas,
-        text: letter,
-        center: Offset(rect.left + (verticalDividerX - rect.left) / 2, rect.top + (dividerY - rect.top) / 2),
-        style: const TextStyle(
-          color: Color(0xFF0F172A),
-          fontSize: 26,
-          fontWeight: FontWeight.w900,
-        ),
-      );
-
-      // 6. Registration Number (Right Top) e.g. "12345"
-      _drawCenterText(
-        canvas: canvas,
-        text: number,
-        center: Offset(verticalDividerX + (rect.right - verticalDividerX) / 2, rect.top + (dividerY - rect.top) / 2),
-        style: const TextStyle(
-          color: Color(0xFF0F172A),
-          fontSize: 28,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 2.0,
-        ),
-      );
-    } else {
-      // No letter registered (or 00000): Center registration number across entire top section
-      _drawCenterText(
-        canvas: canvas,
-        text: number,
-        center: Offset(rect.center.dx, rect.top + (dividerY - rect.top) / 2),
-        style: const TextStyle(
-          color: Color(0xFF0F172A),
-          fontSize: 32,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 4.0,
-        ),
-      );
-    }
-
-    // 7. Bottom Section: City & Category
-    final bottomCenterY = dividerY + (rect.bottom - dividerY) / 2;
-
+    // 3. Centered Plate Number (Pure number only, without words or letters)
     _drawCenterText(
       canvas: canvas,
-      text: type,
-      center: Offset(rect.left + rect.width * 0.28, bottomCenterY),
-      style: const TextStyle(
-        color: Color(0xFF334155),
-        fontSize: 15,
-        fontWeight: FontWeight.w800,
-      ),
-    );
-
-    _drawCenterText(
-      canvas: canvas,
-      text: city,
-      center: Offset(rect.left + rect.width * 0.72, bottomCenterY),
+      text: number,
+      center: rect.center,
       style: const TextStyle(
         color: Color(0xFF0F172A),
-        fontSize: 16,
+        fontSize: 34,
         fontWeight: FontWeight.w900,
+        letterSpacing: 3.5,
       ),
     );
   }

@@ -10,6 +10,7 @@ import '../widgets/aurora_background.dart';
 import '../widgets/aurora_button.dart';
 import '../widgets/custom_text_field.dart';
 import 'register_screen.dart';
+import '../driver/vehicle_registration_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -41,10 +42,19 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     if (success && mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
+      if (auth.currentUser?.isDriver == true && auth.currentVehicle == null) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const VehicleRegistrationScreen(isFirstTime: true),
+          ),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
+      }
     } else if (mounted && auth.errorMessage != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

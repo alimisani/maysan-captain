@@ -12,9 +12,16 @@ import '../../core/state/auth_provider.dart';
 import '../../core/theme/aurora_theme.dart';
 import '../widgets/aurora_button.dart';
 import '../widgets/glass_card.dart';
+import '../home/home_screen.dart';
 
 class DriverDocumentsScreen extends StatefulWidget {
-  const DriverDocumentsScreen({super.key});
+  final bool isFirstTime;
+  final bool isReVerification;
+  const DriverDocumentsScreen({
+    super.key,
+    this.isFirstTime = false,
+    this.isReVerification = false,
+  });
 
   @override
   State<DriverDocumentsScreen> createState() => _DriverDocumentsScreenState();
@@ -249,22 +256,63 @@ class _DriverDocumentsScreenState extends State<DriverDocumentsScreen> {
 
     setState(() => _isSaving = true);
     try {
+      final vehicle = auth.currentVehicle;
+      final vehicleText = vehicle != null
+          ? '${vehicle.color ?? ""} ${vehicle.model ?? ""} | ${vehicle.plateNumber ?? ""}'.trim()
+          : null;
+
       await SupabaseService().submitDriverVerification(
         driverId: auth.currentUser!.id,
         driverName: auth.currentUser!.name,
         driverPhone: auth.currentUser!.phone ?? '07800000000',
         documents: _uploadedDocuments,
         fileNames: _fileNames,
+        vehicleInfo: vehicleText,
+        isVehicleUpdate: widget.isReVerification,
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم إرسال المستمسكات بنجاح! جاري مراجعتها وتدقيقها من قبل الإدارة.'),
-            backgroundColor: AuroraTheme.accentEmerald,
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: AuroraTheme.accentEmerald),
+                SizedBox(width: 8),
+                Text('تم الإرسال بنجاح', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              ],
+            ),
+            content: Text(
+              widget.isReVerification
+                  ? 'تم إرسال مستمسكات وبيانات المركبة المحدثة إلى الإدارة بنجاح لغرض المراجعة والاعتماد.'
+                  : 'تم إرسال المستمسكات بنجاح! تم إشعار إدارة التطبيق فوراً لغرض مراجعة وثائقك واعتمادها بأسرع وقت.',
+              style: const TextStyle(fontSize: 13.5, height: 1.4),
+            ),
+            actions: [
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AuroraTheme.primaryBlue,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  if (widget.isFirstTime || widget.isReVerification) {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (_) => const HomeScreen()),
+                      (route) => false,
+                    );
+                  } else {
+                    _loadData();
+                  }
+                },
+                child: const Text('موافق', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ],
           ),
         );
-        _loadData();
       }
     } catch (e) {
       _showErrorSnackBar('خطأ أثناء إرسال المستمسكات: $e');
@@ -292,10 +340,13 @@ class _DriverDocumentsScreenState extends State<DriverDocumentsScreen> {
       appBar: AppBar(
         title: Text(loc.isArabic ? 'توثيق ومستمسكات الكابتن' : 'Driver Verification'),
         centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: !widget.isFirstTime,
+        leading: widget.isFirstTime
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.arrow_back_rounded),
+                onPressed: () => Navigator.pop(context),
+              ),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

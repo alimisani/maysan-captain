@@ -1043,7 +1043,11 @@ class BookingProvider extends ChangeNotifier {
     if (order != null) {
       if (!isDriver) {
         // Passenger notifications & dynamic Live Activity card
-        if (order.status == 'fare_proposed') {
+        if (order.status == 'pending') {
+          // Passenger requested ride, waiting for captain acceptance
+          // Must NEVER display captain info prematurely!
+          NotificationService.dismissLiveTripNotification();
+        } else if (order.status == 'fare_proposed') {
           if (_lastKnownOrderStatus != order.status) {
             NotificationService.showFareProposedNotification(
               driverName: order.driverName ?? 'الكابتن',
@@ -1061,8 +1065,10 @@ class BookingProvider extends ChangeNotifier {
           }
         } else if (order.status == 'cancelled') {
           NotificationService.dismissLiveTripNotification();
-        } else {
-          // Dynamic in-flight progress calculation
+        } else if (['accepted', 'on_way', 'arriving', 'arrived', 'in_progress'].contains(order.status) &&
+            order.driverId != null &&
+            order.driverId!.isNotEmpty) {
+          // Dynamic in-flight progress calculation only after driver accepts!
           double dynamicProgress = 0.20;
           String eta = '2 دقيقة';
 
@@ -1111,11 +1117,25 @@ class BookingProvider extends ChangeNotifier {
               DateTime.now().difference(_lastNotificationTime!).inSeconds >= 12;
 
           if (statusChanged || progressJumped || timeElapsed) {
+            // Real-time vehicle check to reflect any recent vehicle update instantaneously
+            String effectiveVehicle = order.vehicleInfo ?? 'مركبة كابتن معتمدة | 00000';
+            String? latestPlate;
+            try {
+              final driverVehicle = await _supabaseService.getDriverVehicle(order.driverId!);
+              if (driverVehicle != null) {
+                if (driverVehicle.plateNumber != null && driverVehicle.plateNumber!.trim().isNotEmpty) {
+                  latestPlate = driverVehicle.plateNumber!.trim();
+                }
+                effectiveVehicle = '${driverVehicle.color ?? ""} ${driverVehicle.model ?? ""} | ${driverVehicle.plateNumber ?? "00000"}'.trim();
+              }
+            } catch (_) {}
+
             NotificationService.showLiveTripNotification(
               orderId: order.id,
               driverName: order.driverName ?? 'الكابتن',
               driverRating: order.driverRating ?? 5.0,
-              vehicleInfo: order.vehicleInfo ?? 'مركبة كابتن معتمدة | 00000',
+              vehicleInfo: effectiveVehicle,
+              plateNumberOverride: latestPlate,
               status: order.status,
               pickupAddress: order.pickupAddress,
               dropoffAddress: order.dropoffAddress,

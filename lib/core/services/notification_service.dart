@@ -15,6 +15,7 @@ class NotificationService {
   static const String channelOrders = 'maysan_orders_v7';
   static const String channelTrips = 'maysan_trips_v7';
   static const String channelFares = 'maysan_fares_v7';
+  static const String channelAdmin = 'maysan_admin_v8';
 
   static final Int64List _vibrationPattern =
       Int64List.fromList([0, 500, 200, 500, 200, 500]);
@@ -84,9 +85,21 @@ class NotificationService {
           vibrationPattern: _vibrationPattern,
         );
 
+        final AndroidNotificationChannel adminChannel =
+            AndroidNotificationChannel(
+          channelAdmin,
+          'إشعارات وتنبيهات الإدارة والتوثيق',
+          description: 'تنبيهات فورية للمدير عند تسجيل كابتن جديد أو رفع المستمسكات للمراجعة',
+          importance: Importance.max,
+          playSound: true,
+          enableVibration: true,
+          vibrationPattern: _vibrationPattern,
+        );
+
         await androidImplementation.createNotificationChannel(ordersChannel);
         await androidImplementation.createNotificationChannel(tripsChannel);
         await androidImplementation.createNotificationChannel(faresChannel);
+        await androidImplementation.createNotificationChannel(adminChannel);
       }
 
       _isInitialized = true;
@@ -314,6 +327,61 @@ class NotificationService {
     }
   }
 
+  // --- ADMIN NOTIFICATIONS ---
+
+  static Future<void> showAdminNewDriverDocumentsNotification({
+    required String driverName,
+    required String driverPhone,
+    String? vehicleInfo,
+    bool isVehicleUpdate = false,
+  }) async {
+    try {
+      _playCustomSound('sounds/trip_chime.wav');
+
+      final String title = isVehicleUpdate
+          ? '📋 تعديل مركبة ومستمسكات جديدة'
+          : '📄 كابتن جديد: مستمسكات بانتظار المراجعة';
+      final String body = isVehicleUpdate
+          ? 'قام الكابتن $driverName ($driverPhone) بتعديل بيانات المركبة ($vehicleInfo) ورفع مستمسكات جديدة لغرض التدقيق.'
+          : 'سجل الكابتن $driverName ($driverPhone) ورفع وثائقه ومستمسكاته لغرض المراجعة والموافقة.';
+
+      final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+        channelAdmin,
+        'إشعارات وتنبيهات الإدارة والتوثيق',
+        channelDescription: 'تنبيهات فورية للمدير عند تسجيل كابتن جديد أو رفع المستمسكات للمراجعة',
+        importance: Importance.max,
+        priority: Priority.high,
+        enableVibration: true,
+        vibrationPattern: _vibrationPattern,
+        playSound: true,
+        styleInformation: BigTextStyleInformation(
+          body,
+          contentTitle: title,
+          summaryText: 'لوحة تحكم المدير • توثيق الكباتن',
+        ),
+      );
+
+      final NotificationDetails details = NotificationDetails(
+        android: androidDetails,
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentSound: true,
+          presentBanner: true,
+        ),
+      );
+
+      await _notificationsPlugin.show(
+        99901 + (DateTime.now().millisecondsSinceEpoch % 1000),
+        title,
+        body,
+        details,
+        payload: 'admin_verifications',
+      );
+    } catch (e) {
+      debugPrint('Admin notification error: $e');
+    }
+  }
+
   // --- LIVE ACTIVITY TRIP NOTIFICATION (لوحة الإشعارات الذكية المباشرة) ---
 
   static const int liveTripNotificationId = 9901;
@@ -323,6 +391,7 @@ class NotificationService {
     required String driverName,
     required double driverRating,
     required String vehicleInfo,
+    String? plateNumberOverride,
     required String status,
     required String pickupAddress,
     required String dropoffAddress,
@@ -332,53 +401,56 @@ class NotificationService {
     try {
       _playCustomSound('sounds/trip_chime.wav');
 
-      // 1. Parse vehicle details and Iraqi plate from vehicleInfo
+      // 1. Parse vehicle details and Iraqi plate from vehicleInfo / override
       String model = 'مركبة كابتن';
       String color = '';
       String plateNumber = '00000';
-      String plateLetter = '';
-      String plateCity = 'ميسان';
-      String plateType = 'عمومي';
+
+      if (plateNumberOverride != null && plateNumberOverride.trim().isNotEmpty) {
+        final match = RegExp(r'\d+').stringMatch(plateNumberOverride);
+        plateNumber = match ?? plateNumberOverride.trim();
+      }
 
       if (vehicleInfo.isNotEmpty) {
-        for (final c in ['أزرق', 'أبيض', 'أسود', 'فضي', 'رصاصي', 'أحمر', 'أصفر', 'ماروني', 'رصاصي']) {
-          if (vehicleInfo.contains(c)) {
+        if (plateNumber == '00000') {
+          if (vehicleInfo.contains('|')) {
+            final parts = vehicleInfo.split('|');
+            final after = parts.sublist(1).join('|').trim();
+            final match = RegExp(r'\d{1,7}').firstMatch(after);
+            if (match != null) {
+              plateNumber = match.group(0)!;
+            } else if (after.isNotEmpty) {
+              plateNumber = after;
+            }
+          } else {
+            final allDigits = RegExp(r'\b\d{3,7}\b').allMatches(vehicleInfo).map((m) => m.group(0)!).toList();
+            if (allDigits.isNotEmpty) {
+              plateNumber = allDigits.last;
+            }
+          }
+        }
+
+        String rawModel = vehicleInfo;
+        if (rawModel.contains('|')) {
+          rawModel = rawModel.split('|').first.trim();
+        }
+
+        for (final c in ['أزرق', 'أبيض', 'أسود', 'فضي', 'رصاصي', 'أحمر', 'أصفر', 'ماروني', 'ذهبي', 'بني', 'برتقالي']) {
+          if (rawModel.contains(c)) {
             color = c;
+            rawModel = rawModel.replaceAll(c, '').trim();
             break;
           }
         }
-        final matchNumber = RegExp(r'\b\d{3,6}\b').firstMatch(vehicleInfo);
-        if (matchNumber != null) {
-          plateNumber = matchNumber.group(0)!;
-        } else {
-          plateNumber = '00000';
-        }
-        for (final l in ['أ', 'ب', 'ج', 'د', 'هـ', 'و', 'ط', 'ك', 'ل', 'م', 'ن']) {
-          if (vehicleInfo.contains(l)) {
-            plateLetter = l;
-            break;
-          }
-        }
-        if (vehicleInfo.contains('خصوصي')) {
-          plateType = 'خصوصي';
-        } else {
-          plateType = 'عمومي';
-        }
-        model = vehicleInfo
-            .replaceAll(color, '')
-            .replaceAll(plateNumber, '')
-            .replaceAll(plateLetter, '')
-            .replaceAll('خصوصي', '')
-            .replaceAll('أجرة', '')
-            .replaceAll('عمومي', '')
-            .replaceAll('تكسي', '')
-            .replaceAll('صالون', '')
+
+        model = rawModel
+            .replaceAll(RegExp(r'\b(خصوصي|عمومي|أجرة|تكسي|صالون)\b'), '')
             .replaceAll('|', '')
             .replaceAll('-', '')
             .replaceAll('(', '')
             .replaceAll(')', '')
             .trim();
-        if (model.isEmpty) model = 'مركبة كابتن';
+        if (model.isEmpty) model = 'مركبة كابتن معتمدة';
       }
 
       // 2. Status specific headings and progress
@@ -405,7 +477,6 @@ class NotificationService {
       }
 
       final effectiveEta = etaText ?? defaultEta;
-      final plateDisplay = plateLetter.isNotEmpty ? '$plateNumber $plateLetter' : plateNumber;
       final vehicleLine = color.isNotEmpty ? '$color $model' : model;
 
       // 3. Render the Live Activity Notification Card (Image Canvas)
@@ -417,9 +488,6 @@ class NotificationService {
         vehicleModel: model,
         vehicleColor: color,
         plateNumber: plateNumber,
-        plateLetter: plateLetter,
-        plateCity: plateCity,
-        plateType: plateType,
         progress: calculatedProgress,
       );
 
@@ -445,18 +513,18 @@ class NotificationService {
             ? BigPictureStyleInformation(
                 FilePathAndroidBitmap(imagePath),
                 contentTitle: '🚖 $statusTitle ($effectiveEta)',
-                summaryText: '$vehicleLine • [ $plateDisplay | $plateCity ]',
+                summaryText: '$vehicleLine • [ $plateNumber | $driverName ]',
                 hideExpandedLargeIcon: true,
               )
             : BigTextStyleInformation(
                 '🚖 <b>$statusTitle</b><br/>'
-                '🚗 <b>$vehicleLine</b> • [ $plateDisplay | $plateCity $plateType ]<br/>'
+                '🚗 <b>$vehicleLine</b> • [ $plateNumber | $driverName ]<br/>'
                 '⏱️ <b>حالة الوصول: $effectiveEta</b><br/>'
                 '👤 الكابتن: $driverName (⭐ ${driverRating.toStringAsFixed(1)})<br/>'
                 '📍 الانطلاق: $pickupAddress ➔ الوجهة: $dropoffAddress',
                 htmlFormatBigText: true,
                 contentTitle: '🚖 $statusTitle',
-                summaryText: 'ميسان كابتن • رحلة مباشرة',
+                summaryText: '$vehicleLine • [ $plateNumber | $driverName ]',
                 htmlFormatContentTitle: true,
                 htmlFormatSummaryText: true,
               ),
@@ -475,7 +543,7 @@ class NotificationService {
       await _notificationsPlugin.show(
         liveTripNotificationId,
         '🚖 $statusTitle ($effectiveEta)',
-        '$vehicleLine • [ $plateDisplay | $plateCity ] - الكابتن: $driverName',
+        '$vehicleLine • [ $plateNumber | $driverName ]',
         details,
         payload: 'live_trip_$orderId',
       );

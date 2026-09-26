@@ -5,6 +5,9 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/services/whatsapp_service.dart';
+import '../../core/services/supabase_service.dart';
+import '../../core/services/notification_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/state/auth_provider.dart';
 import '../../core/state/booking_provider.dart';
 import '../../core/state/theme_provider.dart';
@@ -38,6 +41,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _isQuickMenuOpen = false;
   Timer? _activeOrderTimer;
+  RealtimeChannel? _adminAlertsChannel;
 
   @override
   void initState() {
@@ -55,6 +59,10 @@ class _HomeScreenState extends State<HomeScreen> {
         booking.checkActiveOrder(auth.currentUser!.id, auth.currentUser!.isDriver);
         booking.loadFavoritePlaces(auth.currentUser!.id);
         booking.loadSavedRoutes(auth.currentUser!.id);
+
+        if (auth.isAdmin) {
+          _subscribeToAdminAlerts();
+        }
       }
       booking.loadUiLayoutTheme();
       booking.loadBanners();
@@ -63,7 +71,18 @@ class _HomeScreenState extends State<HomeScreen> {
     _activeOrderTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (mounted) {
         final auth = context.read<AuthProvider>();
+        if (auth.isAccountDeleted) {
+          auth.clearAccountDeletedFlag();
+          _handleForcedAccountDeleted();
+          return;
+        }
         if (auth.currentUser != null) {
+          auth.refreshCurrentUser();
+          if (auth.isAccountDeleted) {
+            auth.clearAccountDeletedFlag();
+            _handleForcedAccountDeleted();
+            return;
+          }
           final booking = context.read<BookingProvider>();
           booking.updateUserContext(auth.currentUser!.id, auth.currentUser!.isDriver);
           booking.checkActiveOrder(auth.currentUser!.id, auth.currentUser!.isDriver);
@@ -72,8 +91,81 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  void _subscribeToAdminAlerts() {
+    try {
+      final supabase = SupabaseService().client;
+      _adminAlertsChannel?.unsubscribe();
+      _adminAlertsChannel = supabase
+          .channel('admin_alerts')
+          .onBroadcast(
+            event: 'driver_documents_submitted',
+            callback: (payload) {
+              NotificationService.showAdminNewDriverDocumentsNotification(
+                driverName: payload['driver_name']?.toString() ?? 'كابتن جديد',
+                driverPhone: payload['driver_phone']?.toString() ?? '',
+                vehicleInfo: payload['vehicle_info']?.toString(),
+                isVehicleUpdate: payload['is_vehicle_update'] == true,
+              );
+            },
+          )
+          .onBroadcast(
+            event: 'driver_vehicle_updated',
+            callback: (payload) {
+              NotificationService.showAdminNewDriverDocumentsNotification(
+                driverName: payload['driver_name']?.toString() ?? 'كابتن',
+                driverPhone: payload['driver_phone']?.toString() ?? '',
+                vehicleInfo: payload['vehicle_info']?.toString(),
+                isVehicleUpdate: true,
+              );
+            },
+          )
+          .subscribe();
+    } catch (_) {}
+  }
+
+  void _handleForcedAccountDeleted() {
+    _activeOrderTimer?.cancel();
+    _adminAlertsChannel?.unsubscribe();
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.person_off_rounded, color: AuroraTheme.accentRose),
+              SizedBox(width: 8),
+              Text('تم حذف الحساب', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ],
+          ),
+          content: const Text(
+            'تم حذف أو تعطيل هذا الحساب من قبل إدارة التطبيق، وتم تسجيل خروجك تلقائياً.',
+            style: TextStyle(fontSize: 14, height: 1.4),
+          ),
+          actions: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AuroraTheme.accentRose,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('حسناً', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
   @override
   void dispose() {
+    _adminAlertsChannel?.unsubscribe();
     _activeOrderTimer?.cancel();
     super.dispose();
   }

@@ -299,10 +299,47 @@ class SupabaseService {
   // Admin Delete User
   Future<void> deleteUser(String userId) async {
     try {
+      // 1. Delete from profiles
       await client.from('profiles').delete().eq('id', userId);
+
+      // 2. Also delete from vehicles if any
+      try {
+        await client.from('vehicles').delete().eq('driver_id', userId);
+      } catch (_) {}
+
+      // 3. Mark deletion in app_settings for instantaneous logout check across devices
+      try {
+        await client.from('app_settings').upsert({
+          'key': 'deleted_user_$userId',
+          'value': {
+            'user_id': userId,
+            'deleted_at': DateTime.now().toIso8601String(),
+          },
+        });
+      } catch (_) {}
+
+      // 4. Send realtime broadcast so the user device immediately logs out
+      try {
+        await client.channel('user_events_$userId').sendBroadcastMessage(
+          event: 'account_deleted',
+          payload: {'user_id': userId},
+        );
+      } catch (_) {}
     } catch (e) {
       debugPrint('Delete user error: $e');
       rethrow;
+    }
+  }
+
+  Future<bool> isUserDeleted(String userId) async {
+    try {
+      final profile = await getProfileById(userId);
+      if (profile == null) return true;
+      final res = await client.from('app_settings').select().eq('key', 'deleted_user_$userId').limit(1);
+      if (res.isNotEmpty) return true;
+      return false;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -1616,6 +1653,8 @@ class SupabaseService {
     required String driverPhone,
     required Map<String, String> documents,
     required Map<String, String> fileNames,
+    String? vehicleInfo,
+    bool isVehicleUpdate = false,
   }) async {
     try {
       final submission = {
@@ -1626,6 +1665,8 @@ class SupabaseService {
         'rejection_reason': '',
         'documents': documents,
         'file_names': fileNames,
+        'vehicle_info': vehicleInfo ?? '',
+        'is_vehicle_update': isVehicleUpdate,
         'submitted_at': DateTime.now().toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
       };
@@ -1634,9 +1675,98 @@ class SupabaseService {
         'key': 'driver_docs_$driverId',
         'value': submission,
       });
+
+      // Automatically notify the admin
+      await notifyAdminDriverDocumentsSubmitted(
+        driverId: driverId,
+        driverName: driverName,
+        driverPhone: driverPhone,
+        vehicleInfo: vehicleInfo,
+        isVehicleUpdate: isVehicleUpdate,
+      );
     } catch (e) {
       debugPrint('Submit driver verification error: $e');
       rethrow;
+    }
+  }
+
+  Future<void> notifyAdminDriverDocumentsSubmitted({
+    required String driverId,
+    required String driverName,
+    required String driverPhone,
+    String? vehicleInfo,
+    bool isVehicleUpdate = false,
+  }) async {
+    try {
+      final alertData = {
+        'type': isVehicleUpdate ? 'vehicle_update_docs' : 'new_driver_docs',
+        'driver_id': driverId,
+        'driver_name': driverName,
+        'driver_phone': driverPhone,
+        'vehicle_info': vehicleInfo ?? '',
+        'created_at': DateTime.now().toIso8601String(),
+        'is_read': false,
+      };
+
+      await client.from('app_settings').upsert({
+        'key': 'admin_alert_${driverId}_${DateTime.now().millisecondsSinceEpoch}',
+        'value': alertData,
+      });
+
+      await client.channel('admin_alerts').sendBroadcastMessage(
+        event: 'driver_documents_submitted',
+        payload: alertData,
+      );
+    } catch (e) {
+      debugPrint('Error notifying admin of driver documents: $e');
+    }
+  }
+
+  Future<void> notifyAdminVehicleUpdated({
+    required String driverId,
+    required String driverName,
+    required String driverPhone,
+    required String model,
+    required String plateNumber,
+    required String color,
+    required String vehicleType,
+  }) async {
+    try {
+      final vehicleInfo = '$color $model | $plateNumber';
+
+      // Reset verification status to pending for this driver
+      final existing = await getDriverVerification(driverId);
+      if (existing != null) {
+        existing['status'] = 'pending';
+        existing['vehicle_info'] = vehicleInfo;
+        existing['updated_at'] = DateTime.now().toIso8601String();
+        await client.from('app_settings').upsert({
+          'key': 'driver_docs_$driverId',
+          'value': existing,
+        });
+      }
+
+      final alertData = {
+        'type': 'vehicle_updated',
+        'driver_id': driverId,
+        'driver_name': driverName,
+        'driver_phone': driverPhone,
+        'vehicle_info': vehicleInfo,
+        'created_at': DateTime.now().toIso8601String(),
+        'is_read': false,
+      };
+
+      await client.from('app_settings').upsert({
+        'key': 'admin_alert_veh_${driverId}_${DateTime.now().millisecondsSinceEpoch}',
+        'value': alertData,
+      });
+
+      await client.channel('admin_alerts').sendBroadcastMessage(
+        event: 'driver_vehicle_updated',
+        payload: alertData,
+      );
+    } catch (e) {
+      debugPrint('Error notifying admin of vehicle update: $e');
     }
   }
 
