@@ -360,6 +360,27 @@ class BookingProvider extends ChangeNotifier {
   StreamSubscription? _ridesSubscription;
   LatLng? _lastKnownDriverPos;
 
+  int _radarMaxDistanceMeters = 10000;
+  bool _isRadarFilterEnabled = true;
+
+  int get radarMaxDistanceMeters => _radarMaxDistanceMeters;
+  bool get isRadarFilterEnabled => _isRadarFilterEnabled;
+
+  Future<void> loadRadarSettings() async {
+    try {
+      final s = await _supabaseService.getRadarSettings();
+      _radarMaxDistanceMeters = (s['max_distance_meters'] as num?)?.toInt() ?? 10000;
+      _isRadarFilterEnabled = s['is_enabled'] != false;
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  void updateRadarSettingsLocal({required int maxDistanceMeters, required bool isEnabled}) {
+    _radarMaxDistanceMeters = maxDistanceMeters;
+    _isRadarFilterEnabled = isEnabled;
+    notifyListeners();
+  }
+
   BookingProvider() {
     _initPricing();
     _initMapStyle();
@@ -367,6 +388,7 @@ class BookingProvider extends ChangeNotifier {
     _initUserCurrentLocation();
     _initRealtimeOrders();
     _startNearbyDriversPolling();
+    loadRadarSettings();
   }
 
   Future<void> _initUiLayoutThemeAndBanners() async {
@@ -1221,7 +1243,7 @@ class BookingProvider extends ChangeNotifier {
     }
   }
 
-  // Driver: fetch available pending requests with push notification for new ones (filtered by vehicle type)
+  // Driver: fetch available pending requests with push notification for new ones (filtered by vehicle type & radar distance)
   Future<void> fetchPendingOrders({bool notifyNew = true, String? driverVehicleType}) async {
     if (driverVehicleType != null && driverVehicleType.isNotEmpty) {
       _currentDriverVehicleType = driverVehicleType;
@@ -1229,13 +1251,34 @@ class BookingProvider extends ChangeNotifier {
     final rawOrders = await _supabaseService.getPendingOrders();
     final currentUid = _currentUserId ?? _supabaseService.client.auth.currentUser?.id;
 
-    // Filter out orders where this driver was rejected, or orders that don't match driver's vehicle type
+    // Determine current driver location for radar distance calculation
+    LatLng? driverLocation = _lastKnownDriverPos ?? _liveUserGps;
+    if (driverLocation == null && _isDriverRole) {
+      try {
+        driverLocation = await LocationService.getCurrentLocation();
+        if (driverLocation != null) {
+          _lastKnownDriverPos = driverLocation;
+        }
+      } catch (_) {}
+    }
+
+    // Filter out orders where this driver was rejected, orders that don't match driver's vehicle type,
+    // OR orders outside the radar distance limit
     _pendingOrders = rawOrders.where((o) {
       if (currentUid != null && o.rejectedDriverIds.contains(currentUid)) {
         return false;
       }
       if (_isDriverRole && _currentDriverVehicleType != null && _currentDriverVehicleType!.isNotEmpty) {
-        return o.matchesDriverVehicle(_currentDriverVehicleType);
+        if (!o.matchesDriverVehicle(_currentDriverVehicleType)) return false;
+      }
+      // Radar distance filtering:
+      if (_isDriverRole && _isRadarFilterEnabled && driverLocation != null) {
+        final pickupPos = LatLng(o.pickupLat, o.pickupLng);
+        final distKm = LocationService.calculateDistance(driverLocation, pickupPos);
+        final distMeters = distKm * 1000.0;
+        if (distMeters > _radarMaxDistanceMeters) {
+          return false;
+        }
       }
       return true;
     }).toList();

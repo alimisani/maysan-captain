@@ -100,6 +100,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   bool _customerDriverApprovalEnabled = false;
   bool _isDriverBlockEnabled = true;
 
+  // Radar Settings State
+  final TextEditingController _radarDistanceMetersController = TextEditingController(text: '10000');
+  bool _isRadarFilterEnabled = true;
+
   @override
   void initState() {
     super.initState();
@@ -169,6 +173,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       _isMultiDestinationsEnabled = admin.isMultiDestinationsEnabled;
       _maxDriverRetryAttemptsController.text =
           (blockSettings['max_retry_attempts'] ?? 0).toString();
+      _radarDistanceMetersController.text = admin.radarMaxDistanceMeters.toString();
+      _isRadarFilterEnabled = admin.isRadarFilterEnabled;
     });
   }
 
@@ -202,6 +208,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     _userSearchController.dispose();
     _walletUserSearchController.dispose();
     _orderSearchController.dispose();
+    _radarDistanceMetersController.dispose();
     super.dispose();
   }
 
@@ -356,6 +363,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         isSelected: _selectedTabIndex == 8,
                         isDark: isDark,
                       ),
+                      const SizedBox(width: 8),
+                      _buildCircularAdminTab(
+                        index: 9,
+                        icon: Icons.radar_rounded,
+                        title: 'رادار الطلبات',
+                        isSelected: _selectedTabIndex == 9,
+                        isDark: isDark,
+                      ),
                     ],
                   ),
                 ),
@@ -377,6 +392,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           _buildUiLayoutTab(admin, loc, isDark),
                           _buildAdBannersTab(admin, loc, isDark),
                           _buildWalletAdminTab(admin, loc, isDark),
+                          _buildRadarSettingsTab(admin, loc, isDark),
                         ],
                       ),
               ),
@@ -9768,4 +9784,348 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       ),
     );
   }
+
+  // --- TAB 9: RADAR SETTINGS (ORDER SEARCH RADIUS) ---
+  Widget _buildRadarSettingsTab(AdminProvider admin, AppLocalizations loc, bool isDark) {
+    final presets = [
+      {'label': '٣ كم (3000 م)', 'meters': 3000},
+      {'label': '٥ كم (5000 م)', 'meters': 5000},
+      {'label': '١٠ كم (الافتراضي)', 'meters': 10000},
+      {'label': '١٥ كم (15000 م)', 'meters': 15000},
+      {'label': '٢٠ كم (20000 م)', 'meters': 20000},
+      {'label': '٣٠ كم (30000 م)', 'meters': 30000},
+      {'label': '٥٠ كم (50000 م)', 'meters': 50000},
+    ];
+
+    final currentMeters = int.tryParse(_radarDistanceMetersController.text.trim()) ?? 10000;
+    final currentKm = (currentMeters / 1000.0).toStringAsFixed(1);
+
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      children: [
+        // Header Info Card
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F172A) : Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: const Color(0xFF06B6D4).withValues(alpha: 0.4),
+              width: 1.5,
+            ),
+            boxShadow: const [
+              BoxShadow(color: Color(0x15000000), blurRadius: 12, offset: Offset(0, 3)),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF06B6D4), Color(0xFF3B82F6)],
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF06B6D4).withValues(alpha: 0.35),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.radar_rounded, color: Colors.white, size: 28),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'رادار طلبات الزبائن ونطاق البحث',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'التحكم بأقصى مسافة جغرافية بين الزبون والكابتن لظهور الطلب وإرسال الإشعار',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // Radar Enable/Disable Switch Card
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F172A) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: (_isRadarFilterEnabled ? AuroraTheme.accentEmerald : Colors.grey)
+                      .withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  _isRadarFilterEnabled ? Icons.check_circle_rounded : Icons.cancel_outlined,
+                  color: _isRadarFilterEnabled ? AuroraTheme.accentEmerald : Colors.grey,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'تفعيل فلترة الرادار الجغرافي',
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _isRadarFilterEnabled
+                          ? 'مفعّل: يظهر الطلب فقط للكباتن القريبين ضمن المدى المحدد'
+                          : 'معطّل: يظهر الطلب لكافة الكباتن دون قيد على المسافة',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch.adaptive(
+                value: _isRadarFilterEnabled,
+                activeThumbColor: AuroraTheme.primaryCyan,
+                activeTrackColor: AuroraTheme.primaryCyan.withValues(alpha: 0.5),
+                onChanged: (val) {
+                  setState(() {
+                    _isRadarFilterEnabled = val;
+                  });
+                },
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // Distance in Meters & Kilometers Display Card
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F172A) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'أقصى مدى للرادار (بالأمتار)',
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AuroraTheme.primaryCyan.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '$currentKm كم',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: AuroraTheme.primaryCyan,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _radarDistanceMetersController,
+                keyboardType: TextInputType.number,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  hintText: 'مثال: 10000',
+                  suffixText: 'متر',
+                  prefixIcon: const Icon(Icons.straighten_rounded, color: AuroraTheme.primaryCyan),
+                  filled: true,
+                  fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Quick Presets
+              Text(
+                'اختيارات سريعة:',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white70 : const Color(0xFF475569),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: presets.map((p) {
+                  final isSelected = currentMeters == p['meters'];
+                  return ChoiceChip(
+                    label: Text(p['label'] as String),
+                    selected: isSelected,
+                    selectedColor: AuroraTheme.primaryCyan.withValues(alpha: 0.25),
+                    backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                    labelStyle: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      color: isSelected
+                          ? AuroraTheme.primaryCyan
+                          : (isDark ? Colors.white70 : const Color(0xFF334155)),
+                    ),
+                    onSelected: (selected) {
+                      if (selected) {
+                        setState(() {
+                          _radarDistanceMetersController.text = (p['meters'] as int).toString();
+                        });
+                      }
+                    },
+                  );
+                }).toList(),
+              ),
+
+              const SizedBox(height: 16),
+              // Explanatory guidelines
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0284C7).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: const Color(0xFF0284C7).withValues(alpha: 0.2),
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.info_outline_rounded, color: Color(0xFF0284C7), size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'عند ضبط المدى على 10,000 متر (10 كم)، لن يظهر طلب الزبون ولن يصل إشعار الطلب الجديد إلا للكباتن المتواجدين على بُعد 10 كم أو أقل من موقع انطلاق الزبون، مما يمنع الطلبات البعيدة والعشوائية.',
+                        style: TextStyle(
+                          fontSize: 11,
+                          height: 1.45,
+                          color: isDark ? Colors.white70 : const Color(0xFF334155),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        // Save Button
+        ElevatedButton.icon(
+          icon: const Icon(Icons.save_rounded, color: Colors.white),
+          label: const Text(
+            'حفظ إعدادات الرادار وتطبيقها فوراً',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AuroraTheme.primaryCyan,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            elevation: 3,
+          ),
+          onPressed: () async {
+            final meters = int.tryParse(_radarDistanceMetersController.text.trim());
+            if (meters == null || meters <= 0) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('يرجى إدخال رقم صحيح للأمتار (أكبر من 0)'),
+                  backgroundColor: Colors.redAccent,
+                ),
+              );
+              return;
+            }
+
+            try {
+              await admin.updateRadarSettings(
+                maxDistanceMeters: meters,
+                isEnabled: _isRadarFilterEnabled,
+              );
+              if (!mounted) return;
+              final booking = context.read<BookingProvider>();
+              booking.updateRadarSettingsLocal(
+                maxDistanceMeters: meters,
+                isEnabled: _isRadarFilterEnabled,
+              );
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'تم حفظ إعدادات الرادار بنجاح: ${_isRadarFilterEnabled ? "مفعّل بمدى ${(meters / 1000).toStringAsFixed(1)} كم ($meters م)" : "معطّل"}',
+                  ),
+                  backgroundColor: AuroraTheme.accentEmerald,
+                ),
+              );
+            } catch (e) {
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('حدث خطأ أثناء الحفظ: $e'),
+                  backgroundColor: Colors.redAccent,
+                ),
+              );
+            }
+          },
+        ),
+
+        const SizedBox(height: 40),
+      ],
+    );
+  }
 }
+

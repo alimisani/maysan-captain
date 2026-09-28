@@ -79,12 +79,6 @@ class _HomeScreenState extends State<HomeScreen> {
           return;
         }
         if (auth.currentUser != null) {
-          auth.refreshCurrentUser();
-          if (auth.isAccountDeleted) {
-            auth.clearAccountDeletedFlag();
-            _handleForcedAccountDeleted();
-            return;
-          }
           final booking = context.read<BookingProvider>();
           booking.updateUserContext(auth.currentUser!.id, auth.currentUser!.isDriver);
           booking.checkActiveOrder(auth.currentUser!.id, auth.currentUser!.isDriver);

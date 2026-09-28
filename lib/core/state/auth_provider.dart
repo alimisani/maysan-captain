@@ -71,25 +71,33 @@ class AuthProvider extends ChangeNotifier {
         final data = jsonDecode(userJson) as Map<String, dynamic>;
         var user = UserProfile.fromJson(data);
 
-        // Immediate check: is account deleted in Supabase?
-        final isDeleted = await _supabaseService.isUserDeleted(user.id);
-        if (isDeleted) {
-          await prefs.remove(_userPrefKey);
-          _currentUser = null;
-          _currentVehicle = null;
-          _isAccountDeleted = true;
-          notifyListeners();
-          return;
-        }
-
-        if (user.isDriver) {
-          final dynRating = await _supabaseService.getDriverDynamicAverageRating(user.id);
-          user = user.copyWith(rating: dynRating);
-          _currentVehicle = await _supabaseService.getDriverVehicle(user.id);
-        }
+        // Immediately restore user session so user remains logged in permanently
         _currentUser = user;
+        _isAccountDeleted = false;
         notifyListeners();
         _subscribeToUserRealtimeEvents(user.id);
+
+        // Background verification (Only log out if explicitly confirmed deleted in DB)
+        try {
+          final isDeleted = await _supabaseService.isUserDeleted(user.id);
+          if (isDeleted) {
+            await prefs.remove(_userPrefKey);
+            _currentUser = null;
+            _currentVehicle = null;
+            _isAccountDeleted = true;
+            notifyListeners();
+            return;
+          }
+
+          if (user.isDriver) {
+            final dynRating = await _supabaseService.getDriverDynamicAverageRating(user.id);
+            _currentUser = _currentUser?.copyWith(rating: dynRating);
+            _currentVehicle = await _supabaseService.getDriverVehicle(user.id);
+            notifyListeners();
+          }
+        } catch (_) {
+          // If offline or network delay, keep the cached user session smoothly!
+        }
       }
     } catch (_) {}
   }
@@ -104,20 +112,22 @@ class AuthProvider extends ChangeNotifier {
       }
 
       final updated = await _supabaseService.getProfileById(_currentUser!.id);
-      if (updated == null) {
-        await forceLogoutDeletedAccount();
-        return;
+      if (updated != null) {
+        if (updated.isDriver) {
+          final dynRating = await _supabaseService.getDriverDynamicAverageRating(updated.id);
+          _currentUser = updated.copyWith(rating: dynRating);
+          _currentVehicle = await _supabaseService.getDriverVehicle(updated.id);
+        } else {
+          _currentUser = updated;
+        }
+        // Update local persistent cache with fresh data
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_userPrefKey, jsonEncode(_currentUser!.toJson()));
+        notifyListeners();
       }
-
-      if (updated.isDriver) {
-        final dynRating = await _supabaseService.getDriverDynamicAverageRating(updated.id);
-        _currentUser = updated.copyWith(rating: dynRating);
-        _currentVehicle = await _supabaseService.getDriverVehicle(updated.id);
-      } else {
-        _currentUser = updated;
-      }
-      notifyListeners();
-    } catch (_) {}
+    } catch (_) {
+      // On network timeout or connection drop, NEVER log out the user! Keep current session intact.
+    }
   }
 
   Future<bool> login({
@@ -126,6 +136,7 @@ class AuthProvider extends ChangeNotifier {
   }) async {
     _isLoading = true;
     _errorMessage = null;
+    _isAccountDeleted = false;
     notifyListeners();
 
     try {

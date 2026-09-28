@@ -333,13 +333,71 @@ class SupabaseService {
 
   Future<bool> isUserDeleted(String userId) async {
     try {
-      final profile = await getProfileById(userId);
-      if (profile == null) return true;
-      final res = await client.from('app_settings').select().eq('key', 'deleted_user_$userId').limit(1);
+      // 1. Explicit tombstone check in app_settings (written when admin deletes a user)
+      final res = await client
+          .from('app_settings')
+          .select('key, value')
+          .eq('key', 'deleted_user_$userId')
+          .limit(1);
       if (res.isNotEmpty) return true;
+
+      // 2. Direct profiles existence check (only returns true if query succeeds and returns empty)
+      final profileCheck = await client
+          .from('profiles')
+          .select('id')
+          .eq('id', userId)
+          .limit(1);
+      if (profileCheck.isEmpty) {
+        return true;
+      }
       return false;
     } catch (_) {
+      // If network error, timeout, or offline: NEVER assume deleted!
       return false;
+    }
+  }
+
+  // --- RADAR SETTINGS (Order Search Radius) ---
+
+  Future<Map<String, dynamic>> getRadarSettings() async {
+    try {
+      final res = await client
+          .from('app_settings')
+          .select('value')
+          .eq('key', 'radar_settings')
+          .limit(1);
+      if (res.isNotEmpty && res.first['value'] != null) {
+        final val = Map<String, dynamic>.from(res.first['value'] as Map);
+        return {
+          'max_distance_meters': (val['max_distance_meters'] as num?)?.toInt() ?? 10000,
+          'is_enabled': val['is_enabled'] != false,
+        };
+      }
+    } catch (e) {
+      debugPrint('Error getting radar settings: $e');
+    }
+    return {
+      'max_distance_meters': 10000, // 10 km default
+      'is_enabled': true,
+    };
+  }
+
+  Future<void> updateRadarSettings({
+    required int maxDistanceMeters,
+    required bool isEnabled,
+  }) async {
+    try {
+      await client.from('app_settings').upsert({
+        'key': 'radar_settings',
+        'value': {
+          'max_distance_meters': maxDistanceMeters,
+          'is_enabled': isEnabled,
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+      });
+    } catch (e) {
+      debugPrint('Error updating radar settings: $e');
+      rethrow;
     }
   }
 

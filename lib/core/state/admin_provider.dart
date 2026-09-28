@@ -51,6 +51,8 @@ class AdminProvider extends ChangeNotifier {
   int _orderTimeoutMinutes = 3;
   AdPackageConfig _adPackagesConfig = const AdPackageConfig();
   WalletConfig _walletConfig = WalletConfig.defaultConfig();
+  int _radarMaxDistanceMeters = 10000;
+  bool _isRadarFilterEnabled = true;
 
   bool _isLoading = false;
   String? _errorMessage;
@@ -72,6 +74,8 @@ class AdminProvider extends ChangeNotifier {
   AdPackageConfig get adPackagesConfig => _adPackagesConfig;
   WalletConfig get walletConfig => _walletConfig;
   bool get isWalletEnabled => _walletConfig.isEnabled;
+  int get radarMaxDistanceMeters => _radarMaxDistanceMeters;
+  bool get isRadarFilterEnabled => _isRadarFilterEnabled;
 
   bool get isTieredPricingEnabled => _isTieredPricingEnabled;
   double get tier0To1000 => _tier0To1000;
@@ -139,6 +143,7 @@ class AdminProvider extends ChangeNotifier {
         _supabaseService.getOrderTimeoutMinutes(),
         _supabaseService.getAdPackagesPricing(),
         _supabaseService.getWalletSettings(),
+        _supabaseService.getRadarSettings(),
       ]);
 
       final rawUsers = results[0] as List<UserProfile>;
@@ -204,12 +209,54 @@ class AdminProvider extends ChangeNotifier {
       _adPackagesConfig = results[13] as AdPackageConfig;
       _walletConfig = results[14] as WalletConfig;
 
+      final radar = results[15] as Map<String, dynamic>;
+      _radarMaxDistanceMeters = (radar['max_distance_meters'] as num?)?.toInt() ?? 10000;
+      _isRadarFilterEnabled = radar['is_enabled'] != false;
+
       _isLoading = false;
       notifyListeners();
     } catch (e) {
       _errorMessage = e.toString();
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  // ==========================================
+  // --- RADAR SETTINGS (ORDER SEARCH RADIUS) ---
+  // ==========================================
+
+  Future<void> fetchRadarSettings() async {
+    try {
+      final s = await _supabaseService.getRadarSettings();
+      _radarMaxDistanceMeters = (s['max_distance_meters'] as num?)?.toInt() ?? 10000;
+      _isRadarFilterEnabled = s['is_enabled'] != false;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error fetching radar settings: $e');
+    }
+  }
+
+  Future<void> updateRadarSettings({
+    required int maxDistanceMeters,
+    required bool isEnabled,
+  }) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      await _supabaseService.updateRadarSettings(
+        maxDistanceMeters: maxDistanceMeters,
+        isEnabled: isEnabled,
+      );
+      _radarMaxDistanceMeters = maxDistanceMeters;
+      _isRadarFilterEnabled = isEnabled;
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
     }
   }
 
