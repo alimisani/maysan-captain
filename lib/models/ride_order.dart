@@ -126,6 +126,28 @@ class RideOrder {
     return req == dType;
   }
 
+  /// Calculates the effective vehicle type code for UI, map markers, and routing
+  String get effectiveVehicleType {
+    if (requestedVehicleType != null && requestedVehicleType!.trim().isNotEmpty) {
+      final req = requestedVehicleType!.toLowerCase().trim();
+      if (req.contains('tuk') || req.contains('تكتك') || req.contains('ستوتة')) return 'tuk_tuk';
+      if (req.contains('vip')) return 'vip';
+      if (req.contains('pickup') || req.contains('بيك') || req.contains('حمل')) return 'pickup';
+      if (req.contains('motorcycle') || req.contains('delivery') || req.contains('دراجة') || req.contains('توصيل')) return 'delivery';
+      if (req.contains('salon') || req.contains('صالون') || req.contains('taxi')) return 'salon';
+      return req;
+    }
+    if (type == 'delivery') return 'delivery';
+    if (vehicleInfo != null && vehicleInfo!.trim().isNotEmpty) {
+      final info = vehicleInfo!.toLowerCase();
+      if (info.contains('تكتك') || info.contains('ستوتة') || info.contains('tuk')) return 'tuk_tuk';
+      if (info.contains('vip')) return 'vip';
+      if (info.contains('بيك') || info.contains('حمل') || info.contains('pickup')) return 'pickup';
+      if (info.contains('دراجة') || info.contains('motorcycle') || info.contains('توصيل')) return 'delivery';
+    }
+    return 'salon';
+  }
+
   RideOrder copyWith({
     String? id,
     String? orderNumber,
@@ -157,6 +179,7 @@ class RideOrder {
     String? status,
     String? notes,
     String? packageDetails,
+    String? requestedVehicleType,
     List<Map<String, dynamic>>? destinations,
     List<String>? rejectedDriverIds,
     Map<String, int>? driverRejectionCounts,
@@ -199,6 +222,7 @@ class RideOrder {
       status: status ?? this.status,
       notes: notes ?? this.notes,
       packageDetails: packageDetails ?? this.packageDetails,
+      requestedVehicleType: requestedVehicleType ?? this.requestedVehicleType,
       destinations: destinations ?? this.destinations,
       rejectedDriverIds: rejectedDriverIds ?? this.rejectedDriverIds,
       driverRejectionCounts: driverRejectionCounts ?? this.driverRejectionCounts,

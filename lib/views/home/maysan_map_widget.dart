@@ -189,6 +189,10 @@ class _MaysanMapWidgetState extends State<MaysanMapWidget> {
                     if (auth.currentUser != null && driverId == auth.currentUser!.id) {
                       return false;
                     }
+                    // Exclude assigned active trip driver from nearby markers to avoid duplicate overlapping vehicles
+                    if (widget.order != null && widget.order!.driverId != null && driverId == widget.order!.driverId) {
+                      return false;
+                    }
 
                     final distKm = LocationService.calculateDistance(pickupPoint, LatLng(lat, lng));
                     return distKm <= 35.0; // 35 km radius across Maysan
@@ -300,14 +304,17 @@ class _MaysanMapWidgetState extends State<MaysanMapWidget> {
                 if (widget.order != null &&
                     widget.order!.status != 'pending' &&
                     widget.order!.driverId != null &&
-                    booking.liveDriverLocation != null)
+                    (booking.liveDriverLocation != null ||
+                        (widget.order!.driverLat != null && widget.order!.driverLng != null)))
                   Marker(
-                    point: booking.liveDriverLocation!,
+                    point: booking.liveDriverLocation ?? LatLng(widget.order!.driverLat!, widget.order!.driverLng!),
                     width: 54,
                     height: 80,
                     child: RealisticCarMarker(
-                      heading: booking.liveDriverHeading,
-                      vehicleType: widget.order?.vehicleInfo ?? 'salon',
+                      heading: booking.liveDriverHeading > 0
+                          ? booking.liveDriverHeading
+                          : (widget.order!.driverHeading ?? 0.0),
+                      vehicleType: widget.order!.effectiveVehicleType,
                       isSelected: true,
                       showHeadlights: true,
                       scale: 1.15,

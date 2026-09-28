@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/constants/app_constants.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/state/auth_provider.dart';
 import '../../core/state/font_provider.dart';
@@ -470,7 +471,30 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 24),
+        Center(
+          child: Column(
+            children: [
+              Text(
+                'كابتن ميسان • الإصدار ${AppConstants.appVersion} (بناء ${AppConstants.buildNumber})',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'ميسان تك للحلول والبرمجيات الذكية',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
           ],
         ),
       ),

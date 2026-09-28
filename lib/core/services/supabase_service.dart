@@ -1713,10 +1713,19 @@ class SupabaseService {
         'value': alertData,
       });
 
-      await client.channel('admin_alerts').sendBroadcastMessage(
-        event: 'driver_documents_submitted',
-        payload: alertData,
-      );
+      // Resilient realtime broadcast dispatch
+      try {
+        final broadcastCh = client.channel('admin_alerts_dispatch_${DateTime.now().millisecondsSinceEpoch}');
+        broadcastCh.subscribe((status, error) async {
+          if (status == RealtimeSubscribeStatus.subscribed) {
+            await broadcastCh.sendBroadcastMessage(
+              event: 'driver_documents_submitted',
+              payload: alertData,
+            );
+            await broadcastCh.unsubscribe();
+          }
+        });
+      } catch (_) {}
     } catch (e) {
       debugPrint('Error notifying admin of driver documents: $e');
     }
@@ -1761,12 +1770,59 @@ class SupabaseService {
         'value': alertData,
       });
 
-      await client.channel('admin_alerts').sendBroadcastMessage(
-        event: 'driver_vehicle_updated',
-        payload: alertData,
-      );
+      try {
+        final broadcastCh = client.channel('admin_alerts_dispatch_${DateTime.now().millisecondsSinceEpoch}');
+        broadcastCh.subscribe((status, error) async {
+          if (status == RealtimeSubscribeStatus.subscribed) {
+            await broadcastCh.sendBroadcastMessage(
+              event: 'driver_vehicle_updated',
+              payload: alertData,
+            );
+            await broadcastCh.unsubscribe();
+          }
+        });
+      } catch (_) {}
     } catch (e) {
       debugPrint('Error notifying admin of vehicle update: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getUnreadAdminAlerts() async {
+    try {
+      final res = await client
+          .from('app_settings')
+          .select('key, value')
+          .like('key', 'admin_alert_%')
+          .order('key', ascending: false)
+          .limit(25);
+      final alerts = <Map<String, dynamic>>[];
+      for (final row in (res as List)) {
+        final val = row['value'];
+        if (val is Map && val['is_read'] != true) {
+          alerts.add({
+            'key': row['key'],
+            ...Map<String, dynamic>.from(val),
+          });
+        }
+      }
+      return alerts;
+    } catch (e) {
+      debugPrint('Error getting unread admin alerts: $e');
+      return [];
+    }
+  }
+
+  Future<void> markAdminAlertAsRead(String key, Map<String, dynamic> currentVal) async {
+    try {
+      final updated = Map<String, dynamic>.from(currentVal);
+      updated['is_read'] = true;
+      updated['read_at'] = DateTime.now().toIso8601String();
+      await client.from('app_settings').upsert({
+        'key': key,
+        'value': updated,
+      });
+    } catch (e) {
+      debugPrint('Error marking admin alert as read: $e');
     }
   }
 

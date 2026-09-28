@@ -4478,6 +4478,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     ? (matchedField.first['title']?.toString() ?? fieldId)
                     : fieldId;
 
+                final isHttpImage = docData.startsWith('http://') || docData.startsWith('https://');
+                final isBase64Image = docData.startsWith('data:image');
                 final isPdf = docData.startsWith('data:application/pdf') || fileName.toLowerCase().endsWith('.pdf');
 
                 return Container(
@@ -4490,7 +4492,43 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   ),
                   child: Row(
                     children: [
-                      if (isPdf)
+                      if (isHttpImage)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            docData,
+                            width: 48,
+                            height: 48,
+                            fit: BoxFit.cover,
+                            loadingBuilder: (_, child, progress) => progress == null
+                                ? child
+                                : Container(
+                                    width: 48,
+                                    height: 48,
+                                    color: Colors.grey.withValues(alpha: 0.1),
+                                    child: const Center(
+                                      child: SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      ),
+                                    ),
+                                  ),
+                            errorBuilder: (_, __, ___) => const Icon(Icons.image_rounded, color: AuroraTheme.primaryCyan, size: 28),
+                          ),
+                        )
+                      else if (isBase64Image)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.memory(
+                            base64Decode(docData.split(',').last),
+                            width: 48,
+                            height: 48,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const Icon(Icons.image_rounded, color: AuroraTheme.primaryCyan, size: 28),
+                          ),
+                        )
+                      else if (isPdf)
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
@@ -4499,18 +4537,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           ),
                           child: const Icon(Icons.picture_as_pdf_rounded, color: AuroraTheme.accentRose, size: 24),
                         )
-                      else if (docData.startsWith('data:image'))
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.memory(
-                            base64Decode(docData.split(',').last),
-                            width: 44,
-                            height: 44,
-                            fit: BoxFit.cover,
-                          ),
-                        )
                       else
-                        const Icon(Icons.description_rounded, color: AuroraTheme.primaryBlue, size: 28),
+                        const Icon(Icons.photo_library_rounded, color: AuroraTheme.primaryBlue, size: 28),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -4550,50 +4578,72 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
             const SizedBox(height: 16),
 
-            // Review Action Buttons
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AuroraTheme.accentEmerald,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    icon: const Icon(Icons.check_circle_rounded, size: 18),
-                    label: const Text('قبول وتفعيل الكابتن ✅', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    onPressed: () async {
-                      final messenger = ScaffoldMessenger.of(context);
-                      await admin.reviewDriverVerification(
-                        driverId: driverId,
-                        status: 'approved',
-                      );
-                      messenger.showSnackBar(
-                        SnackBar(
-                          content: Text('تم توثيق وقبول الكابتن ($driverName) وتفعيل حسابه بنجاح ✅'),
-                          backgroundColor: AuroraTheme.accentEmerald,
-                        ),
-                      );
-                    },
-                  ),
+            // Review Action Buttons (Hidden when already approved)
+            if (status == 'approved')
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: AuroraTheme.accentEmerald.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AuroraTheme.accentEmerald.withValues(alpha: 0.3)),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AuroraTheme.accentRose,
-                      side: const BorderSide(color: AuroraTheme.accentRose),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.verified_rounded, color: AuroraTheme.accentEmerald, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'تم توثيق وقبول واعتماد هذا الكابتن بنجاح ✅',
+                      style: TextStyle(color: AuroraTheme.accentEmerald, fontWeight: FontWeight.bold, fontSize: 13),
                     ),
-                    icon: const Icon(Icons.cancel_rounded, size: 18),
-                    label: const Text('رفض المستمسكات ❌', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    onPressed: () => _showRejectVerificationDialog(admin, driverId, driverName),
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              )
+            else
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AuroraTheme.accentEmerald,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      icon: const Icon(Icons.check_circle_rounded, size: 18),
+                      label: const Text('قبول وتفعيل الكابتن ✅', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      onPressed: () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        await admin.reviewDriverVerification(
+                          driverId: driverId,
+                          status: 'approved',
+                        );
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text('تم توثيق وقبول الكابتن ($driverName) وتفعيل حسابه بنجاح ✅'),
+                            backgroundColor: AuroraTheme.accentEmerald,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AuroraTheme.accentRose,
+                        side: const BorderSide(color: AuroraTheme.accentRose),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      icon: const Icon(Icons.cancel_rounded, size: 18),
+                      label: const Text('رفض المستمسكات ❌', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      onPressed: () => _showRejectVerificationDialog(admin, driverId, driverName),
+                    ),
+                  ),
+                ],
+              ),
           ],
         ),
       ),
@@ -4601,84 +4651,194 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   void _showDocumentPreviewDialog(String title, String fileName, String docData) {
-    final isImage = docData.startsWith('data:image');
+    final isHttp = docData.startsWith('http://') || docData.startsWith('https://');
+    final isBase64 = docData.startsWith('data:image');
+    final isPdf = docData.startsWith('data:application/pdf') || fileName.toLowerCase().endsWith('.pdf');
+    final isImage = isHttp || isBase64 || (!isPdf && (fileName.toLowerCase().endsWith('.jpg') || fileName.toLowerCase().endsWith('.png') || fileName.toLowerCase().endsWith('.jpeg') || fileName.toLowerCase().endsWith('.webp')));
 
     showDialog(
       context: context,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          constraints: const BoxConstraints(maxWidth: 450, maxHeight: 600),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded),
-                    onPressed: () => Navigator.pop(ctx),
-                  ),
-                ],
-              ),
-              const Divider(height: 1),
-              const SizedBox(height: 12),
-              Expanded(
-                child: isImage
-                    ? InteractiveViewer(
-                        minScale: 0.8,
-                        maxScale: 4.0,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.memory(
-                            base64Decode(docData.split(',').last),
-                            fit: BoxFit.contain,
+      builder: (ctx) {
+        final TransformationController transformController = TransformationController();
+
+        return StatefulBuilder(
+          builder: (dialogCtx, setDialogState) {
+            return Dialog(
+              backgroundColor: const Color(0xFF0F172A),
+              insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                constraints: const BoxConstraints(maxWidth: 550, maxHeight: 720),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Header Bar
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                fileName,
+                                style: const TextStyle(fontSize: 11, color: Colors.white60),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ),
                         ),
-                      )
-                    : Center(
-                        child: Column(
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, color: Colors.white),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 16, color: Colors.white12),
+
+                    // Zoom Controls Bar for Images
+                    if (isImage)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.picture_as_pdf_rounded, color: AuroraTheme.accentRose, size: 64),
-                            const SizedBox(height: 12),
-                            Text(
-                              fileName,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                              textAlign: TextAlign.center,
+                            IconButton.filledTonal(
+                              tooltip: 'تكبير (+)',
+                              icon: const Icon(Icons.zoom_in_rounded, size: 20),
+                              onPressed: () {
+                                final currentMatrix = transformController.value;
+                                transformController.value = currentMatrix * Matrix4.diagonal3Values(1.3, 1.3, 1.0);
+                              },
                             ),
-                            const SizedBox(height: 6),
+                            const SizedBox(width: 8),
+                            IconButton.filledTonal(
+                              tooltip: 'تصغير (-)',
+                              icon: const Icon(Icons.zoom_out_rounded, size: 20),
+                              onPressed: () {
+                                final currentMatrix = transformController.value;
+                                transformController.value = currentMatrix * Matrix4.diagonal3Values(0.77, 0.77, 1.0);
+                              },
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton.filledTonal(
+                              tooltip: 'إعادة ضبط الحجم',
+                              icon: const Icon(Icons.restart_alt_rounded, size: 20),
+                              onPressed: () {
+                                transformController.value = Matrix4.identity();
+                              },
+                            ),
+                            const SizedBox(width: 12),
                             const Text(
-                              'ملف مستند PDF عالي الدقة تم إرفاقه بنجاح',
-                              style: TextStyle(color: Colors.grey, fontSize: 12),
+                              'اسحب وكبّر للتفاصيل',
+                              style: TextStyle(color: Colors.white54, fontSize: 11),
                             ),
                           ],
                         ),
                       ),
-              ),
-              const SizedBox(height: 12),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AuroraTheme.primaryBlue,
-                  minimumSize: const Size.fromHeight(44),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+
+                    // Content Viewport
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          color: Colors.black,
+                          width: double.infinity,
+                          child: isImage
+                              ? InteractiveViewer(
+                                  transformationController: transformController,
+                                  minScale: 0.5,
+                                  maxScale: 10.0,
+                                  boundaryMargin: const EdgeInsets.all(80),
+                                  child: Center(
+                                    child: isHttp
+                                        ? Image.network(
+                                            docData,
+                                            fit: BoxFit.contain,
+                                            loadingBuilder: (_, child, progress) => progress == null
+                                                ? child
+                                                : Center(
+                                                    child: CircularProgressIndicator(
+                                                      value: progress.expectedTotalBytes != null
+                                                          ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes!
+                                                          : null,
+                                                      color: AuroraTheme.primaryCyan,
+                                                    ),
+                                                  ),
+                                            errorBuilder: (_, error, __) => Column(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                const Icon(Icons.broken_image_rounded, color: AuroraTheme.accentRose, size: 48),
+                                                const SizedBox(height: 8),
+                                                Text('تعذر تحميل الصورة: $error', style: const TextStyle(color: Colors.white60, fontSize: 12)),
+                                              ],
+                                            ),
+                                          )
+                                        : (isBase64
+                                            ? Image.memory(
+                                                base64Decode(docData.split(',').last),
+                                                fit: BoxFit.contain,
+                                                errorBuilder: (_, error, __) => const Column(
+                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  children: [
+                                                    Icon(Icons.broken_image_rounded, color: AuroraTheme.accentRose, size: 48),
+                                                    SizedBox(height: 8),
+                                                    Text('تعذر قراءة الصورة المشفرة', style: TextStyle(color: Colors.white60, fontSize: 12)),
+                                                  ],
+                                                ),
+                                              )
+                                            : const Center(
+                                                child: Text('صيغة صورة غير مدعومة', style: TextStyle(color: Colors.white)),
+                                              )),
+                                  ),
+                                )
+                              : Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(Icons.picture_as_pdf_rounded, color: AuroraTheme.accentRose, size: 64),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        fileName,
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                      const SizedBox(height: 6),
+                                      const Text(
+                                        'مستند PDF تم إرفاقه بنجاح',
+                                        style: TextStyle(color: Colors.white60, fontSize: 12),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AuroraTheme.primaryBlue,
+                        minimumSize: const Size.fromHeight(44),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('إغلاق المعاينة', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
                 ),
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('إغلاق المعاينة', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               ),
-            ],
-          ),
-        ),
-      ),
+            );
+          },
+        );
+      },
     );
   }
 

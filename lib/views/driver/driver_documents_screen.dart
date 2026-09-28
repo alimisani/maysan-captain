@@ -136,19 +136,29 @@ class _DriverDocumentsScreenState extends State<DriverDocumentsScreen> {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
+        allowedExtensions: ['jpg', 'jpeg', 'png', 'webp'],
         withData: true,
       );
 
       if (result != null && result.files.isNotEmpty) {
         final file = result.files.first;
+        final ext = (file.extension ?? '').toLowerCase();
+        const allowedImageExtensions = ['jpg', 'jpeg', 'png', 'webp'];
+
+        if (!allowedImageExtensions.contains(ext)) {
+          _showErrorSnackBar(
+            'عذراً، يُسمح برفع المستمسكات بصيغة صور واضحة فقط (JPG, PNG, JPEG, WEBP). يرجى رفع صورة حصراً.',
+          );
+          return;
+        }
+
         final bytes = file.bytes ?? (file.path != null ? await File(file.path!).readAsBytes() : null);
 
         if (bytes != null) {
           setState(() => _uploadingFields[fieldId] = true);
-          final isPdf = file.extension?.toLowerCase() == 'pdf';
-          final mime = isPdf ? 'application/pdf' : 'image/jpeg';
-          final ext = isPdf ? 'pdf' : 'jpg';
+          final mime = ext == 'png'
+              ? 'image/png'
+              : (ext == 'webp' ? 'image/webp' : 'image/jpeg');
           final fileName = '${fieldId}_${DateTime.now().millisecondsSinceEpoch}.$ext';
 
           String finalUrl;
@@ -159,7 +169,7 @@ class _DriverDocumentsScreenState extends State<DriverDocumentsScreen> {
               folder: 'verifications/$driverId',
               customFileName: fileName,
               mimeType: mime,
-              autoCompress: !isPdf,
+              autoCompress: true,
             );
           } catch (e) {
             debugPrint('R2 upload fallback to base64: $e');
@@ -177,7 +187,7 @@ class _DriverDocumentsScreenState extends State<DriverDocumentsScreen> {
       }
     } catch (e) {
       if (mounted) setState(() => _uploadingFields[fieldId] = false);
-      _showErrorSnackBar('تعذر اختيار الملف: $e');
+      _showErrorSnackBar('تعذر اختيار الصورة: $e');
     }
   }
 
@@ -198,6 +208,12 @@ class _DriverDocumentsScreenState extends State<DriverDocumentsScreen> {
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 8),
+            const Text(
+              'يرجى التأكد من وضوح الصورة وكامل حواف المستمسك (صور حصراً)',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 18),
             ListTile(
               leading: Container(
@@ -209,7 +225,7 @@ class _DriverDocumentsScreenState extends State<DriverDocumentsScreen> {
                 child: const Icon(Icons.camera_alt_rounded, color: AuroraTheme.primaryBlue),
               ),
               title: const Text('التقاط صورة بالمستمسك عبر الكاميرا', style: TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: const Text('تصوير مباشر عالي الدقة للوثيقة'),
+              subtitle: const Text('تصوير مباشر وواضح للوثيقة'),
               onTap: () {
                 Navigator.pop(ctx);
                 _pickImage(fieldId, ImageSource.camera);
@@ -223,10 +239,10 @@ class _DriverDocumentsScreenState extends State<DriverDocumentsScreen> {
                   color: AuroraTheme.primaryCyan.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.folder_open_rounded, color: AuroraTheme.primaryCyan),
+                child: const Icon(Icons.photo_library_rounded, color: AuroraTheme.primaryCyan),
               ),
-              title: const Text('اختيار ملف أو صورة من الهاتف (PDF / صور)', style: TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: const Text('متصفح الملفات والاستوديو'),
+              title: const Text('اختيار صورة من المعرض / الهاتف (صور فقط)', style: TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: const Text('ملفات الصور بصيغ (JPG, PNG, WEBP) حصراً'),
               onTap: () {
                 Navigator.pop(ctx);
                 _pickFile(fieldId);

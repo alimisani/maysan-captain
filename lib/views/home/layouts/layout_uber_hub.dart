@@ -85,6 +85,15 @@ class LayoutUberHub extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         _buildCategoryCard(
+                          title: 'بيك آب / حمل',
+                          subtitle: 'نقل بضائع',
+                          icon: Icons.local_shipping_rounded,
+                          color: const Color(0xFFEC4899),
+                          type: 'pickup',
+                          booking: booking,
+                        ),
+                        const SizedBox(width: 8),
+                        _buildCategoryCard(
                           title: 'توصيل طلبات',
                           subtitle: 'ديلفري فوري',
                           icon: Icons.two_wheeler_rounded,

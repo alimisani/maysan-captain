@@ -42,6 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isQuickMenuOpen = false;
   Timer? _activeOrderTimer;
   RealtimeChannel? _adminAlertsChannel;
+  final Set<String> _alertedAdminKeys = {};
 
   @override
   void initState() {
@@ -62,6 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
         if (auth.isAdmin) {
           _subscribeToAdminAlerts();
+          _checkUnreadAdminAlerts();
         }
       }
       booking.loadUiLayoutTheme();
@@ -86,9 +88,38 @@ class _HomeScreenState extends State<HomeScreen> {
           final booking = context.read<BookingProvider>();
           booking.updateUserContext(auth.currentUser!.id, auth.currentUser!.isDriver);
           booking.checkActiveOrder(auth.currentUser!.id, auth.currentUser!.isDriver);
+
+          if (auth.isAdmin) {
+            _checkUnreadAdminAlerts();
+          }
         }
       }
     });
+  }
+
+  Future<void> _checkUnreadAdminAlerts() async {
+    try {
+      final alerts = await SupabaseService().getUnreadAdminAlerts();
+      for (final a in alerts) {
+        final key = a['key']?.toString() ?? '';
+        if (key.isNotEmpty && !_alertedAdminKeys.contains(key)) {
+          _alertedAdminKeys.add(key);
+          final driverName = a['driver_name']?.toString() ?? 'كابتن';
+          final driverPhone = a['driver_phone']?.toString() ?? '';
+          final vehicleInfo = a['vehicle_info']?.toString();
+          final isVehicleUpdate = a['type'] == 'vehicle_updated' || a['is_vehicle_update'] == true;
+
+          NotificationService.showAdminNewDriverDocumentsNotification(
+            driverName: driverName,
+            driverPhone: driverPhone,
+            vehicleInfo: vehicleInfo,
+            isVehicleUpdate: isVehicleUpdate,
+          );
+
+          await SupabaseService().markAdminAlertAsRead(key, a);
+        }
+      }
+    } catch (_) {}
   }
 
   void _subscribeToAdminAlerts() {
@@ -100,6 +131,8 @@ class _HomeScreenState extends State<HomeScreen> {
           .onBroadcast(
             event: 'driver_documents_submitted',
             callback: (payload) {
+              final key = 'alert_${payload['driver_id']}_${DateTime.now().millisecondsSinceEpoch}';
+              _alertedAdminKeys.add(key);
               NotificationService.showAdminNewDriverDocumentsNotification(
                 driverName: payload['driver_name']?.toString() ?? 'كابتن جديد',
                 driverPhone: payload['driver_phone']?.toString() ?? '',
@@ -111,6 +144,8 @@ class _HomeScreenState extends State<HomeScreen> {
           .onBroadcast(
             event: 'driver_vehicle_updated',
             callback: (payload) {
+              final key = 'alert_${payload['driver_id']}_${DateTime.now().millisecondsSinceEpoch}';
+              _alertedAdminKeys.add(key);
               NotificationService.showAdminNewDriverDocumentsNotification(
                 driverName: payload['driver_name']?.toString() ?? 'كابتن',
                 driverPhone: payload['driver_phone']?.toString() ?? '',

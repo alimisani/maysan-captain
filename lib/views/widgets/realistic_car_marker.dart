@@ -97,11 +97,12 @@ class _TopDownVehiclePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (vehicleType.contains('motorcycle') || vehicleType.contains('دراجة')) {
+    final v = vehicleType.toLowerCase().trim();
+    if (v.contains('motorcycle') || v.contains('delivery') || v.contains('دراجة') || v.contains('توصيل') || v.contains('طلبات')) {
       _paintMotorcycle(canvas, size);
-    } else if (vehicleType.contains('tuk_tuk') || vehicleType.contains('ستوتة') || vehicleType.contains('توك')) {
+    } else if (v.contains('tuk') || v.contains('تكتك') || v.contains('ستوتة') || v.contains('توك') || v.contains('rickshaw')) {
       _paintTukTuk(canvas, size);
-    } else if (vehicleType.contains('pickup') || vehicleType.contains('بيك')) {
+    } else if (v.contains('pickup') || v.contains('بيك') || v.contains('حمل') || v.contains('شاحنة')) {
       _paintPickup(canvas, size);
     } else {
       _paintCar(canvas, size);
