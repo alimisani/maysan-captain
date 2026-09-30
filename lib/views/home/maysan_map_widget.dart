@@ -226,9 +226,13 @@ class _MaysanMapWidgetState extends State<MaysanMapWidget> {
                     );
                   }),
 
-                // 2. User's Own Dynamic Moving Location Marker
+                // 2. Dynamic Moving Location Marker
                 // - If Driver: Displays their moving 3D vehicle car marker!
-                // - If Customer/Admin: Displays the pulsing real-time location radar!
+                // - If Customer/Admin:
+                //   * When captain has arrived or trip is in progress: Customer is in the vehicle!
+                //     The marker transforms into the captain's vehicle icon (with headlights & scale).
+                //     If captain loses internet, it follows the customer's live GPS smoothly!
+                //   * When waiting at pickup: Displays the pulsing real-time location radar!
                 if (auth.currentUser?.role == 'driver')
                   Marker(
                     point: currentPosition,
@@ -239,6 +243,21 @@ class _MaysanMapWidgetState extends State<MaysanMapWidget> {
                       vehicleType: auth.currentVehicle?.vehicleType ?? 'salon',
                       showHeadlights: true,
                       scale: 1.05,
+                    ),
+                  )
+                else if (widget.order != null &&
+                    ['arriving', 'arrived', 'in_progress'].contains(widget.order!.status))
+                  // In-flight/arrived: Customer icon transforms into captain's vehicle icon!
+                  Marker(
+                    point: _resolveActiveTripVehiclePosition(booking, widget.order, currentPosition),
+                    width: 54,
+                    height: 80,
+                    child: RealisticCarMarker(
+                      heading: _resolveActiveTripVehicleHeading(booking, widget.order, _liveHeading),
+                      vehicleType: widget.order!.effectiveVehicleType,
+                      isSelected: true,
+                      showHeadlights: true,
+                      scale: 1.15,
                     ),
                   )
                 else
@@ -300,9 +319,10 @@ class _MaysanMapWidgetState extends State<MaysanMapWidget> {
                     ),
                   ),
 
-                // 5. Real Driver Vehicle Marker ONLY during Active Accepted/In-Progress Trip
+                // 5. Approaching Driver Vehicle Marker ONLY BEFORE Captain Arrives at Pickup
                 if (widget.order != null &&
                     widget.order!.status != 'pending' &&
+                    !['arriving', 'arrived', 'in_progress'].contains(widget.order!.status) &&
                     widget.order!.driverId != null &&
                     (booking.liveDriverLocation != null ||
                         (widget.order!.driverLat != null && widget.order!.driverLng != null)))
@@ -384,6 +404,41 @@ class _MaysanMapWidgetState extends State<MaysanMapWidget> {
           ),
       ],
     );
+  }
+
+  LatLng _resolveActiveTripVehiclePosition(
+    BookingProvider booking,
+    RideOrder? order,
+    LatLng customerGps,
+  ) {
+    if (order == null) return customerGps;
+
+    final driverPos = booking.liveDriverLocation ??
+        (order.driverLat != null && order.driverLng != null
+            ? LatLng(order.driverLat!, order.driverLng!)
+            : null);
+
+    // If captain's GPS is actively streaming, prioritize it
+    if (driverPos != null) {
+      return driverPos;
+    }
+
+    // Offline Captain Fallback: Customer has internet & is in the car, so customer's GPS leads!
+    return customerGps;
+  }
+
+  double _resolveActiveTripVehicleHeading(
+    BookingProvider booking,
+    RideOrder? order,
+    double customerHeading,
+  ) {
+    if (booking.liveDriverHeading > 0) {
+      return booking.liveDriverHeading;
+    }
+    if (order != null && (order.driverHeading ?? 0.0) > 0) {
+      return order.driverHeading!;
+    }
+    return customerHeading > 0 ? customerHeading : 0.0;
   }
 
   Widget _buildLiveGpsMarker(bool isDark, double heading) {

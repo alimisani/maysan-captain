@@ -4,8 +4,8 @@ class AppConstants {
   // App Info
   static const String appNameAr = 'كابتن ميسان';
   static const String appNameEn = 'Maysan Captain';
-  static const String appVersion = '1.0.1';
-  static const int buildNumber = 26;
+  static const String appVersion = '1.0.2';
+  static const int buildNumber = 27;
 
   // Supabase Configuration
   static const String supabaseUrl = 'https://aksvjsuniudzxumbaiph.supabase.co';

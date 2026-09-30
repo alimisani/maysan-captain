@@ -13,6 +13,7 @@ import '../widgets/aurora_background.dart';
 import '../widgets/glass_card.dart';
 import 'advertise_with_us_sheet.dart';
 import 'developer_info_screen.dart';
+import '../../core/services/app_update_service.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -339,6 +340,55 @@ class SettingsScreen extends StatelessWidget {
                     child: Text(
                       'ميسان تك - Maysan Tech',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                  ),
+                  const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // App Update Section
+            Text(
+              'تحديث التطبيق',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+            const SizedBox(height: 8),
+
+            GlassCard(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              borderRadius: 20,
+              onTap: () => AppUpdateService.checkManually(context),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AuroraTheme.primaryCyan.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.system_update_rounded,
+                      color: AuroraTheme.primaryCyan,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'التحقق من وجود تحديث جديد',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'تنزيل آخر إصدار من متجر Google Play',
+                          style: TextStyle(fontSize: 11, color: Colors.grey),
+                        ),
+                      ],
                     ),
                   ),
                   const Icon(Icons.arrow_forward_ios_rounded, size: 16),

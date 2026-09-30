@@ -354,6 +354,7 @@ class NotificationService {
         enableVibration: true,
         vibrationPattern: _vibrationPattern,
         playSound: true,
+        fullScreenIntent: true,
         styleInformation: BigTextStyleInformation(
           body,
           contentTitle: title,

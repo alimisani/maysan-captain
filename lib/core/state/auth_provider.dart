@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/background_order_service.dart';
 import '../services/supabase_service.dart';
 import '../../models/user_profile.dart';
 import '../../models/vehicle.dart';
@@ -95,6 +96,18 @@ class AuthProvider extends ChangeNotifier {
             _currentVehicle = await _supabaseService.getDriverVehicle(user.id);
             notifyListeners();
           }
+
+          // Sync background service for Captain or Admin notifications even when app is closed
+          final isAdmin = user.isAdmin || user.email == 'maysan.tech1@gmail.com' || user.id == 'admin-maysan-tech';
+          if (user.isDriver || isAdmin) {
+            BackgroundOrderService.syncUserSession(
+              userId: user.id,
+              userName: user.name,
+              role: user.role,
+              vehicleType: _currentVehicle?.vehicleType ?? 'salon',
+              isAdmin: isAdmin,
+            );
+          }
         } catch (_) {
           // If offline or network delay, keep the cached user session smoothly!
         }
@@ -158,6 +171,18 @@ class AuthProvider extends ChangeNotifier {
         await prefs.setString(_userPrefKey, jsonEncode(user.toJson()));
 
         _subscribeToUserRealtimeEvents(user.id);
+
+        // Sync background service for Captain or Admin notifications
+        final isAdmin = user.isAdmin || user.email == 'maysan.tech1@gmail.com' || user.id == 'admin-maysan-tech';
+        if (user.isDriver || isAdmin) {
+          BackgroundOrderService.syncUserSession(
+            userId: user.id,
+            userName: user.name,
+            role: user.role,
+            vehicleType: _currentVehicle?.vehicleType ?? 'salon',
+            isAdmin: isAdmin,
+          );
+        }
 
         _isLoading = false;
         notifyListeners();
@@ -272,6 +297,7 @@ class AuthProvider extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_userPrefKey);
+      await BackgroundOrderService.stopDriverService();
     } catch (_) {}
   }
 

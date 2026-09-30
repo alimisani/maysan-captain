@@ -7,6 +7,7 @@ import '../../core/localization/app_localizations.dart';
 import '../../core/services/whatsapp_service.dart';
 import '../../core/services/supabase_service.dart';
 import '../../core/services/notification_service.dart';
+import '../../core/services/app_update_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/state/auth_provider.dart';
 import '../../core/state/booking_provider.dart';
@@ -68,6 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
       booking.loadUiLayoutTheme();
       booking.loadBanners();
+      AppUpdateService.checkForUpdatesOnStartup(context);
     });
 
     _activeOrderTimer = Timer.periodic(const Duration(seconds: 3), (_) {

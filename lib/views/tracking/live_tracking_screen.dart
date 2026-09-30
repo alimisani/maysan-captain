@@ -315,9 +315,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
 
           // 🤖 SMART AUTOMATIC PROXIMITY TRIP STAGES (Geofence Automation):
           final pickupLoc = LatLng(order.pickupLat, order.pickupLng);
-          final dropoffLoc = LatLng(order.dropoffLat, order.dropoffLng);
           final distToPickupMeters = LocationService.calculateDistance(gps, pickupLoc) * 1000.0;
-          final distToDropoffMeters = LocationService.calculateDistance(gps, dropoffLoc) * 1000.0;
 
           // Stage 1: Driver approaches pickup point (within <= 80 meters) -> Auto-switch to 'arriving'
           if (order.status == 'accepted' && distToPickupMeters <= 80.0) {
@@ -327,10 +325,6 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
           else if (order.status == 'arriving' && distToPickupMeters > 120.0) {
             await booking.updateOrderStatus(order.id, 'in_progress');
           }
-          // Stage 3: Driver arrives at destination dropoff (within <= 80 meters) -> Auto-switch to 'completed'
-          else if (order.status == 'in_progress' && distToDropoffMeters <= 80.0) {
-            await booking.updateOrderStatus(order.id, 'completed');
-          }
 
           await booking.checkActiveOrder(user.id, true);
         }
@@ -338,8 +332,27 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
         // Customer: poll latest driver position and heading from DB
         await booking.checkActiveOrder(user.id, false);
 
-        // Auto-cancel if customer order exceeded timeout without acceptance
+        // If trip is in progress and captain is offline or lagging, customer's GPS in the vehicle bridges the trip tracking!
         final currentOrder = booking.activeOrder;
+        if (currentOrder != null && currentOrder.status == 'in_progress') {
+          try {
+            final custGps = await LocationService.getCurrentLocation();
+            if (custGps != null) {
+              final bool driverNeedsBridge = currentOrder.driverLat == null ||
+                  currentOrder.driverLng == null ||
+                  LocationService.calculateDistance(custGps, LatLng(currentOrder.driverLat!, currentOrder.driverLng!)) > 0.05;
+              if (driverNeedsBridge) {
+                await SupabaseService().client.from('rides_and_deliveries').update({
+                  'driver_lat': custGps.latitude,
+                  'driver_lng': custGps.longitude,
+                  'updated_at': DateTime.now().toIso8601String(),
+                }).eq('id', currentOrder.id);
+              }
+            }
+          } catch (_) {}
+        }
+
+        // Auto-cancel if customer order exceeded timeout without acceptance
         if (currentOrder != null && currentOrder.status == 'pending') {
           final timeoutMinutes = await SupabaseService().getOrderTimeoutMinutes();
           final diff = DateTime.now().difference(currentOrder.createdAt);
@@ -434,7 +447,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
       );
     }
 
-    if (order.status == 'completed' || liveOrder == null) {
+    if (order.status == 'completed') {
       _checkAutoShowRating(order, isDriver);
       return _buildTripCompletedScreen(context, order, isDriver, isDark, currencyFormatter);
     }
