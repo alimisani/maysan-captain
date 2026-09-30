@@ -14,6 +14,7 @@ import '../widgets/glass_card.dart';
 import 'advertise_with_us_sheet.dart';
 import 'developer_info_screen.dart';
 import '../../core/services/app_update_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -526,19 +527,32 @@ class SettingsScreen extends StatelessWidget {
           child: Column(
             children: [
               Text(
-                'كابتن ميسان • الإصدار ${AppConstants.appVersion} (بناء ${AppConstants.buildNumber})',
+                'كابتن ميسان • الإصدار ${AppConstants.appVersion}',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                'ميسان تك للحلول والبرمجيات الذكية',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
+              const SizedBox(height: 6),
+              InkWell(
+                onTap: () async {
+                  final uri = Uri.parse('https://t.me/maysan_tech');
+                  try {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  } catch (_) {}
+                },
+                borderRadius: BorderRadius.circular(8),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  child: Text(
+                    'ميسان تك',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                  ),
                 ),
               ),
             ],

@@ -9,6 +9,7 @@ import '../../core/services/pdf_service.dart';
 import '../../core/services/supabase_service.dart';
 import '../../core/services/whatsapp_service.dart';
 import '../../core/services/image_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/state/admin_provider.dart';
 import '../../core/state/booking_provider.dart';
 import '../../core/state/theme_provider.dart';
@@ -95,14 +96,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   String _selectedMapStyle = 'carto_clean';
 
-  // Set of user IDs whose password visibility is toggled on
-  final Set<String> _visiblePasswordUsers = {};
   bool _customerDriverApprovalEnabled = false;
   bool _isDriverBlockEnabled = true;
 
   // Radar Settings State
   final TextEditingController _radarDistanceMetersController = TextEditingController(text: '10000');
   bool _isRadarFilterEnabled = true;
+
+  // Collapsible cards state with persistent saving (only for contact, vehicle, documents)
+  bool _isContactCardCollapsed = false;
+  bool _isVehicleCardCollapsed = false;
+  bool _isDocsCardCollapsed = false;
 
   @override
   void initState() {
@@ -165,6 +169,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     _tier1501To2000Controller.text = admin.tier1501To2000.toInt().toString();
     _tier2001To2500Controller.text = admin.tier2001To2500.toInt().toString();
     _tier2501To3000Controller.text = admin.tier2501To3000.toInt().toString();
+
+    final prefs = await SharedPreferences.getInstance();
+    _isContactCardCollapsed = prefs.getBool('admin_card_collapsed_contact') ?? false;
+    _isVehicleCardCollapsed = prefs.getBool('admin_card_collapsed_vehicle') ?? false;
+    _isDocsCardCollapsed = prefs.getBool('admin_card_collapsed_docs') ?? false;
 
     setState(() {
       _selectedMapStyle = admin.mapStyle;
@@ -618,8 +627,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           )
         else
           ...filteredUsers.map((u) {
-          final isPassVisible = _visiblePasswordUsers.contains(u.id);
-
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(16),
@@ -766,56 +773,34 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 Divider(height: 1, color: isDark ? const Color(0x2238BDF8) : const Color(0xFFE2E8F0)),
                 const SizedBox(height: 10),
 
-                // Password Display & Action Buttons Row
+                // Action Buttons Row (Without Password as requested)
                 Row(
                   children: [
-                    // Password Box
-                    Expanded(
+                    // View Full Profile & Documents Button
+                    InkWell(
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: () => _showUserDetailsModal(admin, u),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          color: isDark ? const Color(0x331E293B) : const Color(0xFFF1F5F9),
+                          color: AuroraTheme.primaryCyan.withValues(alpha: isDark ? 0.15 : 0.1),
                           borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: AuroraTheme.primaryCyan.withValues(alpha: 0.3),
+                            width: 1,
+                          ),
                         ),
-                        child: Row(
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.lock_outline_rounded, size: 14, color: AuroraTheme.primaryBlue),
-                            const SizedBox(width: 4),
+                            Icon(Icons.badge_outlined, color: AuroraTheme.primaryCyan, size: 16),
+                            SizedBox(width: 5),
                             Text(
-                              'كلمة المرور: ',
+                              'التفاصيل والوثائق',
                               style: TextStyle(
-                                fontSize: 10.5,
-                                color: isDark ? Colors.white60 : const Color(0xFF64748B),
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                isPassVisible ? (u.password ?? '123456') : '••••••••',
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.bold,
-                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            InkWell(
-                              onTap: () {
-                                setState(() {
-                                  if (isPassVisible) {
-                                    _visiblePasswordUsers.remove(u.id);
-                                  } else {
-                                    _visiblePasswordUsers.add(u.id);
-                                  }
-                                });
-                              },
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 3),
-                                child: Icon(
-                                  isPassVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                                  size: 15,
-                                  color: AuroraTheme.primaryCyan,
-                                ),
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.bold,
+                                color: AuroraTheme.primaryCyan,
                               ),
                             ),
                           ],
@@ -823,18 +808,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       ),
                     ),
 
-                    const SizedBox(width: 4),
-
-                    // View Full Profile & Documents Button
-                    IconButton(
-                      padding: const EdgeInsets.all(5),
-                      constraints: const BoxConstraints(),
-                      icon: const Icon(Icons.badge_outlined, color: AuroraTheme.primaryCyan, size: 19),
-                      tooltip: 'عرض تفاصيل المشترك والمستمسكات',
-                      onPressed: () => _showUserDetailsModal(admin, u),
-                    ),
-
-                    const SizedBox(width: 2),
+                    const Spacer(),
 
                     // Edit Button
                     IconButton(
@@ -847,7 +821,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
                     // Block/Unblock Button (Not for admin)
                     if (!u.isAdmin) ...[
-                      const SizedBox(width: 2),
+                      const SizedBox(width: 4),
                       IconButton(
                         padding: const EdgeInsets.all(5),
                         constraints: const BoxConstraints(),
@@ -863,7 +837,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
                     // Delete Button
                     if (!u.isAdmin) ...[
-                      const SizedBox(width: 2),
+                      const SizedBox(width: 4),
                       IconButton(
                         padding: const EdgeInsets.all(5),
                         constraints: const BoxConstraints(),
@@ -2618,6 +2592,150 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
+  void _showEditVehicleDialog(
+    BuildContext context,
+    AdminProvider admin,
+    UserProfile u,
+    Map<String, dynamic>? currentVeh,
+    VoidCallback onSaved,
+  ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    String selectedType = currentVeh?['vehicle_type']?.toString() ?? 'private';
+    if (!['private', 'taxi', 'vip', 'delivery', 'toktok'].contains(selectedType)) {
+      if (selectedType == 'أجرة' || selectedType == 'taxi') {
+        selectedType = 'taxi';
+      } else {
+        selectedType = 'private';
+      }
+    }
+    final plateController = TextEditingController(text: currentVeh?['plate_number']?.toString() ?? '');
+    final modelController = TextEditingController(text: currentVeh?['model']?.toString() ?? '');
+    final colorController = TextEditingController(text: currentVeh?['color']?.toString() ?? '');
+    final yearController = TextEditingController(text: currentVeh?['year']?.toString() ?? '');
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+          title: const Row(
+            children: [
+              Icon(Icons.directions_car_rounded, color: AuroraTheme.primaryBlue, size: 24),
+              SizedBox(width: 10),
+              Text('تعديل معلومات المركبة', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text('نوع المركبة والخدمة:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 6),
+                DropdownButtonFormField<String>(
+                  value: selectedType,
+                  dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'private', child: Text('صالون خصوصي')),
+                    DropdownMenuItem(value: 'taxi', child: Text('أجرة (تاكسي)')),
+                    DropdownMenuItem(value: 'vip', child: Text('VIP مميز')),
+                    DropdownMenuItem(value: 'delivery', child: Text('دراجة توصيل / دليفري')),
+                    DropdownMenuItem(value: 'toktok', child: Text('تكتك')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) {
+                      setDialogState(() => selectedType = val);
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                CustomTextField(
+                  controller: plateController,
+                  label: 'رقم اللوحة',
+                  hint: 'مثال: 12345 ميسان',
+                ),
+                const SizedBox(height: 12),
+                CustomTextField(
+                  controller: modelController,
+                  label: 'الموديل والمصنع',
+                  hint: 'مثال: كيا سيراتو / تويوتا',
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: CustomTextField(
+                        controller: colorController,
+                        label: 'اللون',
+                        hint: 'مثال: أبيض',
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: CustomTextField(
+                        controller: yearController,
+                        label: 'سنة الصنع',
+                        hint: 'مثال: 2022',
+                        keyboardType: TextInputType.number,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AuroraTheme.primaryBlue,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () async {
+                try {
+                  await SupabaseService().registerOrUpdateVehicle(
+                    driverId: u.id,
+                    vehicleType: selectedType,
+                    plateNumber: plateController.text.trim(),
+                    model: modelController.text.trim(),
+                    color: colorController.text.trim(),
+                    year: yearController.text.trim(),
+                  );
+                  if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+                  onSaved();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('تم تحديث معلومات المركبة بنجاح'),
+                        backgroundColor: Color(0xFF10B981),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('خطأ أثناء حفظ المركبة: $e')),
+                    );
+                  }
+                }
+              },
+              child: const Text('حفظ التعديلات'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showUserDetailsModal(AdminProvider admin, UserProfile u) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     bool isPassRevealed = false;
@@ -2923,7 +3041,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
                       const SizedBox(height: 12),
 
-                      // Contact & Communication Card
+                      // Contact & Communication Card (Collapsible with persistent state)
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
@@ -2936,8 +3054,45 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('بيانات التواصل والحساب', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                            const SizedBox(height: 10),
+                            InkWell(
+                              borderRadius: BorderRadius.circular(10),
+                              onTap: () async {
+                                setModalState(() {
+                                  _isContactCardCollapsed = !_isContactCardCollapsed;
+                                });
+                                final prefs = await SharedPreferences.getInstance();
+                                await prefs.setBool('admin_card_collapsed_contact', _isContactCardCollapsed);
+                              },
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Row(
+                                    children: [
+                                      Icon(Icons.phone_rounded, size: 18, color: AuroraTheme.accentEmerald),
+                                      SizedBox(width: 8),
+                                      Text('بيانات التواصل والحساب', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                    ],
+                                  ),
+                                  Row(
+                                    children: [
+                                      if (_isContactCardCollapsed && u.phone != null && u.phone!.isNotEmpty)
+                                        Text(
+                                          u.phone!,
+                                          style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                                        ),
+                                      const SizedBox(width: 6),
+                                      Icon(
+                                        _isContactCardCollapsed ? Icons.keyboard_arrow_down_rounded : Icons.keyboard_arrow_up_rounded,
+                                        size: 20,
+                                        color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (!_isContactCardCollapsed) ...[
+                              const SizedBox(height: 10),
                             Row(
                               children: [
                                 const Icon(Icons.phone_rounded, size: 16, color: AuroraTheme.accentEmerald),
@@ -3023,6 +3178,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                 ),
                               ],
                             ),
+                            ],
                           ],
                         ),
                       ),
@@ -3142,27 +3298,71 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.directions_car_rounded, size: 18, color: AuroraTheme.primaryBlue),
-                                      const SizedBox(width: 8),
-                                      const Text('معلومات المركبة والسيارة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                    ],
+                                  InkWell(
+                                    borderRadius: BorderRadius.circular(10),
+                                    onTap: () async {
+                                      setModalState(() {
+                                        _isVehicleCardCollapsed = !_isVehicleCardCollapsed;
+                                      });
+                                      final prefs = await SharedPreferences.getInstance();
+                                      await prefs.setBool('admin_card_collapsed_vehicle', _isVehicleCardCollapsed);
+                                    },
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Row(
+                                          children: [
+                                            Icon(Icons.directions_car_rounded, size: 18, color: AuroraTheme.primaryBlue),
+                                            SizedBox(width: 8),
+                                            Text('معلومات المركبة والسيارة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                          ],
+                                        ),
+                                        Row(
+                                          children: [
+                                            // Edit Vehicle Button for Admin
+                                            TextButton.icon(
+                                              style: TextButton.styleFrom(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                minimumSize: Size.zero,
+                                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                              ),
+                                              icon: const Icon(Icons.edit_rounded, size: 14, color: AuroraTheme.primaryBlue),
+                                              label: const Text('تعديل', style: TextStyle(fontSize: 11, color: AuroraTheme.primaryBlue, fontWeight: FontWeight.bold)),
+                                              onPressed: () => _showEditVehicleDialog(
+                                                context,
+                                                admin,
+                                                u,
+                                                veh,
+                                                () => setModalState(() {}),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Icon(
+                                              _isVehicleCardCollapsed ? Icons.keyboard_arrow_down_rounded : Icons.keyboard_arrow_up_rounded,
+                                              size: 20,
+                                              color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                  const SizedBox(height: 10),
-                                  Row(
-                                    children: [
-                                      Expanded(child: _buildInfoItem('نوع المركبة', arabicVehType, Icons.category_rounded)),
-                                      Expanded(child: _buildInfoItem('رقم اللوحة', plateNum, Icons.pin_rounded)),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      Expanded(child: _buildInfoItem('الموديل والمصنع', '$make $model'.trim().isEmpty ? 'غير محدد' : '$make $model', Icons.minor_crash_rounded)),
-                                      Expanded(child: _buildInfoItem('اللون وسنة الصنع', '$color $year'.trim().isEmpty ? 'غير محدد' : '$color $year', Icons.color_lens_rounded)),
-                                    ],
-                                  ),
+                                  if (!_isVehicleCardCollapsed) ...[
+                                    const SizedBox(height: 10),
+                                    Row(
+                                      children: [
+                                        Expanded(child: _buildInfoItem('نوع المركبة', arabicVehType, Icons.category_rounded)),
+                                        Expanded(child: _buildInfoItem('رقم اللوحة', plateNum, Icons.pin_rounded)),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        Expanded(child: _buildInfoItem('الموديل والمصنع', '$make $model'.trim().isEmpty ? 'غير محدد' : '$make $model', Icons.minor_crash_rounded)),
+                                        Expanded(child: _buildInfoItem('اللون وسنة الصنع', '$color $year'.trim().isEmpty ? 'غير محدد' : '$color $year', Icons.color_lens_rounded)),
+                                      ],
+                                    ),
+                                  ],
                                 ],
                               ),
                             );
@@ -3267,41 +3467,62 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          const Icon(Icons.document_scanner_rounded, size: 18, color: AuroraTheme.primaryCyan),
-                                          const SizedBox(width: 8),
-                                          const Text('مستمسكات ووثائق الكابتن', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                        ],
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                        decoration: BoxDecoration(
-                                          color: (status == 'approved'
-                                                  ? AuroraTheme.accentEmerald
-                                                  : (status == 'rejected' ? AuroraTheme.accentRose : AuroraTheme.accentAmber))
-                                              .withValues(alpha: 0.15),
-                                          borderRadius: BorderRadius.circular(8),
+                                  InkWell(
+                                    borderRadius: BorderRadius.circular(10),
+                                    onTap: () async {
+                                      setModalState(() {
+                                        _isDocsCardCollapsed = !_isDocsCardCollapsed;
+                                      });
+                                      final prefs = await SharedPreferences.getInstance();
+                                      await prefs.setBool('admin_card_collapsed_docs', _isDocsCardCollapsed);
+                                    },
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Row(
+                                          children: [
+                                            Icon(Icons.document_scanner_rounded, size: 18, color: AuroraTheme.primaryCyan),
+                                            SizedBox(width: 8),
+                                            Text('مستمسكات ووثائق الكابتن', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                          ],
                                         ),
-                                        child: Text(
-                                          status == 'approved'
-                                              ? 'معتمد'
-                                              : (status == 'rejected' ? 'مرفوض' : 'قيد المراجعة'),
-                                          style: TextStyle(
-                                            fontSize: 10.5,
-                                            fontWeight: FontWeight.bold,
-                                            color: status == 'approved'
-                                                ? AuroraTheme.accentEmerald
-                                                : (status == 'rejected' ? AuroraTheme.accentRose : AuroraTheme.accentAmber),
-                                          ),
+                                        Row(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                              decoration: BoxDecoration(
+                                                color: (status == 'approved'
+                                                        ? AuroraTheme.accentEmerald
+                                                        : (status == 'rejected' ? AuroraTheme.accentRose : AuroraTheme.accentAmber))
+                                                    .withValues(alpha: 0.15),
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: Text(
+                                                status == 'approved'
+                                                    ? 'معتمد'
+                                                    : (status == 'rejected' ? 'مرفوض' : 'قيد المراجعة'),
+                                                style: TextStyle(
+                                                  fontSize: 10.5,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: status == 'approved'
+                                                      ? AuroraTheme.accentEmerald
+                                                      : (status == 'rejected' ? AuroraTheme.accentRose : AuroraTheme.accentAmber),
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Icon(
+                                              _isDocsCardCollapsed ? Icons.keyboard_arrow_down_rounded : Icons.keyboard_arrow_up_rounded,
+                                              size: 20,
+                                              color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                                            ),
+                                          ],
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
-                                  const SizedBox(height: 10),
+                                  if (!_isDocsCardCollapsed) ...[
+                                    const SizedBox(height: 10),
                                   if (docs.isEmpty) ...[
                                     const Text('لم يقم الكابتن برفع أي مستمسكات بعد.', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
                                   ] else ...[
@@ -3363,8 +3584,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                     ),
                                   ],
                                 ],
-                              ),
-                            );
+                              ],
+                            ),
+                          );
                           },
                         ),
                       ],

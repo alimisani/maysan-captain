@@ -560,4 +560,53 @@ class NotificationService {
       debugPrint('Dismiss live trip notification error: $e');
     }
   }
+
+  /// Show Administrative Broadcast Notification to all users
+  static Future<void> showAdminBroadcastNotification({
+    required String title,
+    required String body,
+  }) async {
+    try {
+      final androidDetails = AndroidNotificationDetails(
+        channelAdmin,
+        'إشعارات الإدارة العامة',
+        channelDescription: 'رسائل وإعلانات هامة من إدارة كابتن ميسان لجميع المستخدمين',
+        importance: Importance.max,
+        priority: Priority.high,
+        ticker: title,
+        icon: '@mipmap/launcher_icon',
+        sound: const RawResourceAndroidNotificationSound('order_alert'),
+        playSound: true,
+        enableVibration: true,
+        vibrationPattern: _vibrationPattern,
+        fullScreenIntent: true,
+        category: AndroidNotificationCategory.message,
+        styleInformation: BigTextStyleInformation(
+          body,
+          contentTitle: title,
+          summaryText: 'كابتن ميسان • رسالة إدارية',
+        ),
+      );
+
+      final platformDetails = NotificationDetails(
+        android: androidDetails,
+        iOS: const DarwinNotificationDetails(
+          sound: 'order_alert.mp3',
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
+      );
+
+      await _notificationsPlugin.show(
+        DateTime.now().millisecondsSinceEpoch % 100000,
+        title,
+        body,
+        platformDetails,
+        payload: 'admin_broadcast',
+      );
+    } catch (e) {
+      debugPrint('Error showing broadcast notification: $e');
+    }
+  }
 }

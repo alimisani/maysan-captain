@@ -301,6 +301,37 @@ void onStartBackgroundService(ServiceInstance service) async {
           }
         }
       }
+
+      // -------------------------------------------------------------
+      // 3. ALL USERS: Check for Administrative Broadcast Messages
+      // -------------------------------------------------------------
+      try {
+        final bRes = await client
+            .from('app_settings')
+            .select('value')
+            .eq('key', 'latest_admin_broadcast')
+            .limit(1);
+
+        if (bRes.isNotEmpty && bRes.first['value'] != null) {
+          final bVal = Map<String, dynamic>.from(bRes.first['value'] as Map);
+          final bId = bVal['id']?.toString() ?? '';
+          final bSentAt = bVal['sent_at']?.toString() ?? '';
+          final bTitle = bVal['title']?.toString() ?? 'إشعار إداري من كابتن ميسان';
+          final bBody = bVal['body']?.toString() ?? '';
+
+          if (bId.isNotEmpty && bBody.isNotEmpty) {
+            final prefKey = 'seen_broadcast_${bId}_$bSentAt';
+            final alreadySeen = prefs.getBool(prefKey) ?? false;
+            if (!alreadySeen) {
+              await prefs.setBool(prefKey, true);
+              await NotificationService.showAdminBroadcastNotification(
+                title: bTitle,
+                body: bBody,
+              );
+            }
+          }
+        }
+      } catch (_) {}
     } catch (e) {
       debugPrint('Background service tick error: $e');
     }
