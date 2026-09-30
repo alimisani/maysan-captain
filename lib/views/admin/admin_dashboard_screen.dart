@@ -9,6 +9,7 @@ import '../../core/services/pdf_service.dart';
 import '../../core/services/supabase_service.dart';
 import '../../core/services/whatsapp_service.dart';
 import '../../core/services/image_service.dart';
+import '../../core/services/admin_broadcast_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/state/admin_provider.dart';
 import '../../core/state/booking_provider.dart';
@@ -108,11 +109,35 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   bool _isVehicleCardCollapsed = false;
   bool _isDocsCardCollapsed = false;
 
+  // Administrative Broadcast State
+  final TextEditingController _broadcastTitleController = TextEditingController();
+  final TextEditingController _broadcastBodyController = TextEditingController();
+  List<Map<String, dynamic>> _broadcastHistory = [];
+  bool _isLoadingBroadcasts = false;
+  bool _isSendingBroadcast = false;
+
+  Future<void> _loadBroadcastHistory() async {
+    if (!mounted) return;
+    setState(() => _isLoadingBroadcasts = true);
+    try {
+      final list = await AdminBroadcastService.getBroadcasts();
+      if (mounted) {
+        setState(() {
+          _broadcastHistory = list;
+          _isLoadingBroadcasts = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingBroadcasts = false);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadAdminData();
+      _loadBroadcastHistory();
     });
   }
 
@@ -218,6 +243,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     _walletUserSearchController.dispose();
     _orderSearchController.dispose();
     _radarDistanceMetersController.dispose();
+    _broadcastTitleController.dispose();
+    _broadcastBodyController.dispose();
     super.dispose();
   }
 
@@ -380,6 +407,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         isSelected: _selectedTabIndex == 9,
                         isDark: isDark,
                       ),
+                      const SizedBox(width: 8),
+                      _buildCircularAdminTab(
+                        index: 10,
+                        icon: Icons.campaign_rounded,
+                        title: 'الرسائل والتعميم',
+                        isSelected: _selectedTabIndex == 10,
+                        isDark: isDark,
+                      ),
                     ],
                   ),
                 ),
@@ -402,6 +437,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           _buildAdBannersTab(admin, loc, isDark),
                           _buildWalletAdminTab(admin, loc, isDark),
                           _buildRadarSettingsTab(admin, loc, isDark),
+                          _buildBroadcastTab(admin, loc, isDark),
                         ],
                       ),
               ),
@@ -10344,6 +10380,457 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             }
           },
         ),
+
+        const SizedBox(height: 40),
+      ],
+    );
+  }
+
+  Widget _buildBroadcastTab(AdminProvider admin, AppLocalizations loc, bool isDark) {
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      physics: const BouncingScrollPhysics(),
+      children: [
+        // 1. Header Card
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F172A) : Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: AuroraTheme.primaryCyan.withValues(alpha: 0.35),
+            ),
+            boxShadow: const [
+              BoxShadow(color: Color(0x12000000), blurRadius: 14, offset: Offset(0, 3)),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)]),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.campaign_rounded, color: Colors.white, size: 28),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'الرسائل والتعميمات الإدارية',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'إرسال إشعار فوري بصوت واهتزاز لجميع هواتف الزبائن والكباتن حتى عند إغلاق التطبيق',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // 2. Info Explanation Box
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0284C7).withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.25)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.info_outline_rounded, color: Color(0xFF0284C7), size: 22),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'عند كتابة التعميم والضغط على "إرسال الإشعار للجميع"، سيتلقى كل زبون وكابتن لديه التطبيق إشعاراً بنظام Heads-up عالي الأولوية مع نغمة التنبيه الخاصة واهتزاز الشاشة، ويتم حفظ الرسالة في السجل بالأسفل.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    height: 1.5,
+                    color: isDark ? Colors.white70 : const Color(0xFF334155),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // 3. Compose Card
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F172A) : Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: isDark ? const Color(0x3338BDF8) : const Color(0xFFE2E8F0),
+            ),
+            boxShadow: const [
+              BoxShadow(color: Color(0x12000000), blurRadius: 14, offset: Offset(0, 3)),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.edit_note_rounded, color: AuroraTheme.primaryCyan, size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    'كتابة رسالة / إشعار جديد',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // Title input
+              TextField(
+                controller: _broadcastTitleController,
+                decoration: InputDecoration(
+                  labelText: 'عنوان الإشعار (مثال: تنبيه هام من إدارة كابتن ميسان)',
+                  labelStyle: TextStyle(fontSize: 13, color: isDark ? Colors.white70 : const Color(0xFF64748B)),
+                  prefixIcon: const Icon(Icons.title_rounded, color: AuroraTheme.primaryCyan, size: 20),
+                  filled: true,
+                  fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              // Body input
+              TextField(
+                controller: _broadcastBodyController,
+                maxLines: 4,
+                decoration: InputDecoration(
+                  labelText: 'نص الرسالة أو التعميم لجميع المشتركين...',
+                  alignLabelWithHint: true,
+                  labelStyle: TextStyle(fontSize: 13, color: isDark ? Colors.white70 : const Color(0xFF64748B)),
+                  prefixIcon: const Padding(
+                    padding: EdgeInsets.only(bottom: 50),
+                    child: Icon(Icons.message_rounded, color: AuroraTheme.primaryCyan, size: 20),
+                  ),
+                  filled: true,
+                  fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide(color: isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 18),
+
+              // Send Action Button
+              ElevatedButton.icon(
+                icon: _isSendingBroadcast
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      )
+                    : const Icon(Icons.send_rounded, color: Colors.white),
+                label: Text(
+                  _isSendingBroadcast ? 'جاري إرسال الإشعار للجميع...' : 'إرسال إشعار فوري لجميع المستخدمين والكباتن',
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF8B5CF6),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  elevation: 4,
+                ),
+                onPressed: _isSendingBroadcast
+                    ? null
+                    : () async {
+                        final title = _broadcastTitleController.text.trim();
+                        final body = _broadcastBodyController.text.trim();
+
+                        if (body.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('يرجى كتابة نص الرسالة أولاً'),
+                              backgroundColor: Colors.redAccent,
+                            ),
+                          );
+                          return;
+                        }
+
+                        setState(() => _isSendingBroadcast = true);
+                        try {
+                          final success = await AdminBroadcastService.sendBroadcast(
+                            title: title.isEmpty ? 'رسالة إدارية من كابتن ميسان' : title,
+                            body: body,
+                          );
+
+                          if (success) {
+                            _broadcastTitleController.clear();
+                            _broadcastBodyController.clear();
+                            await _loadBroadcastHistory();
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('تم إرسال الإشعار بنجاح لجميع هواتف الزبائن والكباتن!'),
+                                backgroundColor: AuroraTheme.accentEmerald,
+                              ),
+                            );
+                          } else {
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('حدث خطأ أثناء إرسال التعميم، يرجى المحاولة ثانية'),
+                                backgroundColor: Colors.redAccent,
+                              ),
+                            );
+                          }
+                        } finally {
+                          if (mounted) setState(() => _isSendingBroadcast = false);
+                        }
+                      },
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        // 4. History Header
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.history_rounded, color: AuroraTheme.primaryCyan, size: 22),
+                const SizedBox(width: 8),
+                Text(
+                  'سجل التعميمات والرسائل السابقة',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
+              ],
+            ),
+            IconButton(
+              icon: const Icon(Icons.refresh_rounded, color: AuroraTheme.primaryCyan, size: 20),
+              tooltip: 'تحديث السجل',
+              onPressed: _loadBroadcastHistory,
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 8),
+
+        if (_isLoadingBroadcasts)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: CircularProgressIndicator(),
+            ),
+          )
+        else if (_broadcastHistory.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              children: [
+                Icon(Icons.inbox_rounded, color: isDark ? Colors.white38 : Colors.grey, size: 48),
+                const SizedBox(height: 10),
+                Text(
+                  'لا توجد تعميمات سابقة بعد',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          ..._broadcastHistory.map((msg) {
+            final id = msg['id']?.toString() ?? '';
+            final title = msg['title']?.toString() ?? 'إشعار إداري';
+            final body = msg['body']?.toString() ?? '';
+            final sentAt = msg['sent_at']?.toString() ?? msg['created_at']?.toString() ?? '';
+            DateTime? dt = DateTime.tryParse(sentAt);
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: isDark ? const Color(0x3338BDF8) : const Color(0xFFE2E8F0),
+                ),
+                boxShadow: const [
+                  BoxShadow(color: Color(0x10000000), blurRadius: 10, offset: Offset(0, 2)),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.campaign_rounded, color: Color(0xFF8B5CF6), size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              ),
+                            ),
+                            if (dt != null)
+                              Text(
+                                intl.DateFormat('yyyy/MM/dd - hh:mm a').format(dt.toLocal()),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: isDark ? Colors.white54 : const Color(0xFF94A3B8),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AuroraTheme.accentEmerald.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.check_circle_rounded, color: AuroraTheme.accentEmerald, size: 14),
+                            SizedBox(width: 4),
+                            Text(
+                              'تم البث',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: AuroraTheme.accentEmerald,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    body,
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.45,
+                      color: isDark ? Colors.white70 : const Color(0xFF334155),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Divider(height: 1),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton.icon(
+                        icon: const Icon(Icons.replay_rounded, size: 16, color: AuroraTheme.primaryCyan),
+                        label: const Text(
+                          'إعادة الإرسال للجميع',
+                          style: TextStyle(fontSize: 12, color: AuroraTheme.primaryCyan, fontWeight: FontWeight.bold),
+                        ),
+                        onPressed: () async {
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('تأكيد إعادة الإرسال'),
+                              content: Text('هل تريد إرسال هذا الإشعار ("$title") مرة ثانية لجميع الأجهزة الآن؟'),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+                                ElevatedButton(
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  style: ElevatedButton.styleFrom(backgroundColor: AuroraTheme.primaryCyan),
+                                  child: const Text('نعم، أرسل الآن', style: TextStyle(color: Colors.white)),
+                                ),
+                              ],
+                            ),
+                          );
+
+                          if (confirmed == true) {
+                            final success = await AdminBroadcastService.resendBroadcast(msg);
+                            if (!mounted) return;
+                            if (success) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('تمت إعادة إرسال الإشعار لجميع الأجهزة!'),
+                                  backgroundColor: AuroraTheme.accentEmerald,
+                                ),
+                              );
+                              _loadBroadcastHistory();
+                            }
+                          }
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.redAccent),
+                        tooltip: 'حذف من السجل',
+                        onPressed: () async {
+                          final ok = await AdminBroadcastService.deleteBroadcast(id);
+                          if (ok) {
+                            _loadBroadcastHistory();
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }),
 
         const SizedBox(height: 40),
       ],
