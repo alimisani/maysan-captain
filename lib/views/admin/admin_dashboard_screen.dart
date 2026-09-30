@@ -2634,7 +2634,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 const Text('نوع المركبة والخدمة:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
-                  value: selectedType,
+                  initialValue: selectedType,
                   dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
