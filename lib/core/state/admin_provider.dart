@@ -29,6 +29,10 @@ class AdminProvider extends ChangeNotifier {
   double _tier2001To2500 = 2750.0;
   double _tier2501To3000 = 3000.0;
 
+  bool _isExtraStopMeterPricingEnabled = false;
+  double _extraStopBaseFare = 1000.0;
+  double _extraStopPer1000m = 500.0;
+
 
 
   Map<String, dynamic> _referralSettings = {
@@ -83,6 +87,10 @@ class AdminProvider extends ChangeNotifier {
   double get tier1501To2000 => _tier1501To2000;
   double get tier2001To2500 => _tier2001To2500;
   double get tier2501To3000 => _tier2501To3000;
+
+  bool get isExtraStopMeterPricingEnabled => _isExtraStopMeterPricingEnabled;
+  double get extraStopBaseFare => _extraStopBaseFare;
+  double get extraStopPer1000m => _extraStopPer1000m;
 
   int _freeDriverQuota = 100;
   double _monthlyFeeAmount = 0.0;
@@ -181,6 +189,9 @@ class AdminProvider extends ChangeNotifier {
       _tier1501To2000 = (pricing['tier_1501_2000'] as num?)?.toDouble() ?? 2500.0;
       _tier2001To2500 = (pricing['tier_2001_2500'] as num?)?.toDouble() ?? 2750.0;
       _tier2501To3000 = (pricing['tier_2501_3000'] as num?)?.toDouble() ?? 3000.0;
+      _isExtraStopMeterPricingEnabled = pricing['is_extra_stop_meter_pricing_enabled'] as bool? ?? false;
+      _extraStopBaseFare = (pricing['extra_stop_base_fare'] as num?)?.toDouble() ?? 1000.0;
+      _extraStopPer1000m = (pricing['extra_stop_per_1000m'] as num?)?.toDouble() ?? 500.0;
 
       _customRoutePricings = results[3] as List<CustomRoutePricing>;
       _mapStyle = results[4] as String;
@@ -496,6 +507,9 @@ class AdminProvider extends ChangeNotifier {
     double tier1501To2000 = 2500.0,
     double tier2001To2500 = 2750.0,
     double tier2501To3000 = 3000.0,
+    bool isExtraStopMeterPricingEnabled = false,
+    double extraStopBaseFare = 1000.0,
+    double extraStopPer1000m = 500.0,
   }) async {
     _isLoading = true;
     notifyListeners();
@@ -513,6 +527,9 @@ class AdminProvider extends ChangeNotifier {
         tier1501To2000: tier1501To2000,
         tier2001To2500: tier2001To2500,
         tier2501To3000: tier2501To3000,
+        isExtraStopMeterPricingEnabled: isExtraStopMeterPricingEnabled,
+        extraStopBaseFare: extraStopBaseFare,
+        extraStopPer1000m: extraStopPer1000m,
       );
       _baseFare = baseFare;
       _perKmRate = perKmRate;
@@ -525,6 +542,9 @@ class AdminProvider extends ChangeNotifier {
       _tier1501To2000 = tier1501To2000;
       _tier2001To2500 = tier2001To2500;
       _tier2501To3000 = tier2501To3000;
+      _isExtraStopMeterPricingEnabled = isExtraStopMeterPricingEnabled;
+      _extraStopBaseFare = extraStopBaseFare;
+      _extraStopPer1000m = extraStopPer1000m;
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -548,6 +568,9 @@ class AdminProvider extends ChangeNotifier {
     double tier1501To2000 = 2500.0,
     double tier2001To2500 = 2750.0,
     double tier2501To3000 = 3000.0,
+    bool isExtraStopMeterPricingEnabled = false,
+    double extraStopBaseFare = 1000.0,
+    double extraStopPer1000m = 500.0,
   }) =>
       updateGeneralPricing(
         baseFare: baseFare,
@@ -561,6 +584,9 @@ class AdminProvider extends ChangeNotifier {
         tier1501To2000: tier1501To2000,
         tier2001To2500: tier2001To2500,
         tier2501To3000: tier2501To3000,
+        isExtraStopMeterPricingEnabled: isExtraStopMeterPricingEnabled,
+        extraStopBaseFare: extraStopBaseFare,
+        extraStopPer1000m: extraStopPer1000m,
       );
 
   Future<void> addCustomRoutePricing({

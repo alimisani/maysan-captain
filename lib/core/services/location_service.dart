@@ -187,115 +187,155 @@ class LocationService {
     }
   }
 
-  // Accurate Reverse Geocoding via Nominatim, Maysan Local Landmarks & Google Plus Code
+  static final Map<String, String> _addressCache = {};
+
+  // Accurate Reverse Geocoding via Photon, Nominatim, Maysan Local Landmarks & Google Plus Code
   static Future<String> getRealAddress(LatLng point, {bool isArabic = true}) async {
+    final cacheKey = '${point.latitude.toStringAsFixed(4)},${point.longitude.toStringAsFixed(4)}';
+    if (_addressCache.containsKey(cacheKey)) {
+      return _addressCache[cacheKey]!;
+    }
+
     String? poiName;
     String? roadName;
     String? neighborhood;
     final plusCode = getPlusCode(point);
 
-    // 1. Check local high-precision Maysan landmarks first (if within 150m)
-    final localNearest = _findNearestLandmark(point, maxThresholdKm: 0.15);
+    // 1. Check local landmark ONLY if user clicked directly on it (<= 35 meters)
+    final localNearest = _findNearestLandmark(point, maxThresholdKm: 0.035);
     if (localNearest != null) {
       final lm = isArabic ? localNearest.location.nameAr : localNearest.location.nameEn;
-      if (plusCode.isNotEmpty) {
-        return '$lm ($plusCode)';
-      }
-      return lm;
+      final result = plusCode.isNotEmpty ? '$lm ($plusCode)' : lm;
+      _addressCache[cacheKey] = result;
+      return result;
     }
 
+    // 2. Query Photon (super fast, no rate-limits)
     try {
-      final url = Uri.parse(
-        'https://nominatim.openstreetmap.org/reverse?lat=${point.latitude}&lon=${point.longitude}&format=json&accept-language=ar&zoom=19&addressdetails=1&extratags=1&namedetails=1',
+      final photonUri = Uri.parse(
+        'https://photon.komoot.io/reverse?lat=${point.latitude}&lon=${point.longitude}',
       );
+      final photonRes = await http.get(photonUri).timeout(const Duration(milliseconds: 1800));
+      if (photonRes.statusCode == 200) {
+        final data = json.decode(utf8.decode(photonRes.bodyBytes));
+        final features = data['features'] as List?;
+        if (features != null && features.isNotEmpty) {
+          final props = features.first['properties'] as Map<String, dynamic>?;
+          if (props != null) {
+            final name = props['name']?.toString().trim();
+            final street = props['street']?.toString().trim();
+            final locality = props['locality']?.toString().trim() ?? props['district']?.toString().trim();
 
-      final response = await http.get(
-        url,
-        headers: {'User-Agent': 'MaysanCaptainApp/1.0 (maysan.tech1@gmail.com)'},
-      ).timeout(const Duration(seconds: 4));
-
-      if (response.statusCode == 200) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
-        
-        // Extract specific POI name
-        final exactName = data['name'] ?? data['namedetails']?['name:ar'] ?? data['namedetails']?['name'];
-        if (exactName != null && exactName.toString().trim().isNotEmpty) {
-          final n = exactName.toString().trim();
-          if (!n.contains('ميسان') && n != 'العمارة') {
-            poiName = n;
+            if (name != null && name.isNotEmpty && !name.contains('ميسان') && name != 'العمارة') {
+              poiName = name;
+            }
+            if (street != null && street.isNotEmpty && !street.contains('ميسان') && street != 'العمارة') {
+              roadName = street;
+            }
+            if (locality != null && locality.isNotEmpty && !locality.contains('ميسان') && locality != 'العمارة') {
+              neighborhood = locality;
+            }
           }
         }
+      }
+    } catch (_) {}
 
-        final address = data['address'] as Map<String, dynamic>?;
-        if (address != null) {
-          if (poiName == null) {
-            final landmark = address['amenity'] ??
-                address['hospital'] ??
-                address['clinic'] ??
-                address['pharmacy'] ??
-                address['building'] ??
-                address['shop'] ??
-                address['tourism'] ??
-                address['historic'] ??
-                address['place_of_worship'];
-            if (landmark != null && landmark.toString().trim().isNotEmpty) {
-              final lm = landmark.toString().trim();
-              if (!lm.contains('ميسان') && lm != 'العمارة') {
-                poiName = lm;
+    // 3. Query Nominatim if more specific POI / road details needed
+    if (poiName == null || roadName == null) {
+      try {
+        final url = Uri.parse(
+          'https://nominatim.openstreetmap.org/reverse?lat=${point.latitude}&lon=${point.longitude}&format=json&accept-language=ar&zoom=18&addressdetails=1&extratags=1&namedetails=1',
+        );
+
+        final response = await http.get(
+          url,
+          headers: {'User-Agent': 'MaysanCaptainApp/1.0 (maysan.tech1@gmail.com)'},
+        ).timeout(const Duration(seconds: 3));
+
+        if (response.statusCode == 200) {
+          final data = json.decode(utf8.decode(response.bodyBytes));
+
+          final exactName = data['name'] ?? data['namedetails']?['name:ar'] ?? data['namedetails']?['name'];
+          if (exactName != null && exactName.toString().trim().isNotEmpty) {
+            final n = exactName.toString().trim();
+            if (!n.contains('ميسان') && n != 'العمارة') {
+              poiName = n;
+            }
+          }
+
+          final address = data['address'] as Map<String, dynamic>?;
+          if (address != null) {
+            if (poiName == null) {
+              final landmark = address['amenity'] ??
+                  address['hospital'] ??
+                  address['clinic'] ??
+                  address['pharmacy'] ??
+                  address['building'] ??
+                  address['shop'] ??
+                  address['tourism'] ??
+                  address['leisure'] ??
+                  address['commercial'] ??
+                  address['office'] ??
+                  address['historic'] ??
+                  address['place_of_worship'];
+              if (landmark != null && landmark.toString().trim().isNotEmpty) {
+                final lm = landmark.toString().trim();
+                if (!lm.contains('ميسان') && lm != 'العمارة') {
+                  poiName = lm;
+                }
+              }
+            }
+
+            final road = address['road'] ?? address['pedestrian'] ?? address['street'] ?? address['path'];
+            final suburb = address['suburb'] ?? address['neighbourhood'] ?? address['quarter'] ?? address['residential'] ?? address['village'];
+
+            if (road != null && road.toString().trim().isNotEmpty) {
+              final r = road.toString().trim();
+              if (!r.contains('ميسان') && !r.contains('العمارة')) {
+                roadName = r;
+              }
+            }
+            if (suburb != null && suburb.toString().trim().isNotEmpty) {
+              final s = suburb.toString().trim();
+              if (!s.contains('ميسان') && s != 'العمارة') {
+                neighborhood = s;
               }
             }
           }
-
-          final road = address['road'] ?? address['pedestrian'] ?? address['street'] ?? address['path'];
-          final suburb = address['suburb'] ?? address['neighbourhood'] ?? address['quarter'] ?? address['residential'] ?? address['village'];
-
-          if (road != null && road.toString().trim().isNotEmpty) {
-            final r = road.toString().trim();
-            if (!r.contains('ميسان') && !r.contains('العمارة')) {
-              roadName = r;
-            }
-          }
-          if (suburb != null && suburb.toString().trim().isNotEmpty) {
-            final s = suburb.toString().trim();
-            if (!s.contains('ميسان') && s != 'العمارة') {
-              neighborhood = s;
-            }
-          }
         }
+      } catch (e) {
+        debugPrint('Nominatim geocoding error: $e');
       }
-    } catch (e) {
-      debugPrint('Nominatim geocoding error: $e');
     }
 
-    // Fallback to broader nearest landmark
-    final nearest = _findNearestLandmark(point, maxThresholdKm: 0.45);
+    // 4. Assemble readable address strictly based on actual point
     String baseTitle;
-
-    if (poiName != null && neighborhood != null) {
+    if (poiName != null && roadName != null) {
+      baseTitle = '$poiName، $roadName';
+    } else if (poiName != null && neighborhood != null) {
       baseTitle = '$poiName، $neighborhood';
     } else if (poiName != null) {
       baseTitle = poiName;
     } else if (roadName != null && neighborhood != null) {
       baseTitle = '$roadName، $neighborhood';
-    } else if (roadName != null && nearest != null) {
-      final landmark = isArabic ? nearest.location.nameAr : nearest.location.nameEn;
-      if (!roadName.contains(landmark)) {
-        baseTitle = '$roadName - $landmark';
-      } else {
-        baseTitle = roadName;
-      }
+    } else if (roadName != null) {
+      baseTitle = roadName;
     } else if (neighborhood != null) {
       baseTitle = neighborhood;
-    } else if (nearest != null) {
-      baseTitle = isArabic ? nearest.location.nameAr : nearest.location.nameEn;
     } else {
-      baseTitle = isArabic ? 'موقع محدد في ميسان' : 'Maysan Location';
+      // Very strict fallback landmark (only within 80 meters!)
+      final nearLandmark = _findNearestLandmark(point, maxThresholdKm: 0.08);
+      if (nearLandmark != null) {
+        final lm = isArabic ? nearLandmark.location.nameAr : nearLandmark.location.nameEn;
+        baseTitle = isArabic ? 'بالقرب من $lm' : 'Near $lm';
+      } else {
+        baseTitle = isArabic ? 'موقع محدد في ميسان' : 'Maysan Location';
+      }
     }
 
-    if (plusCode.isNotEmpty) {
-      return '$baseTitle ($plusCode)';
-    }
-    return baseTitle;
+    final formattedAddress = plusCode.isNotEmpty ? '$baseTitle ($plusCode)' : baseTitle;
+    _addressCache[cacheKey] = formattedAddress;
+    return formattedAddress;
   }
 
   // Find the closest named landmark in Maysan as local fallback

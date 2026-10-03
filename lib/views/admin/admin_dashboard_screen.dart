@@ -39,6 +39,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   final TextEditingController _maxDestinationsController = TextEditingController(text: '5');
   bool _isMultiDestinationsEnabled = true;
 
+  // Multi-destination & intermediate stop meter pricing controllers
+  bool _isExtraStopMeterPricingEnabled = false;
+  final TextEditingController _extraStopBaseFareController = TextEditingController(text: '1000');
+  final TextEditingController _extraStopPer1000mController = TextEditingController(text: '500');
+
   // Tiered Distance Pricing controllers & state
   bool _isTieredPricingEnabled = true;
   final TextEditingController _tier0To1000Controller = TextEditingController(text: '2000');
@@ -149,6 +154,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     _perKmController.text = admin.perKmRate.toInt().toString();
     _deliveryFareController.text = admin.deliveryBaseFare.toInt().toString();
     _maxDestinationsController.text = admin.maxDestinations.toString();
+    _isMultiDestinationsEnabled = admin.isMultiDestinationsEnabled;
+    _isExtraStopMeterPricingEnabled = admin.isExtraStopMeterPricingEnabled;
+    _extraStopBaseFareController.text = admin.extraStopBaseFare.toInt().toString();
+    _extraStopPer1000mController.text = admin.extraStopPer1000m.toInt().toString();
 
     _freeDriverQuotaController.text = admin.freeDriverQuota.toString();
     _monthlyFeeAmountController.text = admin.monthlyFeeAmount.toInt().toString();
@@ -218,6 +227,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     _perKmController.dispose();
     _deliveryFareController.dispose();
     _maxDestinationsController.dispose();
+    _extraStopBaseFareController.dispose();
+    _extraStopPer1000mController.dispose();
     _tier0To1000Controller.dispose();
     _tier1001To1500Controller.dispose();
     _tier1501To2000Controller.dispose();
@@ -8082,12 +8093,78 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               keyboardType: TextInputType.number,
               prefixIcon: Icons.pin_drop_rounded,
             ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0x221E293B) : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isDark ? const Color(0x3338BDF8) : const Color(0xFFCBD5E1),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.linear_scale_rounded, size: 20, color: AuroraTheme.primaryBlue),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'تسعيرة المحطات الإضافية حسب المسافة (الأمتار)',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              ),
+                            ),
+                            Text(
+                              'احتساب مبلغ إضافي ثابت وسعر لكل 1000 متر مسافة بين المحطات',
+                              style: TextStyle(fontSize: 10.5, color: isDark ? Colors.white60 : const Color(0xFF64748B)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Switch.adaptive(
+                        value: _isExtraStopMeterPricingEnabled,
+                        activeThumbColor: AuroraTheme.accentEmerald,
+                        onChanged: (val) => setState(() => _isExtraStopMeterPricingEnabled = val),
+                      ),
+                    ],
+                  ),
+                  if (_isExtraStopMeterPricingEnabled) ...[
+                    const SizedBox(height: 12),
+                    CustomTextField(
+                      controller: _extraStopBaseFareController,
+                      label: 'مبلغ إضافي ثابت لكل محطة توقف (د.ع)',
+                      hint: '1000',
+                      keyboardType: TextInputType.number,
+                      prefixIcon: Icons.add_location_alt_rounded,
+                    ),
+                    const SizedBox(height: 10),
+                    CustomTextField(
+                      controller: _extraStopPer1000mController,
+                      label: 'أجرة كل 1000 متر بين المحطات (د.ع)',
+                      hint: '500',
+                      keyboardType: TextInputType.number,
+                      prefixIcon: Icons.straighten_rounded,
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ],
           const SizedBox(height: 16),
           AuroraButton(
-            text: 'حفظ إعدادات تعدد الوجهات',
+            text: 'حفظ إعدادات تعدد الوجهات والمحطات',
             onPressed: () async {
               final maxDest = int.tryParse(_maxDestinationsController.text.trim()) ?? 5;
+              final extraBase = double.tryParse(_extraStopBaseFareController.text.trim()) ?? 1000.0;
+              final extraPer1000m = double.tryParse(_extraStopPer1000mController.text.trim()) ?? 500.0;
               final messenger = ScaffoldMessenger.of(context);
               await admin.updatePricing(
                 baseFare: admin.baseFare,
@@ -8101,11 +8178,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 tier1501To2000: admin.tier1501To2000,
                 tier2001To2500: admin.tier2001To2500,
                 tier2501To3000: admin.tier2501To3000,
+                isExtraStopMeterPricingEnabled: _isExtraStopMeterPricingEnabled,
+                extraStopBaseFare: extraBase,
+                extraStopPer1000m: extraPer1000m,
               );
               await bookingProvider.loadPricingSettings();
               messenger.showSnackBar(
                 const SnackBar(
-                  content: Text('تم حفظ إعدادات تعدد الوجهات والمحطات بنجاح ✅'),
+                  content: Text('تم حفظ إعدادات تعدد الوجهات والمحطات وتسعيرة الأمتار بنجاح ✅'),
                   backgroundColor: AuroraTheme.accentEmerald,
                 ),
               );

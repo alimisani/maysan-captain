@@ -721,6 +721,7 @@ class SupabaseService {
           ? query.eq('driver_id', userId)
           : query.eq('customer_id', userId);
 
+      // 1. Look for active ongoing order
       final res = await filtered
           .not('status', 'in', '(completed,cancelled)')
           .order('created_at', ascending: false)
@@ -729,6 +730,27 @@ class SupabaseService {
       if (res.isNotEmpty) {
         return RideOrder.fromJson(res.first);
       }
+
+      // 2. If passenger has no active ongoing order, look for a recently completed order that hasn't been rated yet
+      if (!isDriver) {
+        final completedRes = await client
+            .from('rides_and_deliveries')
+            .select()
+            .eq('customer_id', userId)
+            .eq('status', 'completed')
+            .isFilter('customer_rating', null)
+            .order('created_at', ascending: false)
+            .limit(1);
+
+        if (completedRes.isNotEmpty) {
+          final completedOrder = RideOrder.fromJson(completedRes.first);
+          // Only show rating dialog for trips completed within the last 24 hours
+          if (DateTime.now().difference(completedOrder.createdAt).inHours < 24) {
+            return completedOrder;
+          }
+        }
+      }
+
       return null;
     } catch (e) {
       debugPrint('Error getting active order: $e');
@@ -945,6 +967,9 @@ class SupabaseService {
       'tier_1501_2000': 2500.0,
       'tier_2001_2500': 2750.0,
       'tier_2501_3000': 3000.0,
+      'is_extra_stop_meter_pricing_enabled': false,
+      'extra_stop_base_fare': 1000.0,
+      'extra_stop_per_1000m': 500.0,
     };
   }
 
@@ -960,6 +985,9 @@ class SupabaseService {
     double tier1501To2000 = 2500.0,
     double tier2001To2500 = 2750.0,
     double tier2501To3000 = 3000.0,
+    bool isExtraStopMeterPricingEnabled = false,
+    double extraStopBaseFare = 1000.0,
+    double extraStopPer1000m = 500.0,
   }) async {
     try {
       await client.from('app_settings').upsert({
@@ -976,6 +1004,9 @@ class SupabaseService {
           'tier_1501_2000': tier1501To2000,
           'tier_2001_2500': tier2001To2500,
           'tier_2501_3000': tier2501To3000,
+          'is_extra_stop_meter_pricing_enabled': isExtraStopMeterPricingEnabled,
+          'extra_stop_base_fare': extraStopBaseFare,
+          'extra_stop_per_1000m': extraStopPer1000m,
         },
         'updated_at': DateTime.now().toIso8601String(),
       });

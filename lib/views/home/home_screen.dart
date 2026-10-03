@@ -24,6 +24,7 @@ import '../settings/settings_screen.dart';
 import '../tracking/live_tracking_screen.dart';
 import '../wallet/wallet_screen.dart';
 import '../widgets/glass_card.dart';
+import '../widgets/rating_dialog.dart';
 import '../widgets/user_avatar_widget.dart';
 import '../driver/driver_home_view.dart';
 import 'layouts/layout_classic_glass.dart';
@@ -88,9 +89,28 @@ class _HomeScreenState extends State<HomeScreen> {
           if (auth.isAdmin) {
             _checkUnreadAdminAlerts();
           }
+
+          _checkPendingRating(booking, auth);
         }
       }
     });
+  }
+
+  void _checkPendingRating(BookingProvider booking, AuthProvider auth) {
+    final order = booking.activeOrder;
+    if (order != null &&
+        order.status == 'completed' &&
+        !(auth.currentUser?.isDriver ?? false) &&
+        order.driverId != null &&
+        order.customerRating == null &&
+        !booking.isOrderRatingDismissed(order.id)) {
+      booking.dismissRatingForOrder(order.id);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          RatingDialog.show(context, order);
+        }
+      });
+    }
   }
 
   Future<void> _checkUnreadAdminAlerts() async {
@@ -538,18 +558,20 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
-                        gradient: booking.activeOrder!.status == 'driver_assigned'
-                            ? const LinearGradient(colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)])
-                            : (booking.activeOrder!.status == 'fare_proposed'
-                                ? const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFD97706)])
-                                : AuroraTheme.primaryGradient),
+                        gradient: booking.activeOrder!.status == 'completed'
+                            ? const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFD97706)])
+                            : (booking.activeOrder!.status == 'driver_assigned'
+                                ? const LinearGradient(colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)])
+                                : (booking.activeOrder!.status == 'fare_proposed'
+                                    ? const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFD97706)])
+                                    : AuroraTheme.primaryGradient)),
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: (booking.activeOrder!.status == 'driver_assigned'
-                                    ? const Color(0xFF8B5CF6)
-                                    : (booking.activeOrder!.status == 'fare_proposed'
-                                        ? const Color(0xFFF59E0B)
+                            color: (booking.activeOrder!.status == 'completed' || booking.activeOrder!.status == 'fare_proposed'
+                                    ? const Color(0xFFF59E0B)
+                                    : (booking.activeOrder!.status == 'driver_assigned'
+                                        ? const Color(0xFF8B5CF6)
                                         : AuroraTheme.primaryBlue))
                                 .withValues(alpha: 0.4),
                             blurRadius: 16,
@@ -560,11 +582,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Row(
                         children: [
                           Icon(
-                            booking.activeOrder!.status == 'driver_assigned'
-                                ? Icons.how_to_reg_rounded
-                                : (booking.activeOrder!.status == 'fare_proposed'
-                                    ? Icons.notifications_active_rounded
-                                    : Icons.navigation_rounded),
+                            booking.activeOrder!.status == 'completed'
+                                ? Icons.star_rate_rounded
+                                : (booking.activeOrder!.status == 'driver_assigned'
+                                    ? Icons.how_to_reg_rounded
+                                    : (booking.activeOrder!.status == 'fare_proposed'
+                                        ? Icons.notifications_active_rounded
+                                        : Icons.navigation_rounded)),
                             color: Colors.white,
                             size: 22,
                           ),
@@ -575,15 +599,17 @@ class _HomeScreenState extends State<HomeScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  booking.activeOrder!.status == 'driver_assigned'
-                                      ? (loc.isArabic
-                                          ? '🔔 كابتن متاح لرحلتك: ${booking.activeOrder!.driverName ?? "كابتن ميسان"}'
-                                          : '🔔 Driver assigned: ${booking.activeOrder!.driverName ?? "Captain"}')
-                                      : (booking.activeOrder!.status == 'fare_proposed'
+                                  booking.activeOrder!.status == 'completed'
+                                      ? (loc.isArabic ? '⭐ اكتملت رحلتك بنجاح! اضغط للتقييم والتفاصيل' : '⭐ Trip completed! Tap to rate captain')
+                                      : (booking.activeOrder!.status == 'driver_assigned'
                                           ? (loc.isArabic
-                                              ? '🔔 الكابتن يقترح أجرة (${(booking.activeOrder!.proposedFare ?? booking.activeOrder!.finalFare).toInt()} د.ع)'
-                                              : '🔔 Captain proposed fare (${(booking.activeOrder!.proposedFare ?? booking.activeOrder!.finalFare).toInt()} IQD)')
-                                          : '${loc.translate("activeTripNotification")}: ${booking.activeOrder!.getLocalizedStatus(loc.isArabic)}'),
+                                              ? '🔔 كابتن متاح لرحلتك: ${booking.activeOrder!.driverName ?? "كابتن ميسان"}'
+                                              : '🔔 Driver assigned: ${booking.activeOrder!.driverName ?? "Captain"}')
+                                          : (booking.activeOrder!.status == 'fare_proposed'
+                                              ? (loc.isArabic
+                                                  ? '🔔 الكابتن يقترح أجرة (${(booking.activeOrder!.proposedFare ?? booking.activeOrder!.finalFare).toInt()} د.ع)'
+                                                  : '🔔 Captain proposed fare (${(booking.activeOrder!.proposedFare ?? booking.activeOrder!.finalFare).toInt()} IQD)')
+                                              : '${loc.translate("activeTripNotification")}: ${booking.activeOrder!.getLocalizedStatus(loc.isArabic)}')),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,

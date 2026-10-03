@@ -17,6 +17,7 @@ import '../../core/theme/aurora_theme.dart';
 import '../../models/ride_order.dart';
 import '../home/maysan_map_widget.dart';
 import '../widgets/glass_card.dart';
+import '../widgets/in_app_chat_sheet.dart';
 import '../widgets/rating_dialog.dart';
 import '../widgets/user_avatar_widget.dart';
 
@@ -49,12 +50,15 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
 
   void _checkAutoShowRating(RideOrder order, bool isDriver) {
     if (order.status == 'completed' && !isDriver && !_hasAutoShownRating && order.driverId != null) {
-      _hasAutoShownRating = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          RatingDialog.show(context, order);
-        }
-      });
+      final booking = context.read<BookingProvider>();
+      if (!booking.isOrderRatingDismissed(order.id)) {
+        _hasAutoShownRating = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            RatingDialog.show(context, order);
+          }
+        });
+      }
     }
   }
 
@@ -315,15 +319,21 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
 
           // 🤖 SMART AUTOMATIC PROXIMITY TRIP STAGES (Geofence Automation):
           final pickupLoc = LatLng(order.pickupLat, order.pickupLng);
+          final dropoffLoc = LatLng(order.dropoffLat, order.dropoffLng);
           final distToPickupMeters = LocationService.calculateDistance(gps, pickupLoc) * 1000.0;
+          final distToDropoffMeters = LocationService.calculateDistance(gps, dropoffLoc) * 1000.0;
 
-          // Stage 1: Driver approaches pickup point (within <= 80 meters) -> Auto-switch to 'arriving'
-          if (order.status == 'accepted' && distToPickupMeters <= 80.0) {
+          // Stage 1: Driver approaches / reaches pickup point (within <= 75 meters) -> Auto-switch to 'arriving'
+          if ((order.status == 'accepted' || order.status == 'on_way') && distToPickupMeters <= 75.0) {
             await booking.updateOrderStatus(order.id, 'arriving');
           }
-          // Stage 2: Driver moves with customer towards dropoff (> 120 meters from pickup) -> Auto-switch to 'in_progress'
-          else if (order.status == 'arriving' && distToPickupMeters > 120.0) {
+          // Stage 2: Driver meets customer & moves towards destination (> 70 meters from pickup) -> Auto-switch to 'in_progress'
+          else if (order.status == 'arriving' && distToPickupMeters > 70.0) {
             await booking.updateOrderStatus(order.id, 'in_progress');
+          }
+          // Stage 3: Driver arrives at dropoff destination (within <= 70 meters) -> Auto-complete trip!
+          else if (order.status == 'in_progress' && distToDropoffMeters <= 70.0) {
+            await booking.updateOrderStatus(order.id, 'completed');
           }
 
           await booking.checkActiveOrder(user.id, true);
@@ -1007,79 +1017,114 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                   ],
 
                   // Driver Details (If accepted)
+                  // Driver/Customer Details (If accepted)
                   if (order.driverId != null) ...[
-                    Row(
-                      children: [
-                        const UserAvatarWidget(
-                          radius: 25,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                order.driverName ?? 'كابتن ميسان',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
-                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                ),
-                              ),
-                              Text(
-                                order.vehicleInfo ?? 'سيارة أجرة (صالون)',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isDark ? Colors.white70 : const Color(0xFF475569),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                    Builder(
+                      builder: (context) {
+                        final targetPhone = isDriver ? order.customerPhone : order.driverPhone;
+                        final targetName = isDriver ? (order.customerName ?? 'الزبون') : (order.driverName ?? 'كابتن ميسان');
+                        final targetSub = isDriver ? (order.customerPhone ?? 'عميل ميسان') : (order.vehicleInfo ?? 'سيارة أجرة (صالون)');
+                        final whatsappMsg = isDriver
+                            ? 'مرحباً أخي/أختي الكريم/ة، أنا كابتن ميسان بخصوص طلب الرحلة رقم #${order.orderNumber}'
+                            : 'مرحباً كابتن، أنا بخصوص رحلة كابتن ميسان رقم #${order.orderNumber}';
 
-                        // External Navigation Button (Google Maps / Waze)
-                        IconButton(
-                          tooltip: loc.isArabic ? 'فتح في Google Maps أو Waze' : 'Open in Google Maps / Waze',
-                          icon: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF0284C7).withValues(alpha: 0.15),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.4)),
+                        return Row(
+                          children: [
+                            const UserAvatarWidget(
+                              radius: 25,
                             ),
-                            child: const Icon(Icons.navigation_rounded, color: Color(0xFF0284C7), size: 18),
-                          ),
-                          onPressed: () => _openExternalNavigationSheet(context, order),
-                        ),
-                        const SizedBox(width: 4),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    targetName,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  Text(
+                                    targetSub,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isDark ? Colors.white70 : const Color(0xFF475569),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
 
-                        // WhatsApp Action
-                        IconButton(
-                          icon: Image.asset('assets/icon/whatsapp.png',
-                              width: 32, height: 32),
-                          onPressed: () {
-                            if (order.driverPhone != null) {
-                              WhatsAppService.openWhatsApp(
-                                phone: order.driverPhone!,
-                                message:
-                                    'مرحباً كابتن، أنا بخصوص رحلة كابتن ميسان رقم #${order.orderNumber}',
-                              );
-                            }
-                          },
-                        ),
-                        const SizedBox(width: 4),
+                            // In-App Chat Action
+                            IconButton(
+                              tooltip: loc.isArabic ? 'محادثة فورية مع $targetName' : 'In-App Chat',
+                              icon: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: AuroraTheme.primaryBlue.withValues(alpha: 0.15),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: AuroraTheme.primaryBlue.withValues(alpha: 0.4)),
+                                ),
+                                child: const Icon(Icons.chat_bubble_rounded, color: AuroraTheme.primaryBlue, size: 18),
+                              ),
+                              onPressed: () {
+                                InAppChatSheet.show(
+                                  context,
+                                  order: order,
+                                  currentUserId: auth.currentUser?.id ?? '',
+                                  currentUserName: auth.currentUser?.name ?? (isDriver ? 'الكابتن' : 'الزبون'),
+                                  isDriver: isDriver,
+                                );
+                              },
+                            ),
+                            const SizedBox(width: 2),
 
-                        // Call Action
-                        IconButton(
-                          icon: const Icon(Icons.call_rounded,
-                              color: AuroraTheme.accentEmerald, size: 28),
-                          onPressed: () {
-                            if (order.driverPhone != null) {
-                              WhatsAppService.makePhoneCall(order.driverPhone!);
-                            }
-                          },
-                        ),
-                      ],
+                            // External Navigation Button (Google Maps / Waze)
+                            IconButton(
+                              tooltip: loc.isArabic ? 'فتح في Google Maps أو Waze' : 'Open in Google Maps / Waze',
+                              icon: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0284C7).withValues(alpha: 0.15),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.4)),
+                                ),
+                                child: const Icon(Icons.navigation_rounded, color: Color(0xFF0284C7), size: 18),
+                              ),
+                              onPressed: () => _openExternalNavigationSheet(context, order),
+                            ),
+                            const SizedBox(width: 2),
+
+                            // WhatsApp Action
+                            IconButton(
+                              icon: Image.asset('assets/icon/whatsapp.png',
+                                  width: 30, height: 30),
+                              onPressed: () {
+                                if (targetPhone != null && targetPhone.isNotEmpty) {
+                                  WhatsAppService.openWhatsApp(
+                                    phone: targetPhone,
+                                    message: whatsappMsg,
+                                  );
+                                }
+                              },
+                            ),
+                            const SizedBox(width: 2),
+
+                            // Call Action
+                            IconButton(
+                              icon: const Icon(Icons.call_rounded,
+                                  color: AuroraTheme.accentEmerald, size: 26),
+                              onPressed: () {
+                                if (targetPhone != null && targetPhone.isNotEmpty) {
+                                  WhatsAppService.makePhoneCall(targetPhone);
+                                }
+                              },
+                            ),
+                          ],
+                        );
+                      },
                     ),
                     const SizedBox(height: 12),
                   ] else ...[
@@ -1923,7 +1968,11 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                         isDriver ? 'العودة للوحة الكابتن' : 'العودة للشاشة الرئيسية',
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () {
+                        final booking = context.read<BookingProvider>();
+                        booking.dismissRatingForOrder(order.id);
+                        Navigator.pop(context);
+                      },
                     ),
                   ),
                 ],

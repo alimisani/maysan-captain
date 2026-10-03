@@ -135,6 +135,12 @@ class BookingProvider extends ChangeNotifier {
   int _maxDestinations = 5;
   bool _isMultiDestinationsEnabled = true;
 
+  bool _isExtraStopMeterPricingEnabled = false;
+  double _extraStopBaseFare = 1000.0;
+  double _extraStopPer1000m = 500.0;
+
+  final Set<String> _dismissedRatingOrderIds = {};
+
   bool _isTieredPricingEnabled = true;
   double _tier0To1000 = 2000.0;
   double _tier1001To1500 = 2250.0;
@@ -144,7 +150,17 @@ class BookingProvider extends ChangeNotifier {
 
   int get maxDestinations => _maxDestinations;
   bool get isMultiDestinationsEnabled => _isMultiDestinationsEnabled;
+  bool get isExtraStopMeterPricingEnabled => _isExtraStopMeterPricingEnabled;
+  double get extraStopBaseFare => _extraStopBaseFare;
+  double get extraStopPer1000m => _extraStopPer1000m;
   bool get isTieredPricingEnabled => _isTieredPricingEnabled;
+
+  void dismissRatingForOrder(String orderId) {
+    _dismissedRatingOrderIds.add(orderId);
+    notifyListeners();
+  }
+
+  bool isOrderRatingDismissed(String orderId) => _dismissedRatingOrderIds.contains(orderId);
 
   void setMultiDestinationSettings({bool? isEnabled, int? maxDest}) {
     if (isEnabled != null) _isMultiDestinationsEnabled = isEnabled;
@@ -165,6 +181,9 @@ class BookingProvider extends ChangeNotifier {
       _tier1501To2000 = (pricing['tier_1501_2000'] as num?)?.toDouble() ?? 2500.0;
       _tier2001To2500 = (pricing['tier_2001_2500'] as num?)?.toDouble() ?? 2750.0;
       _tier2501To3000 = (pricing['tier_2501_3000'] as num?)?.toDouble() ?? 3000.0;
+      _isExtraStopMeterPricingEnabled = pricing['is_extra_stop_meter_pricing_enabled'] as bool? ?? false;
+      _extraStopBaseFare = (pricing['extra_stop_base_fare'] as num?)?.toDouble() ?? 1000.0;
+      _extraStopPer1000m = (pricing['extra_stop_per_1000m'] as num?)?.toDouble() ?? 500.0;
     } catch (_) {}
 
     try {
@@ -880,23 +899,29 @@ class BookingProvider extends ChangeNotifier {
           calculated = vItem.tier2501To3000;
         }
       } else {
-        // Distance > 3000m or multi-destination:
-        // Base Fare (الأجرة الأساسية) + Long Distance Surcharge for 5000m-10000m+
-        double surcharge = 0.0;
-        if (distanceMeters > 5000 && _extraDestinations.isEmpty) {
-          if (distanceMeters <= 6000) {
-            surcharge = vItem.surcharge5001To6000;
-          } else if (distanceMeters <= 7000) {
-            surcharge = vItem.surcharge6001To7000;
-          } else if (distanceMeters <= 8000) {
-            surcharge = vItem.surcharge7001To8000;
-          } else if (distanceMeters <= 9000) {
-            surcharge = vItem.surcharge8001To9000;
-          } else {
-            surcharge = vItem.surcharge9001To10000;
+        // Multi-destination or distance > 3000m:
+        if (_extraDestinations.isNotEmpty && _isExtraStopMeterPricingEnabled) {
+          // Custom pricing for multi-destination / stops by distance (meters):
+          final extraDistanceKms = distanceMeters / 1000.0;
+          calculated = base + (_extraDestinations.length * _extraStopBaseFare) + (extraDistanceKms * _extraStopPer1000m);
+        } else {
+          // Base Fare (الأجرة الأساسية) + Long Distance Surcharge for 5000m-10000m+
+          double surcharge = 0.0;
+          if (distanceMeters > 5000 && _extraDestinations.isEmpty) {
+            if (distanceMeters <= 6000) {
+              surcharge = vItem.surcharge5001To6000;
+            } else if (distanceMeters <= 7000) {
+              surcharge = vItem.surcharge6001To7000;
+            } else if (distanceMeters <= 8000) {
+              surcharge = vItem.surcharge7001To8000;
+            } else if (distanceMeters <= 9000) {
+              surcharge = vItem.surcharge8001To9000;
+            } else {
+              surcharge = vItem.surcharge9001To10000;
+            }
           }
+          calculated = (base * totalLegs) + surcharge;
         }
-        calculated = (base * totalLegs) + surcharge;
       }
 
       // Check Peak Time Windows (أوقات الذروة المتعددة) using local 24h time
@@ -929,7 +954,12 @@ class BookingProvider extends ChangeNotifier {
         }
       } else {
         // Exceeds tiers (> 3000m) or multi-destination:
-        calculated = base * totalLegs;
+        if (_extraDestinations.isNotEmpty && _isExtraStopMeterPricingEnabled) {
+          final extraDistanceKms = distanceMeters / 1000.0;
+          calculated = base + (_extraDestinations.length * _extraStopBaseFare) + (extraDistanceKms * _extraStopPer1000m);
+        } else {
+          calculated = base * totalLegs;
+        }
       }
     }
 

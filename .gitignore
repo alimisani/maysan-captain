@@ -47,8 +47,11 @@ app.*.map.json
 # Binaries and Keystore
 *.aab
 *.apk
+*.ipa
+*.zip
 *.jks
 *.keystore
 key.properties
 .agents/
+تطبيقات/
 
